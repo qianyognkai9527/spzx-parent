@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joker.spzx.manager.mapper.UserCostMapper">
+
+    <select id="selectPageList" resultType="com.joker.spzx.model.vo.product.UserCostPageVo">
+        select
+        uc.id,
+        uc.user_id userId,
+        uc.pay_type payType,
+        uc.pay_usage_id payUsageId,
+        uc.amount,
+        uc.bill_type billType,
+        uc.pay_time payTime,
+        uc.create_time createTime,
+        uc.remark,
+        su.name
+        from user_cost uc
+        left join sys_user su on su.id = uc.user_id
+        where 1=1
+        <if test="dto.payType != null ">
+            and uc.pay_type = #{dto.payType}
+        </if>
+        <if test="dto.payUsageId != null">
+            and uc.pay_usage_id = #{dto.payUsageId}
+        </if>
+        <if test="dto.billType != null">
+            and uc.bill_type = #{dto.billType}
+        </if>
+    </select>
+</mapper>

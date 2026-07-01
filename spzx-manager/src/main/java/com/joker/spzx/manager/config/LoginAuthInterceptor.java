@@ -9,6 +9,7 @@ import com.joker.spzx.utils.AuthContextUtil;
 import com.joker.spzx.utils.Constant;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -19,6 +20,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Component
 public class LoginAuthInterceptor implements HandlerInterceptor {
 
@@ -33,20 +35,20 @@ public class LoginAuthInterceptor implements HandlerInterceptor {
             return true;
         }
         String requestURI = request.getRequestURI();
-        if (Constant.whiteList.contains(requestURI)) {
+        if (Constant.isWhitePath(requestURI)) {
             return true;
         }
 
         String token = request.getHeader("token");
         if (StringUtils.isBlank(token)) {
             responseNoLoginInfo(response);
-            System.out.println("用户未登录！");
+            log.warn("用户未登录，缺少token");
             return false;
         }
         String sysUserStr = redisTemplate.opsForValue().get("user:login:" + token);
         if (StringUtils.isBlank(sysUserStr)) {
             responseNoLoginInfo(response);
-            System.out.println("用户未登录！");
+            log.warn("用户未登录，token无效");
             return false;
         }
         redisTemplate.expire("user:login:" + token, 30, TimeUnit.MINUTES);
@@ -62,7 +64,7 @@ public class LoginAuthInterceptor implements HandlerInterceptor {
         Result<Object> result = Result.build(null, ResultCodeEnum.LOGIN_AUTH);
         PrintWriter writer = null;
         response.setCharacterEncoding("UTF-8");
-        response.setContentType("text/html; charset=utf-8");
+        response.setContentType("application/json; charset=utf-8");
         try {
             writer = response.getWriter();
             writer.print(JSON.toJSONString(result));

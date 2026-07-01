@@ -4,7 +4,7 @@ import com.joker.spzx.model.entity.system.SysUser;
 
 public class AuthContextUtil {
 
-    public static final ThreadLocal<SysUser> threadLocal = new ThreadLocal<>();
+    private static final ThreadLocal<SysUser> threadLocal = new ThreadLocal<>();
 
     public static void setUser(SysUser user) {
         threadLocal.set(user);

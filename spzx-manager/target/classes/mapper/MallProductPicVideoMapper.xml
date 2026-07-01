@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joker.spzx.manager.mapper.MallProductPicVideoMapper">
+
+    <select id="selectPicVideoListByOrderId" resultType="com.joker.spzx.model.entity.oper.MallProductPicVideo">
+        SELECT
+            mpp.*
+        FROM
+            mall_product_picvideo mpp
+                INNER JOIN mall_order_resource mor ON mor.file_id = mpp.id
+        WHERE
+            mor.order_id = #{orderId}
+    </select>
+</mapper>

@@ -2,9 +2,9 @@ package com.joker.spzx.common.exception;
 
 
 import com.joker.spzx.model.vo.common.ResultCodeEnum;
-import lombok.Data;
+import lombok.Getter;
 
-@Data
+@Getter
 public class ServiceException extends RuntimeException {
 
     private Integer code ;          // 错误状态码

@@ -40,7 +40,7 @@ public class SysRoleController {
 
     @Operation(summary = "所有角色")
     @GetMapping("/roleList/{userId}")
-    public Result<Map<SysRole, Object>> findByPage(@PathVariable Long userId) {
+    public Result<Map<String, Object>> findByPage(@PathVariable Long userId) {
         Map<String, Object> pageInfo = sysRoleService.getList(userId);
         return Result.build(pageInfo);
     }

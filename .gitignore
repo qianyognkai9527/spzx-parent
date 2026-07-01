@@ -22,3 +22,17 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+native_pid*
+java_pid*
+jstack_pid*
+jmap_pid*
+jhat_pid*
+jinfo_pid*
+jps_pid*
+jstat_pid*
+jconsole_pid*
+jvisualvm_pid*
+.vscode/
+.idea/
+/**/target/
+.qoder/*8

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joker.spzx.manager.mapper.MallAddOrderMapper">
+
+    <select id="selectAddOrderPage" resultType="com.joker.spzx.model.dto.mall.MallAddOrderPageVo">
+
+        select
+        mao.id
+        , mao.brush_person_id brushPersonId
+        , mao.tb_order_id tbOrderId
+        , mao.order_time orderTime
+        , mao.order_state orderState
+        , mao.seed_money seedMoney
+        , mao.hire_money hireMoney
+        , mao.way_bill_money wayBillMoney
+        , mao.way_bill_code wayBillCode
+        , mao.way_bill_name wayBillName
+        , mo.nick_name brushPersonName
+        , mp.title  productName
+        , mp.pic_url  productPicUrl
+        , mp.code productId
+
+        from mall_add_order mao
+        left join mall_oper mo on mao.brush_person_id = mo.id
+        left join mall_product mp on mao.product_id = mp.code
+
+        where 1=1
+        <if test="mallAddOrderPageDto.brushId != null">
+            and brush_person_id = #{mallAddOrderPageDto.brushId}
+        </if>
+        <if test="mallAddOrderPageDto.tbOrderId != null">
+            and tb_order_id = #{mallAddOrderPageDto.tbOrderId}
+        </if>
+        <if test="mallAddOrderPageDto.orderstate != null">
+            and order_state = #{mallAddOrderPageDto.orderstate}
+        </if>
+        <if test="mallAddOrderPageDto.createTimeStart != null">
+            and create_time >= #{mallAddOrderPageDto.createTimeStart}
+        </if>
+        <if test="mallAddOrderPageDto.createTimeEnd != null">
+            and create_time &lt;= #{mallAddOrderPageDto.createTimeEnd}
+        </if>
+        order by    mao.order_time desc, mao.order_state asc
+    </select>
+</mapper>

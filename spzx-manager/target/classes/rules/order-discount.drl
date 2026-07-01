@@ -1,0 +1,19 @@
+package rules
+
+import com.joker.spzx.manager.drools.model.OrderDiscountFact;
+
+rule "VIP 满100享8折"
+    salience 10
+when
+    $fact : OrderDiscountFact(vipDiscountEligible)
+then
+    $fact.applyVipDiscount();
+end
+
+rule "普通会员满200享95折"
+    salience 5
+when
+    $fact : OrderDiscountFact(normalDiscountEligible)
+then
+    $fact.applyNormalDiscount();
+end

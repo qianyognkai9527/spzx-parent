@@ -1,12 +1,14 @@
 package com.joker.spzx.utils;
 
-import com.google.common.collect.Lists;
+import org.springframework.util.AntPathMatcher;
 
 import java.util.List;
 
 public class Constant {
 
-    public static final List<String> whiteList= Lists.newArrayList(
+    private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
+
+    public static final List<String> whiteList = List.of(
             "/admin/system/index/login",
             "/admin/system/index/genVarifyCode",
             "/admin/system/fileUpload",
@@ -20,7 +22,18 @@ public class Constant {
             "/webjars/**",
             "/swagger-resources/**",
             "/v3/**",
-            "/webjars/**",
             "/api-docs/**",
             "/doc.html");
+
+    /**
+     * 判断请求路径是否在白名单中（支持 Ant 风格通配符匹配）
+     */
+    public static boolean isWhitePath(String requestUri) {
+        for (String pattern : whiteList) {
+            if (PATH_MATCHER.match(pattern, requestUri)) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

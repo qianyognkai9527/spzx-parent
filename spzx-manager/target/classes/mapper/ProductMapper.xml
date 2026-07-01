@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joker.spzx.manager.mapper.ProductMapper">
+
+    <select id="getById" resultType="com.joker.spzx.model.entity.product.Product">
+        select
+            p.id, p.name , p.brand_id , p.category1_id , p.category2_id , p.category3_id, p.unit_name,
+            p.slider_urls , p.spec_value , p.status , p.audit_status , p.audit_message , p.create_time , p.update_time , p.is_deleted ,
+            b.name brandName , c1.name category1Name , c2.name category2Name , c2.name category3Name
+        from product p
+                 LEFT JOIN brand b on b.id = p.brand_id
+                 LEFT JOIN category c1 on c1.id = p.category1_id
+                 LEFT JOIN category c2 on c2.id = p.category2_id
+                 LEFT JOIN category c3 on c3.id = p.category3_id
+        where
+            p.id = #{id}
+    </select>
+    <select id="pageList" resultType="com.joker.spzx.model.vo.product.ProductPageVo">
+        select
+            p.id,
+            p.source_product_name  sourceProductName,
+            p.product_factory_id productFactoryId,
+            mpf.factory_name productFactoryName,
+            p.source_product_code sourceProductCode,
+            p.source_product_url sourceProductUrl,
+            p.head_img_url headImgUrl,
+            p.logistics_name logisticsName,
+            p.freight_cost freightCost,
+            p.dispatch_time dispatchTime,
+            p.steady_status steadyStatus
+        from product p
+        LEFT JOIN mall_product_factory mpf on mpf.id = p.product_factory_id
+        where p.is_deleted=0
+        <if test="productDto.sourceProductName != null and productDto.sourceProductName != ''">
+            and p.source_product_name like concat('%',#{productDto.sourceProductName},'%')
+        </if>
+        <if test="productDto.sourceProductCode != null and productDto.sourceProductCode != ''">
+            and p.source_product_code = #{productDto.sourceProductCode}
+        </if>
+        <if test="productDto.productFactoryId != null">
+            and p.product_factory_id = #{productDto.productFactoryId}
+        </if>
+        <if test="productDto.steadyStatus != null">
+            and p.steady_status = #{productDto.steadyStatus}
+        </if>
+            order by p.create_time desc
+    </select>
+    <select id="getDetail" resultType="com.joker.spzx.model.vo.product.ProductPageVo">
+        select
+            p.id,
+            p.source_product_name  sourceProductName,
+            p.product_factory_id productFactoryId,
+            mpf.factory_name productFactoryName,
+            p.source_product_code sourceProductCode,
+            p.source_product_url sourceProductUrl,
+            p.head_img_url headImgUrl,
+            p.logistics_name logisticsName,
+            p.freight_cost freightCost,
+            p.dispatch_time dispatchTime,
+            p.steady_status steadyStatus
+        from product p
+            LEFT JOIN mall_product_factory mpf on mpf.id = p.product_factory_id
+        where p.id = #{id}
+    </select>
+</mapper>

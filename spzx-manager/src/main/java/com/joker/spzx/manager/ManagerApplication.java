@@ -4,7 +4,6 @@ import com.joker.spzx.common.annotation.EnableLogAspect;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-
 @EnableLogAspect
 @SpringBootApplication
 public class ManagerApplication {
@@ -13,7 +12,3 @@ public class ManagerApplication {
         SpringApplication.run(ManagerApplication.class, args);
     }
 }
-
-
-
-

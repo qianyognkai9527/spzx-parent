@@ -31,11 +31,10 @@ public class LogAspect {            // 环绕通知切面类定义
             // 执行业务方法
             LogUtil.afterHandlLog(sysLog , proceed , sysOperLog , 0 , null) ;
             // 构建响应结果参数
-        } catch (Throwable e) {                                 // 代码执行进入到catch中，
-            // 业务方法执行产生异常
-            e.printStackTrace();                                // 打印异常信息
-            LogUtil.afterHandlLog(sysLog , proceed , sysOperLog , 1 , e.getMessage()) ;
-            throw new RuntimeException();
+        } catch (Throwable e) {
+            log.error("操作日志记录异常", e);
+            LogUtil.afterHandlLog(sysLog, proceed, sysOperLog, 1, e.getMessage());
+            throw new RuntimeException(e);
         }
 
         // 保存日志数据
