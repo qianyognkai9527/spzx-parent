@@ -1,0 +1,7 @@
+.git
+.idea
+.vscode
+.qoder
+.DS_Store
+**/target/*
+!spzx-manager/target/spzx-manager.jar

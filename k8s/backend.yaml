@@ -1,0 +1,81 @@
+# ============================================================
+# 后端应用 spzx-manager
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spzx-manager
+  labels:
+    app: spzx-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spzx-manager
+  template:
+    metadata:
+      labels:
+        app: spzx-manager
+    spec:
+      containers:
+        - name: spzx-manager
+          image: spzx-manager:latest
+          imagePullPolicy: IfNotPresent   # 镜像在本地，不要去远程拉
+          ports:
+            - containerPort: 8502
+          # ---- 用环境变量覆盖 application-dev.yml 里的配置 ----
+          # Spring Boot 约定：SPRING_DATASOURCE_URL 覆盖 spring.datasource.url
+          # host.docker.internal 是 Docker Desktop 提供的特殊域名，指向你的 Mac 宿主机
+          # redis 是上面那个 Service 的名字，k8s 内部 DNS 会解析到 Redis Pod
+          env:
+            - name: SERVER_PORT
+              value: "8502"
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:mysql://host.docker.internal:3306/db_spzx?characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true
+            - name: SPRING_DATASOURCE_USERNAME
+              value: root
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: "123456"
+            - name: SPRING_DATA_REDIS_HOST
+              value: host.docker.internal
+            - name: SPRING_DATA_REDIS_PORT
+              value: "6379"
+            # Drools 初始化比较吃内存，显式给 JVM 堆
+            - name: JAVA_OPTS
+              value: "-Xms256m -Xmx768m"
+          resources:
+            requests: { cpu: 100m, memory: 512Mi }
+            limits:   { cpu: 2000m, memory: 1024Mi }
+          # 启动探针：Spring Boot + Drools 启动很慢，给 120 秒宽限
+          startupProbe:
+            httpGet:
+              path: /
+              port: 8502
+            failureThreshold: 60
+            periodSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8502
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8502
+            periodSeconds: 30
+            failureThreshold: 3
+---
+# Service：NodePort 30851，本机浏览器访问 http://localhost:30851
+apiVersion: v1
+kind: Service
+metadata:
+  name: spzx-manager
+spec:
+  type: NodePort
+  selector:
+    app: spzx-manager
+  ports:
+    - port: 8502
+      targetPort: 8502
+      nodePort: 30852
