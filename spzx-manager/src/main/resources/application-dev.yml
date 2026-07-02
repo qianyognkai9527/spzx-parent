@@ -44,7 +44,7 @@ spring:
   main:
     lazy-initialization: false
     allow-bean-definition-overriding: true
-#  password: 1234
+
 # Drools 规则引擎
 drools:
   enabled: true
