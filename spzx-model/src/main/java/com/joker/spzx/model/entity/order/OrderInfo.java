@@ -110,4 +110,8 @@ public class OrderInfo extends BaseEntity {
     @Schema(description = "订单项列表")
     private List<OrderItem> orderItemList;
 
+    @Schema(description = "平台类型：1-淘宝, 2-抖音")
+    @TableField("platform_type")
+    private Integer platformType;
+
 }

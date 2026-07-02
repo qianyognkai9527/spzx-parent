@@ -28,8 +28,10 @@ public class MallProductFactoryServiceImpl extends ServiceImpl<MallProductFactor
     @Override
     public IPage<MallProductFactory> pageList(ProductFactoryPageParam pageParam) {
         IPage<MallProductFactory> objectPage = pageParam.getPage();
-        LambdaQueryWrapper<MallProductFactory> like = lambdaQuery().getWrapper().like(StringUtils.isNotBlank(pageParam.getFactoryName()), MallProductFactory::getFactoryName, pageParam.getFactoryName());
-        page(objectPage, like);
+        LambdaQueryWrapper<MallProductFactory> wrapper = lambdaQuery().getWrapper()
+                .eq(pageParam.getPlatformType() != null, MallProductFactory::getPlatformType, pageParam.getPlatformType())
+                .like(StringUtils.isNotBlank(pageParam.getFactoryName()), MallProductFactory::getFactoryName, pageParam.getFactoryName());
+        page(objectPage, wrapper);
         return objectPage;
     }
 
@@ -48,8 +50,9 @@ public class MallProductFactoryServiceImpl extends ServiceImpl<MallProductFactor
     }
 
     @Override
-    public List<MallProductFactory> getAllProductFactory() {
+    public List<MallProductFactory> getAllProductFactory(Integer platformType) {
         LambdaQueryWrapper<MallProductFactory> queryWrapper = lambdaQuery().getWrapper()
+                .eq(MallProductFactory::getPlatformType, platformType)
                 .orderByDesc(MallProductFactory::getDeployCount);
         return list(queryWrapper);
     }

@@ -22,6 +22,6 @@ public interface MallProductTitleService extends IService<MallProductTitle> {
 
     void updateData(MallProductTitle mallProductTitle);
 
-    List<MallProductTitle> getList(Long productId);
+    List<MallProductTitle> getList(Long productId, Integer platformType);
 
 }

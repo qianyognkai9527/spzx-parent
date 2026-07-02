@@ -24,8 +24,9 @@ public class MallProductTitleController {
     private MallProductTitleService mallProductTitleService;
 
     @GetMapping("/list/{productId}")
-    public Result<List<MallProductTitle>> pageList(@PathVariable Long productId) {
-        List<MallProductTitle> page = mallProductTitleService.getList(productId);
+    public Result<List<MallProductTitle>> pageList(@PathVariable Long productId,
+                                                    @RequestParam Integer platformType) {
+        List<MallProductTitle> page = mallProductTitleService.getList(productId, platformType);
         return Result.build(page);
     }
 

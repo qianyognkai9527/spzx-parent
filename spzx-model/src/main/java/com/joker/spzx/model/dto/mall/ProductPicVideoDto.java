@@ -16,6 +16,8 @@ public class ProductPicVideoDto {
 
     private String takeDate;
 
+    private Integer platformType;
+
     @NotNull
     @Size(min = 1)
     private List<PicVideoSimplerDto> picVideoSimplerDtoList;

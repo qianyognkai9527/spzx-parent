@@ -13,4 +13,6 @@ public class BrushPersonDto {
     private LocalDateTime createTime;
     private LocalDateTime endTime;
 
+    private Integer platformType;
+
 }

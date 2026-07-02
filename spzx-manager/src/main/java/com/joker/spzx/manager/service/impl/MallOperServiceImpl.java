@@ -29,7 +29,9 @@ public class MallOperServiceImpl extends ServiceImpl<MallOperMapper, MallOper> i
     @Override
     public IPage<MallOper> getPage(Integer pageNum, Integer pageSize, BrushPersonDto brushPersonDto) {
         IPage<MallOper> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<MallOper> eq = lambdaQuery().getWrapper().eq(MallOper::getType, brushPersonDto.getType());
+        LambdaQueryWrapper<MallOper> eq = lambdaQuery().getWrapper()
+                .eq(brushPersonDto.getPlatformType() != null, MallOper::getPlatformType, brushPersonDto.getPlatformType())
+                .eq(MallOper::getType, brushPersonDto.getType());
         page(page, eq);
         return page;
     }
@@ -49,8 +51,10 @@ public class MallOperServiceImpl extends ServiceImpl<MallOperMapper, MallOper> i
     }
 
     @Override
-    public List<MallOper> getAll(Integer type) {
-        LambdaQueryWrapper<MallOper> eq = lambdaQuery().getWrapper().eq(Objects.nonNull(type), MallOper::getType, type);
+    public List<MallOper> getAll(Integer type, Integer platformType) {
+        LambdaQueryWrapper<MallOper> eq = lambdaQuery().getWrapper()
+                .eq(MallOper::getPlatformType, platformType)
+                .eq(Objects.nonNull(type), MallOper::getType, type);
         return list(eq);
     }
 }

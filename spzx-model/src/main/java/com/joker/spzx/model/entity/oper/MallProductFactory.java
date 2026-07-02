@@ -63,5 +63,9 @@ public class MallProductFactory extends Model<MallProductFactory> {
     @TableField("deploy_count")
     private Integer deployCount;
 
+    @Schema(description = "平台类型：1-淘宝, 2-抖音")
+    @TableField("platform_type")
+    private Integer platformType;
+
 
 }

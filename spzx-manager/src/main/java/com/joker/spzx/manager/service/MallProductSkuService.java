@@ -15,7 +15,7 @@ import java.util.List;
  */
 public interface MallProductSkuService extends IService<MallProductSku> {
 
-    List<MallProductSku> getList(Long productId);
+    List<MallProductSku> getList(Long productId, Integer platformType);
 
     void saveSku(MallProductSku sku);
 }

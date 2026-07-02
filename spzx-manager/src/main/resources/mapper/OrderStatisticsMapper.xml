@@ -6,6 +6,9 @@
         select *
         from order_statistics
         <where>
+            <if test="platformType != null">
+                and platform_type = #{platformType}
+            </if>
             <if test="createTimeBegin != null and createTimeBegin != ''">
                 and order_date >= #{createTimeBegin}
             </if>

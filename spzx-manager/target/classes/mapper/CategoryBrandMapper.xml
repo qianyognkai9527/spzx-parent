@@ -11,6 +11,9 @@
         left join category c on c.id = cb.category_id
         left join brand b  on b.id = cb.brand_id
         <where>
+            <if test="categoryBrandDto.platformType != null">
+                and cb.platform_type = #{categoryBrandDto.platformType}
+            </if>
             <if test="categoryBrandDto.brandId != null and categoryBrandDto.brandId != ''">
                 and cb.brand_id = #{categoryBrandDto.brandId}
             </if>
@@ -26,7 +29,9 @@
             b.*
         from category_brand cb
         left join brand b  on b.id = cb.brand_id
-        where cb.category_id = #{categoryId} and cb.is_deleted = 0
+        where cb.category_id = #{categoryId} 
+            and cb.platform_type = #{platformType}
+            and cb.is_deleted = 0
         order by cb.id desc
     </select>
 </mapper>

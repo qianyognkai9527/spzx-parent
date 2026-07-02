@@ -7,4 +7,5 @@ import lombok.Data;
 public class ProductFactoryPageParam extends PageParam {
 
     private String factoryName;
+    private Integer platformType;
 }

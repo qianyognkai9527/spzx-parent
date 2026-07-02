@@ -29,8 +29,9 @@ public class MallProductController {
 
     @Operation(summary = "分页查询")
     @GetMapping("/pageList/{pageNum}/{pageSize}")
-    public Result<IPage<MallProduct>> page(@PathVariable Integer pageNum, @PathVariable Integer pageSize) {
-        IPage<MallProduct> page = mallProductService.pageList(pageNum, pageSize);
+    public Result<IPage<MallProduct>> page(@PathVariable Integer pageNum, @PathVariable Integer pageSize,
+                                           @RequestParam Integer platformType) {
+        IPage<MallProduct> page = mallProductService.pageList(pageNum, pageSize, platformType);
         return Result.build(page);
     }
 

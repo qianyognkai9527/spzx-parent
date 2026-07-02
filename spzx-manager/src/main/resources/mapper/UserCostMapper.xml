@@ -17,6 +17,9 @@
         from user_cost uc
         left join sys_user su on su.id = uc.user_id
         where 1=1
+        <if test="dto.platformType != null">
+            and uc.platform_type = #{dto.platformType}
+        </if>
         <if test="dto.payType != null ">
             and uc.pay_type = #{dto.payType}
         </if>

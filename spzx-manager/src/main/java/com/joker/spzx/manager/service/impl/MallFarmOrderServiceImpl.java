@@ -78,7 +78,9 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
 
 
         IPage<MallFarmOrder> page = new Page<>(farmOrderPageDto.getPageNum(), farmOrderPageDto.getPageSize());
-        LambdaQueryWrapper<MallFarmOrder> eq = lambdaQuery().getWrapper().eq(MallFarmOrder::getProductId, farmOrderPageDto.getProductId())
+        LambdaQueryWrapper<MallFarmOrder> eq = lambdaQuery().getWrapper()
+                .eq(farmOrderPageDto.getPlatformType() != null, MallFarmOrder::getPlatformType, farmOrderPageDto.getPlatformType())
+                .eq(MallFarmOrder::getProductId, farmOrderPageDto.getProductId())
                 .eq(Objects.nonNull(farmOrderPageDto.getStatus()), MallFarmOrder::getStatus, farmOrderPageDto.getStatus());
         page(page, eq);
         return page;

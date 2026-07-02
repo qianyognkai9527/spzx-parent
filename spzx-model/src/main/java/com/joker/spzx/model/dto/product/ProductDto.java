@@ -20,4 +20,7 @@ public class ProductDto extends PageParam {
     @Schema(description = "三级分类id")
     private Integer steadyStatus;
 
+    @Schema(description = "平台类型：1-淘宝, 2-抖音")
+    private Integer platformType;
+
 }

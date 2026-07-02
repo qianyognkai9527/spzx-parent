@@ -17,5 +17,5 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface OrderInfoMapper extends BaseMapper<OrderInfo> {
 
-    OrderStatistics selectOrderStatistics(@Param("createTime") String createTime);
+    OrderStatistics selectOrderStatistics(@Param("createTime") String createTime, @Param("platformType") Integer platformType);
 }

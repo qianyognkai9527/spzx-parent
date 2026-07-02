@@ -1,5 +1,6 @@
 package com.joker.spzx.manager.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -23,9 +24,11 @@ import java.time.LocalDateTime;
 public class MallProductLinkServiceImpl extends ServiceImpl<MallProductLinkMapper, MallProductLink> implements MallProductLinkService {
 
     @Override
-    public IPage<MallProductLink> pageList(Integer pageNum, Integer pageSize) {
+    public IPage<MallProductLink> pageList(Integer pageNum, Integer pageSize, Integer platformType) {
         IPage<MallProductLink> objectPage = new Page<>(pageNum, pageSize);
-        page(objectPage);
+        LambdaQueryWrapper<MallProductLink> wrapper = new LambdaQueryWrapper<MallProductLink>()
+                .eq(MallProductLink::getPlatformType, platformType);
+        page(objectPage, wrapper);
         return objectPage;
     }
 

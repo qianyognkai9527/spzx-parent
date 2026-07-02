@@ -20,5 +20,5 @@ public interface CategoryBrandService extends IService<CategoryBrand> {
 
     IPage<CategoryBrand> findByPage(Integer page, Integer limit, CategoryBrandDto categoryBrandDto);
 
-    List<Brand> findBrandByCategoryId(Long categoryId);
+    List<Brand> findBrandByCategoryId(Long categoryId, Integer platformType);
 }

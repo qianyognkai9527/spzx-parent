@@ -96,4 +96,8 @@ public class MallFarmOrder extends Model<MallFarmOrder> {
     @Schema(description = "评价状态")
     @TableField("comment_status")
     private Integer commentStatus;
+
+    @Schema(description = "平台类型：1-淘宝, 2-抖音")
+    @TableField("platform_type")
+    private Integer platformType;
 }

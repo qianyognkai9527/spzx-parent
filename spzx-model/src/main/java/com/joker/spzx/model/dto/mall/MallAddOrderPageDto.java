@@ -16,5 +16,7 @@ public class MallAddOrderPageDto extends PageParam {
 
     private Date createTimeEnd;
 
+    private Integer platformType;
+
 
 }

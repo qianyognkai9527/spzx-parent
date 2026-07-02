@@ -16,7 +16,7 @@ import java.util.List;
  */
 public interface BrandService extends IService<Brand> {
 
-    IPage<Brand> findByPage(Integer page, Integer limit);
+    IPage<Brand> findByPage(Integer page, Integer limit, Integer platformType);
 
-    List<Brand> findAll();
+    List<Brand> findAll(Integer platformType);
 }

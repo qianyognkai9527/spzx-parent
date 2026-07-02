@@ -24,10 +24,12 @@ import java.util.stream.Collectors;
 public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> implements CategoryService {
 
     @Override
-    public List<Category> findByParentId(Long parentId) {
-        LambdaQueryWrapper<Category> eq = lambdaQuery().getWrapper().eq(Category::getParentId, parentId)
+    public List<Category> findByParentId(Long parentId, Integer platformType) {
+        LambdaQueryWrapper<Category> wrapper = new LambdaQueryWrapper<Category>()
+                .eq(Category::getPlatformType, platformType)
+                .eq(Category::getParentId, parentId)
                 .eq(Category::getIsDeleted, 0);
-        List<Category> list = list(eq);
+        List<Category> list = list(wrapper);
         if (CollectionUtils.isEmpty(list)) {
             return list;
         }

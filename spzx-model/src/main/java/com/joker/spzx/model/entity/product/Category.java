@@ -36,6 +36,10 @@ public class Category extends BaseEntity {
     @TableField(exist = false)
     private Boolean hasChildren;
 
+    @Schema(description = "平台类型：1-淘宝, 2-抖音")
+    @TableField("platform_type")
+    private Integer platformType;
+
     @Schema(description = "子节点List集合")
     @TableField(exist = false)
     private List<Category> children;

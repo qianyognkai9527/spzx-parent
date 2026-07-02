@@ -16,7 +16,7 @@ import java.util.List;
  */
 public interface ProductSpecService extends IService<ProductSpec> {
 
-    IPage<ProductSpec> findByPage(Integer page, Integer limit);
+    IPage<ProductSpec> findByPage(Integer page, Integer limit, Integer platformType);
 
     void saveData(ProductSpec productSpec);
 
@@ -24,6 +24,6 @@ public interface ProductSpecService extends IService<ProductSpec> {
 
     void updateData(ProductSpec productSpec);
 
-    List<ProductSpec> findAll();
+    List<ProductSpec> findAll(Integer platformType);
 
 }

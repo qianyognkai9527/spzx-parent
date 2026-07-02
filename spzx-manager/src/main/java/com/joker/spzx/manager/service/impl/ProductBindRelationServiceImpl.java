@@ -33,8 +33,9 @@ public class ProductBindRelationServiceImpl extends ServiceImpl<ProductBindRelat
     public List<Product> findUnBindSourceProduct(ProductBindQueryDto keyword) {
         LambdaQueryWrapper<Product> productQueryWrapper = new LambdaQueryWrapper<>();
         productQueryWrapper.eq(Product::getIsDeleted, 0)
+                .eq(keyword.getPlatformType() != null, Product::getPlatformType, keyword.getPlatformType())
                 .like(StringUtils.isNotBlank(keyword.getSourceProductName()), Product::getSourceProductName, keyword);
-
+        productQueryWrapper.orderByDesc(Product::getCreateTime);
         return productMapper.selectList(productQueryWrapper);
     }
 

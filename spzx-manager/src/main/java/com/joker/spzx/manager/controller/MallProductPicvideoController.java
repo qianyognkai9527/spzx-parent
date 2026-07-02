@@ -31,8 +31,8 @@ public class MallProductPicvideoController {
     }
 
     @GetMapping("/getList")
-    public Result<List<MallProductPicVideo>> getPicVideo(@RequestParam Long productId, @RequestParam(required = false) Long orderId) {
-        List<MallProductPicVideo> productPicVideos = mallProductPicVideoService.getPicVideo(productId, orderId);
+    public Result<List<MallProductPicVideo>> getPicVideo(@RequestParam Long productId, @RequestParam(required = false) Long orderId, @RequestParam Integer platformType) {
+        List<MallProductPicVideo> productPicVideos = mallProductPicVideoService.getPicVideo(productId, orderId, platformType);
         return Result.build(productPicVideos);
     }
 

@@ -24,8 +24,10 @@ import java.util.List;
 public class ProductSpecServiceImpl extends ServiceImpl<ProductSpecMapper, ProductSpec> implements ProductSpecService {
 
     @Override
-    public IPage<ProductSpec> findByPage(Integer pageNum, Integer limit) {
-        LambdaQueryWrapper<ProductSpec> queryWrapper = lambdaQuery().getWrapper().eq(ProductSpec::getIsDeleted, 0)
+    public IPage<ProductSpec> findByPage(Integer pageNum, Integer limit, Integer platformType) {
+        LambdaQueryWrapper<ProductSpec> queryWrapper = new LambdaQueryWrapper<ProductSpec>()
+                .eq(ProductSpec::getPlatformType, platformType)
+                .eq(ProductSpec::getIsDeleted, 0)
                 .orderByDesc(ProductSpec::getCreateTime);
         IPage<ProductSpec> page = new Page<>(pageNum, limit);
         list(page, queryWrapper);
@@ -54,7 +56,10 @@ public class ProductSpecServiceImpl extends ServiceImpl<ProductSpecMapper, Produ
     }
 
     @Override
-    public List<ProductSpec> findAll() {
-        return list();
+    public List<ProductSpec> findAll(Integer platformType) {
+        LambdaQueryWrapper<ProductSpec> wrapper = new LambdaQueryWrapper<ProductSpec>()
+                .eq(ProductSpec::getPlatformType, platformType)
+                .eq(ProductSpec::getIsDeleted, 0);
+        return list(wrapper);
     }
 }

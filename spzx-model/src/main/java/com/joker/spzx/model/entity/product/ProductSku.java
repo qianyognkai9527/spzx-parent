@@ -65,4 +65,8 @@ public class ProductSku extends BaseEntity {
     @TableField("status")
     private Integer status;
 
+    @Schema(description = "平台类型：1-淘宝, 2-抖音")
+    @TableField("platform_type")
+    private Integer platformType;
+
 }

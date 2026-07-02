@@ -50,4 +50,8 @@ public class PaymentInfo extends BaseEntity {
     @TableField("callback_content")
     private String callbackContent;
 
+    @Schema(description = "平台类型：1-淘宝, 2-抖音")
+    @TableField("platform_type")
+    private Integer platformType;
+
 }

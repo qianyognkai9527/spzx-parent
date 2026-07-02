@@ -13,4 +13,7 @@ public class OrderStatisticsDto {
     @Schema(description = "结束时间")
     private String createTimeEnd;
 
+    @Schema(description = "平台类型：1-淘宝, 2-抖音")
+    private Integer platformType;
+
 }

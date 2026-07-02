@@ -23,5 +23,5 @@ public interface MallOperService extends IService<MallOper> {
 
     void updateData(MallOper mallOper);
 
-    List<MallOper> getAll(Integer type);
+    List<MallOper> getAll(Integer type, Integer platformType);
 }

@@ -23,16 +23,21 @@ import java.util.List;
 public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements BrandService {
 
     @Override
-    public IPage<Brand> findByPage(Integer pageNum, Integer limit) {
+    public IPage<Brand> findByPage(Integer pageNum, Integer limit, Integer platformType) {
         IPage<Brand> page = new Page<>(pageNum, limit);
-        LambdaQueryWrapper<Brand> eq = lambdaQuery().getWrapper().eq(Brand::getIsDeleted, 0);
-        page(page, eq);
+        LambdaQueryWrapper<Brand> wrapper = new LambdaQueryWrapper<Brand>()
+                .eq(Brand::getPlatformType, platformType)
+                .eq(Brand::getIsDeleted, 0)
+                .orderByDesc(Brand::getCreateTime);
+        page(page, wrapper);
         return page;
     }
 
     @Override
-    public List<Brand> findAll() {
-        LambdaQueryWrapper<Brand> eq = lambdaQuery().getWrapper().eq(Brand::getIsDeleted, 0);
-        return list(eq);
+    public List<Brand> findAll(Integer platformType) {
+        LambdaQueryWrapper<Brand> wrapper = new LambdaQueryWrapper<Brand>()
+                .eq(Brand::getPlatformType, platformType)
+                .eq(Brand::getIsDeleted, 0);
+        return list(wrapper);
     }
 }

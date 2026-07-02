@@ -10,4 +10,6 @@ public class UserCostPageDto extends PageParam {
     private Integer billType;
     private Integer payType;
     private Integer payUsageId;
+
+    private Integer platformType;
 }

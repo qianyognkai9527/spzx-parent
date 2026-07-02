@@ -26,8 +26,9 @@ public class ProductSpecController {
     private ProductSpecService productSpecService;
 
     @GetMapping("/{page}/{limit}")
-    public Result<IPage<ProductSpec>> findByPage(@PathVariable Integer page, @PathVariable Integer limit) {
-        IPage<ProductSpec> pageInfo = productSpecService.findByPage(page, limit);
+    public Result<IPage<ProductSpec>> findByPage(@PathVariable Integer page, @PathVariable Integer limit,
+                                                  @RequestParam Integer platformType) {
+        IPage<ProductSpec> pageInfo = productSpecService.findByPage(page, limit, platformType);
         return Result.build(pageInfo, ResultCodeEnum.SUCCESS);
     }
 
@@ -50,8 +51,8 @@ public class ProductSpecController {
     }
 
     @GetMapping("findAll")
-    public Result findAll() {
-        List<ProductSpec> list = productSpecService.findAll();
+    public Result findAll(@RequestParam Integer platformType) {
+        List<ProductSpec> list = productSpecService.findAll(platformType);
         return Result.build(list, ResultCodeEnum.SUCCESS);
     }
 }

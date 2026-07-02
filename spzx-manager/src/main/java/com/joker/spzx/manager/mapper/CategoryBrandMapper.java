@@ -23,6 +23,6 @@ public interface CategoryBrandMapper extends BaseMapper<CategoryBrand> {
 
     IPage<CategoryBrand> findByPage(@Param("page") IPage<CategoryBrand> page, @Param("categoryBrandDto") CategoryBrandDto categoryBrandDto);
 
-    List<Brand> findBrandByCategoryId(@Param("categoryId") Long categoryId);
+    List<Brand> findBrandByCategoryId(@Param("categoryId") Long categoryId, @Param("platformType") Integer platformType);
 
 }

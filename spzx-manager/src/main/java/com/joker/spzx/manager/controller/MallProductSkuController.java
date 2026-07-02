@@ -24,8 +24,9 @@ public class MallProductSkuController {
     private MallProductSkuService mallProductSkuService;
 
     @GetMapping("/all")
-    public Result<List<MallProductSku>> findAll(@RequestParam Long productId) {
-        List<MallProductSku> list = mallProductSkuService.getList(productId);
+    public Result<List<MallProductSku>> findAll(@RequestParam Long productId,
+                                                 @RequestParam Integer platformType) {
+        List<MallProductSku> list = mallProductSkuService.getList(productId, platformType);
         return Result.build(list);
     }
 

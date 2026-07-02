@@ -90,6 +90,10 @@ public class MallAddOrder extends Model<MallAddOrder> {
     @TableField("remark")
     private String remark;
 
+    @Schema(description = "平台类型：1-淘宝, 2-抖音")
+    @TableField("platform_type")
+    private Integer platformType;
+
     @Override
     public Serializable pkVal() {
         return this.id;

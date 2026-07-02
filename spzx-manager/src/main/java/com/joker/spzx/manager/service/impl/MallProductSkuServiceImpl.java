@@ -23,8 +23,10 @@ import java.util.List;
 public class MallProductSkuServiceImpl extends ServiceImpl<MallProductSkuMapper, MallProductSku> implements MallProductSkuService {
 
     @Override
-    public List<MallProductSku> getList(Long productId) {
-        LambdaQueryWrapper<MallProductSku> eq = lambdaQuery().getWrapper().eq(MallProductSku::getProductId, productId)
+    public List<MallProductSku> getList(Long productId, Integer platformType) {
+        LambdaQueryWrapper<MallProductSku> eq = lambdaQuery().getWrapper()
+                .eq(MallProductSku::getPlatformType, platformType)
+                .eq(MallProductSku::getProductId, productId)
                 .eq(MallProductSku::getDelFlag, 0)
                 .orderByDesc(MallProductSku::getUpdateTime);
         return list(eq);

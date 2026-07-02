@@ -94,4 +94,8 @@ public class MallRefundRecordDetail extends Model<MallRefundRecordDetail> {
     @Schema(description = "总支付金额")
     @TableField("total_pay_amount")
     private BigDecimal totalPayAmount;
+
+    @Schema(description = "平台类型：1-淘宝, 2-抖音")
+    @TableField("platform_type")
+    private Integer platformType;
 }

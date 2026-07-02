@@ -15,5 +15,5 @@ import java.util.List;
  */
 public interface CategoryService extends IService<Category> {
 
-    List<Category> findByParentId(Long parentId);
+    List<Category> findByParentId(Long parentId, Integer platformType);
 }

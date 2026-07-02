@@ -46,8 +46,8 @@ public class MallProductFactoryController {
     }
 
     @GetMapping("/allProductFactory")
-    public Result<List<MallProductFactory>> getAllData() {
-        List<MallProductFactory> list = mallProductFactoryService.getAllProductFactory();
+    public Result<List<MallProductFactory>> getAllData(@RequestParam Integer platformType) {
+        List<MallProductFactory> list = mallProductFactoryService.getAllProductFactory(platformType);
         return Result.build(list);
     }
 }

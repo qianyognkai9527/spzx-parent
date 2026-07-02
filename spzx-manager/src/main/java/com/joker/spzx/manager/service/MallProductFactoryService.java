@@ -23,7 +23,7 @@ public interface MallProductFactoryService extends IService<MallProductFactory> 
 
     void updateData(MallProductFactory mallProductFactory);
 
-    List<MallProductFactory> getAllProductFactory();
+    List<MallProductFactory> getAllProductFactory(Integer platformType);
 
 
 }

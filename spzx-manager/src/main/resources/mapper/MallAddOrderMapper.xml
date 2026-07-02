@@ -25,6 +25,9 @@
         left join mall_product mp on mao.product_id = mp.code
 
         where 1=1
+        <if test="mallAddOrderPageDto.platformType != null">
+            and mao.platform_type = #{mallAddOrderPageDto.platformType}
+        </if>
         <if test="mallAddOrderPageDto.brushId != null">
             and brush_person_id = #{mallAddOrderPageDto.brushId}
         </if>

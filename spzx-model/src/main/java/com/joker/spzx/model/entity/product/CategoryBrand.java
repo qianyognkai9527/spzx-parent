@@ -31,4 +31,8 @@ public class CategoryBrand extends BaseEntity {
     @TableField(exist = false)
     private String logo;
 
+    @Schema(description = "平台类型：1-淘宝, 2-抖音")
+    @TableField("platform_type")
+    private Integer platformType;
+
 }

@@ -31,6 +31,9 @@
         from product p
         LEFT JOIN mall_product_factory mpf on mpf.id = p.product_factory_id
         where p.is_deleted=0
+        <if test="productDto.platformType != null">
+            and p.platform_type = #{productDto.platformType}
+        </if>
         <if test="productDto.sourceProductName != null and productDto.sourceProductName != ''">
             and p.source_product_name like concat('%',#{productDto.sourceProductName},'%')
         </if>

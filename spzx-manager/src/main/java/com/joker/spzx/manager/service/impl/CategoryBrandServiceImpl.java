@@ -32,8 +32,8 @@ public class CategoryBrandServiceImpl extends ServiceImpl<CategoryBrandMapper, C
     }
 
     @Override
-    public List<Brand> findBrandByCategoryId(Long categoryId) {
+    public List<Brand> findBrandByCategoryId(Long categoryId, Integer platformType) {
 
-        return this.baseMapper.findBrandByCategoryId(categoryId);
+        return this.baseMapper.findBrandByCategoryId(categoryId, platformType);
     }
 }

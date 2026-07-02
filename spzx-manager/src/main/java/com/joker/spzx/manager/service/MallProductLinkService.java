@@ -14,7 +14,7 @@ import com.joker.spzx.model.entity.oper.MallProductLink;
  */
 public interface MallProductLinkService extends IService<MallProductLink> {
 
-    IPage<MallProductLink> pageList(Integer pageNum, Integer pageSize);
+    IPage<MallProductLink> pageList(Integer pageNum, Integer pageSize, Integer platformType);
 
     void saveData(MallProductLink mallProductLink);
 

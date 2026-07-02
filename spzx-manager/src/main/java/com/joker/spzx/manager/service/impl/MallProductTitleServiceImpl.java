@@ -46,11 +46,11 @@ public class MallProductTitleServiceImpl extends ServiceImpl<MallProductTitleMap
     }
 
     @Override
-    public List<MallProductTitle> getList(Long productId) {
-        LambdaQueryWrapper<MallProductTitle> eq = lambdaQuery().getWrapper().eq(MallProductTitle::getProductId, productId)
+    public List<MallProductTitle> getList(Long productId, Integer platformType) {
+        LambdaQueryWrapper<MallProductTitle> eq = lambdaQuery().getWrapper()
+                .eq(MallProductTitle::getPlatformType, platformType)
+                .eq(MallProductTitle::getProductId, productId)
                 .orderByDesc(MallProductTitle::getCreateTime);
-
-
         return list(eq);
     }
 }

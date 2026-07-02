@@ -48,6 +48,7 @@ public class MallProductPicVideoServiceImpl extends ServiceImpl<MallProductPicVi
             mallProductPicVideo.setFileUrl(picVideoSimplerDto.getFileUrl());
             mallProductPicVideo.setFileType(fileName.matches(".*\\.(jpg|png|gif|jpeg|bmp)$") ? 1 : 2);
             mallProductPicVideo.setTakeDate(takeDate);
+            mallProductPicVideo.setPlatformType(productPicVideoDto.getPlatformType());
 
             return mallProductPicVideo;
         }).collect(Collectors.toList());
@@ -56,8 +57,9 @@ public class MallProductPicVideoServiceImpl extends ServiceImpl<MallProductPicVi
     }
 
     @Override
-    public List<MallProductPicVideo> getPicVideo(Long productId, Long orderId) {
+    public List<MallProductPicVideo> getPicVideo(Long productId, Long orderId, Integer platformType) {
         LambdaQueryWrapper<MallProductPicVideo> eq = lambdaQuery().getWrapper()
+                .eq(MallProductPicVideo::getPlatformType, platformType)
                 .eq(MallProductPicVideo::getProductId, productId)
                 .eq(MallProductPicVideo::getState, 0)
                 .orderByDesc(MallProductPicVideo::getTakeDate)

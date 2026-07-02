@@ -4,7 +4,7 @@
 
     <select id="selectOrderStatistics" resultType="com.joker.spzx.model.entity.order.OrderStatistics">
         select DATE_FORMAT(oi.create_time ,'%Y-%m-%d') orderDate, sum(oi.total_amount)  totalAmount , count(oi.id) totalNum
-        from order_info oi where DATE_FORMAT(oi.create_time ,'%Y-%m-%d') = #{createTime}
+        from order_info oi where oi.platform_type = #{platformType} and DATE_FORMAT(oi.create_time ,'%Y-%m-%d') = #{createTime}
         GROUP BY DATE_FORMAT(oi.create_time ,'%Y-%m-%d')
     </select>
 </mapper>

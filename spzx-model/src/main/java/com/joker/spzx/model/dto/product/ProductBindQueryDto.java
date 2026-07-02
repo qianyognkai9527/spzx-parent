@@ -9,4 +9,6 @@ public class ProductBindQueryDto {
     private String sourceProductName;
     private String sourceProductCode;
     private Long productFactoryId;
+
+    private Integer platformType;
 }

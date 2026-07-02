@@ -27,8 +27,9 @@ public class MallProductLinkController {
 
     @GetMapping("/pageList/{pageNum}/{pageSize}")
     public Result<IPage<MallProductLink>> pageList(@PathVariable Integer pageNum,
-                                                   @PathVariable Integer pageSize) {
-        IPage<MallProductLink> page = mallProductLinkService.pageList(pageNum, pageSize);
+                                                   @PathVariable Integer pageSize,
+                                                   @RequestParam Integer platformType) {
+        IPage<MallProductLink> page = mallProductLinkService.pageList(pageNum, pageSize, platformType);
         return Result.build(page);
     }
 

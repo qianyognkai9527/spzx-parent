@@ -18,4 +18,8 @@ public class Brand extends BaseEntity {
     @Schema(description = "品牌图标")
     @TableField("logo")
     private String logo;
+
+    @Schema(description = "平台类型：1-淘宝, 2-抖音")
+    @TableField("platform_type")
+    private Integer platformType;
 }

@@ -52,8 +52,9 @@ public class MallOperController {
 
     @Operation(summary = "查询所有拍图人员", description = "查询所有拍图人员")
     @GetMapping("/all")
-    public Result<List<MallOper>> allData(@RequestParam(required = false) Integer type) {
-        List<MallOper> page = mallOperService.getAll(type);
+    public Result<List<MallOper>> allData(@RequestParam(required = false) Integer type,
+                                          @RequestParam Integer platformType) {
+        List<MallOper> page = mallOperService.getAll(type, platformType);
         return Result.build(page);
     }
 }

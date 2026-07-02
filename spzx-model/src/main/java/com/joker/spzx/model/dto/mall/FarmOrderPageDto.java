@@ -10,5 +10,6 @@ public class FarmOrderPageDto {
     Integer pageSize;
     Long productId;
     Integer status;
+    Integer platformType;
 
 }

@@ -18,5 +18,5 @@ public interface MallProductPicVideoService extends IService<MallProductPicVideo
 
     void savePicVideo(ProductPicVideoDto productPicVideoDto);
 
-    List<MallProductPicVideo> getPicVideo(Long productId, Long orderId);
+    List<MallProductPicVideo> getPicVideo(Long productId, Long orderId, Integer platformType);
 }

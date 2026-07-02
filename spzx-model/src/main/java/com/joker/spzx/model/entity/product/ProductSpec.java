@@ -16,4 +16,8 @@ public class ProductSpec extends BaseEntity {
     @Schema(description = "规格值valueList蓝,白,红")
     @TableField("spec_value")
     private String specValue;
+
+    @Schema(description = "平台类型：1-淘宝, 2-抖音")
+    @TableField("platform_type")
+    private Integer platformType;
 }
