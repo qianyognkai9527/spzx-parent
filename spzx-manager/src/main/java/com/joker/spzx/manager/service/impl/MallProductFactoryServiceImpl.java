@@ -52,8 +52,18 @@ public class MallProductFactoryServiceImpl extends ServiceImpl<MallProductFactor
     @Override
     public List<MallProductFactory> getAllProductFactory(Integer platformType) {
         LambdaQueryWrapper<MallProductFactory> queryWrapper = lambdaQuery().getWrapper()
-                .eq(MallProductFactory::getPlatformType, platformType)
+                .eq(platformType != null, MallProductFactory::getPlatformType, platformType)
                 .orderByDesc(MallProductFactory::getDeployCount);
         return list(queryWrapper);
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        MallProductFactory factory = getById(id);
+        if (factory != null) {
+            factory.setUpdateBy(AuthContextUtil.getUser().getId());
+            factory.setUpdateTime(LocalDateTime.now());
+            removeById(id);
+        }
     }
 }

@@ -77,7 +77,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new ServiceException(ResultCodeEnum.LOGIN_ERROR);
         }
         String replace = UUID.randomUUID().toString().replace("-", "");
-        redisTemplate.opsForValue().set("user:login:" + replace, JSONObject.toJSONString(one), 365, TimeUnit.DAYS);
+        redisTemplate.opsForValue().set("user:login:" + replace, JSONObject.toJSONString(one), 7, TimeUnit.DAYS);
         LoginVo loginVo = new LoginVo();
         loginVo.setToken(replace);
         return loginVo;

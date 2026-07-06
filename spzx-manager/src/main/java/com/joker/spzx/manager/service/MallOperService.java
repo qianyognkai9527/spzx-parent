@@ -17,11 +17,13 @@ import java.util.List;
  */
 public interface MallOperService extends IService<MallOper> {
 
-    IPage<MallOper> getPage(Integer type, Integer pageNum, BrushPersonDto pageSize);
+    IPage<MallOper> getPage(Integer pageNum, Integer pageSize, BrushPersonDto brushPersonDto);
 
     void saveData(MallOper mallOper);
 
     void updateData(MallOper mallOper);
+
+    void deleteById(Long id);
 
     List<MallOper> getAll(Integer type, Integer platformType);
 }

@@ -8,10 +8,10 @@ import lombok.Data;
 @Schema(description = "商品搜索条件实体类")
 public class ProductDto extends PageParam {
 
-    @Schema(description = "源头商品名称")
+    @Schema(description = "货源商品标题")
     private String sourceProductName;
 
-    @Schema(description = "源头商品编码")
+    @Schema(description = "货源商品Id")
     private String sourceProductCode;
 
     @Schema(description = "货源工厂Id")

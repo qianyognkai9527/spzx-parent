@@ -11,6 +11,8 @@ import com.joker.spzx.model.entity.system.SysMenu;
 import com.joker.spzx.model.entity.system.SysRoleMenu;
 import com.joker.spzx.model.vo.system.SysMenuVo;
 import com.joker.spzx.utils.AuthContextUtil;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
@@ -37,6 +39,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     }
 
     @Override
+    @Cacheable(cacheNames = "menu:tree", key = "'tree'", unless = "#result == null || #result.isEmpty()")
     public List<SysMenu> getTreeNodes() {
         LambdaQueryWrapper<SysMenu> eq = lambdaQuery().getWrapper().eq(SysMenu::getIsDeleted, 0)
                 .orderByAsc(SysMenu::getSortValue);
@@ -49,6 +52,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     }
 
     @Override
+    @CacheEvict(cacheNames = "menu:tree", allEntries = true)
     public void saveData(SysMenu sysMenu) {
         sysMenu.setIsDeleted(0);
         sysMenu.setCreateTime(LocalDateTime.now());
@@ -75,12 +79,14 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     }
 
     @Override
+    @CacheEvict(cacheNames = "menu:tree", allEntries = true)
     public void updateData(SysMenu sysMenu) {
         sysMenu.setUpdateTime(LocalDateTime.now());
         sysMenu.updateById();
     }
 
     @Override
+    @CacheEvict(cacheNames = "menu:tree", allEntries = true)
     public void deleteData(Long id) {
         SysMenu sysMenu = new SysMenu() {{
             setId(id);

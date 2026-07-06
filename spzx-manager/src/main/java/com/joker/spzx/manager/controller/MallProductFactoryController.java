@@ -46,8 +46,20 @@ public class MallProductFactoryController {
     }
 
     @GetMapping("/allProductFactory")
-    public Result<List<MallProductFactory>> getAllData(@RequestParam Integer platformType) {
+    public Result<List<MallProductFactory>> getAllData(@RequestParam(required = false) Integer platformType) {
         List<MallProductFactory> list = mallProductFactoryService.getAllProductFactory(platformType);
         return Result.build(list);
+    }
+
+    @GetMapping("/getDetail")
+    public Result<MallProductFactory> getDetail(@RequestParam Long id) {
+        MallProductFactory factory = mallProductFactoryService.getById(id);
+        return Result.build(factory);
+    }
+
+    @DeleteMapping("/deleteById/{id}")
+    public Result<String> deleteById(@PathVariable Long id) {
+        mallProductFactoryService.deleteById(id);
+        return Result.build("删除成功");
     }
 }

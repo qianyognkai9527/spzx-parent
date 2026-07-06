@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
  */
 @Getter
 @Setter
-@TableName("mall_product_link")
+@TableName("product_source_link")
 @Schema(name = "MallProductLink", description = "商品和货源关系表")
 public class MallProductLink extends Model<MallProductLink> {
 

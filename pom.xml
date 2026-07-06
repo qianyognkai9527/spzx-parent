@@ -30,7 +30,6 @@
         <spring-boot.version>3.4.0</spring-boot.version>
         <lombok.version>1.18.34</lombok.version>
         <mybatis.version>3.0.1</mybatis.version>
-        <drools.version>8.44.2.Final</drools.version>
     </properties>
 
     <!-- 管理依赖，版本锁定 -->
@@ -63,14 +62,6 @@
                 <version>${lombok.version}</version>
             </dependency>
 
-            <!-- Drools 规则引擎 BOM -->
-            <dependency>
-                <groupId>org.drools</groupId>
-                <artifactId>drools-bom</artifactId>
-                <version>${drools.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
         </dependencies>
     </dependencyManagement>
 

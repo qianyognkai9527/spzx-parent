@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
  */
 @Getter
 @Setter
-@TableName("mall_product_factory")
+@TableName("product_factory")
 @Schema(name = "MallProductFactory", description = "工厂基本信息表")
 public class MallProductFactory extends Model<MallProductFactory> {
 

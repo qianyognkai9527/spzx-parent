@@ -50,10 +50,17 @@ public class MallOperController {
         return Result.build(null);
     }
 
-    @Operation(summary = "查询所有拍图人员", description = "查询所有拍图人员")
+    @Operation(summary = "删除", description = "删除")
+    @DeleteMapping("/deleteById/{id}")
+    public Result<String> deleteById(@PathVariable Long id) {
+        mallOperService.deleteById(id);
+        return Result.build(null);
+    }
+
+    @Operation(summary = "查询所有人员", description = "查询所有人员(刷手或买家秀)")
     @GetMapping("/all")
     public Result<List<MallOper>> allData(@RequestParam(required = false) Integer type,
-                                          @RequestParam Integer platformType) {
+                                          @RequestParam(required = false) Integer platformType) {
         List<MallOper> page = mallOperService.getAll(type, platformType);
         return Result.build(page);
     }

@@ -27,10 +27,13 @@ import java.time.LocalDateTime;
 public class MallProductServiceImpl extends ServiceImpl<MallProductMapper, MallProduct> implements MallProductService {
 
     @Override
-    public IPage<MallProduct> pageList(Integer pageNum, Integer pageSize, Integer platformType) {
+    public IPage<MallProduct> pageList(Integer pageNum, Integer pageSize, Integer platformType, String keyword, String createTimeBegin, String createTimeEnd) {
         IPage<MallProduct> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<MallProduct> wrapper = new LambdaQueryWrapper<MallProduct>()
                 .eq(MallProduct::getPlatformType, platformType)
+                .like(StringUtils.isNotBlank(keyword), MallProduct::getTitle, keyword)
+                .ge(StringUtils.isNotBlank(createTimeBegin), MallProduct::getCreateTime, createTimeBegin)
+                .le(StringUtils.isNotBlank(createTimeEnd), MallProduct::getCreateTime, createTimeEnd)
                 .orderByDesc(MallProduct::getCreateTime);
         return baseMapper.selectPage(page, wrapper);
     }

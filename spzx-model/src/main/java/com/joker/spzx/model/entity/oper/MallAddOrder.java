@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
  * @since 2025-06-10 14:05:10
  */
 @Data
-@TableName("mall_add_order")
+@TableName("brush_order")
 @Schema(name = "MallAddOrder", description = "补单表")
 public class MallAddOrder extends Model<MallAddOrder> {
 
@@ -93,6 +93,22 @@ public class MallAddOrder extends Model<MallAddOrder> {
     @Schema(description = "平台类型：1-淘宝, 2-抖音")
     @TableField("platform_type")
     private Integer platformType;
+
+    @Schema(description = "佣金是否已返：0-未返,1-已返")
+    @TableField("hire_is_pay")
+    private Integer hireIsPay;
+
+    @Schema(description = "是否已评价：0-未评价,1-已评价")
+    @TableField("is_evaluated")
+    private Integer isEvaluated;
+
+    @Schema(description = "本金是否已返：0-未返,1-已返")
+    @TableField("seed_is_pay")
+    private Integer seedIsPay;
+
+    @Schema(description = "返佣时间")
+    @TableField("settlement_time")
+    private LocalDateTime settlementTime;
 
     @Override
     public Serializable pkVal() {

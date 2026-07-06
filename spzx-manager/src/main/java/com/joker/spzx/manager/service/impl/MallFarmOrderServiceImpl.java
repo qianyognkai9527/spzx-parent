@@ -24,6 +24,7 @@ import com.joker.spzx.utils.excel.ExcelResult;
 import com.joker.spzx.utils.excel.ExcelUtil;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
@@ -60,6 +61,7 @@ import java.util.zip.ZipOutputStream;
  * @author joker
  * @since 2025-05-06 17:21:06
  */
+@Slf4j
 @Service
 public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, MallFarmOrder> implements MallFarmOrderService {
 
@@ -104,7 +106,6 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void allocateResources(OderAllocationVo oderAllocationVo) {
-        System.out.println(oderAllocationVo.toString());
         Long orderId = oderAllocationVo.getOrderId();
         MallFarmOrder order = mallFarmOrderMapper.selectById(orderId);
         Long productId = order.getProductId();
@@ -147,21 +148,46 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
     @SneakyThrows
     @Override
     public void gennerShowBuy(List<Long> orderIdList, HttpServletResponse response) {
+        // 批量查询优化：将 N+1 查询改为 3 次批量查询
+        // 1. 批量获取所有农场订单
+        List<MallFarmOrder> farmOrders = this.listByIds(orderIdList);
+        Map<Long, MallFarmOrder> farmOrderMap = farmOrders.stream()
+                .collect(Collectors.toMap(MallFarmOrder::getId, f -> f));
+
+        // 2. 批量获取所有订单资源关联
+        LambdaQueryWrapper<MallOrderResource> resourceWrapper = new LambdaQueryWrapper<MallOrderResource>()
+                .in(MallOrderResource::getOrderId, orderIdList);
+        List<MallOrderResource> allResources = mallOrderResourceMapper.selectList(resourceWrapper);
+        Map<Long, List<MallOrderResource>> resourceByOrderId = allResources.stream()
+                .collect(Collectors.groupingBy(MallOrderResource::getOrderId));
+
+        // 3. 批量获取所有图片视频
+        Set<Long> allFileIds = allResources.stream()
+                .map(MallOrderResource::getFileId)
+                .collect(Collectors.toSet());
+        Map<Long, String> fileUrlMap = java.util.Collections.emptyMap();
+        if (CollectionUtils.isNotEmpty(allFileIds)) {
+            List<MallProductPicVideo> allPicVideos = mallProductPicVideoMapper.selectList(
+                    new LambdaQueryWrapper<MallProductPicVideo>().in(MallProductPicVideo::getId, allFileIds));
+            fileUrlMap = allPicVideos.stream()
+                    .collect(Collectors.toMap(MallProductPicVideo::getId, MallProductPicVideo::getFileUrl));
+        }
+
+        // 内存组装结果
+        final Map<Long, String> finalFileUrlMap = fileUrlMap;
         List<OrderEvaluation> evaluations = orderIdList.stream().map(oderId -> {
-            MallFarmOrder mallFarmOrder = this.getById(oderId);
+            MallFarmOrder mallFarmOrder = farmOrderMap.get(oderId);
             OrderEvaluation orderEvaluation = new OrderEvaluation();
             orderEvaluation.setOrderId(mallFarmOrder.getTbOrderCode());
             orderEvaluation.setComment(mallFarmOrder.getComment());
-            LambdaQueryWrapper<MallOrderResource> queryWrapper = new LambdaQueryWrapper<>();
-            queryWrapper.eq(MallOrderResource::getOrderId, oderId);
-            List<MallOrderResource> mallOrderResources = mallOrderResourceMapper.selectList(queryWrapper);
-            if (CollectionUtils.isNotEmpty(mallOrderResources)) {
-                Set<Long> collect = mallOrderResources.stream().map(MallOrderResource::getFileId).collect(Collectors.toSet());
-                List<MallProductPicVideo> productPicVideos = mallProductPicVideoMapper.selectList(new LambdaQueryWrapper<MallProductPicVideo>().in(MallProductPicVideo::getId, collect));
-                List<String> collect1 = productPicVideos.stream().map(MallProductPicVideo::getFileUrl).collect(Collectors.toList());
-                orderEvaluation.setFileUrls(collect1);
+            List<MallOrderResource> resources = resourceByOrderId.get(oderId);
+            if (CollectionUtils.isNotEmpty(resources)) {
+                List<String> fileUrls = resources.stream()
+                        .map(r -> finalFileUrlMap.get(r.getFileId()))
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList());
+                orderEvaluation.setFileUrls(fileUrls);
             }
-
             return orderEvaluation;
         }).collect(Collectors.toList());
         //本地下载
@@ -206,7 +232,6 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
             throw new ServiceException(202, "数据存在异常：" + errorList);
         }
         MallFarmOrder mallFarmOrder = JSONUtil.toBean(JSONUtil.toJsonStr(bodyMap), MallFarmOrder.class);
-        System.out.println(mallFarmOrder.toString());
         List<SecondOrderExcelBo> list = excelResult.getList();
         Long loginUserId = AuthContextUtil.getUser().getId();
         List<MallFarmOrder> collect = list.stream().map(bo -> {
@@ -263,7 +288,7 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
                     Files.copy(in, outputPath, StandardCopyOption.REPLACE_EXISTING);
                 }
             } catch (Exception e) {
-                System.err.println("下载失败: " + url + " | 错误: " + e.getMessage());
+                log.error("下载失败: {} | 错误: {}", url, e.getMessage());
             }
         });
     }
@@ -286,7 +311,7 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
                             Files.copy(path, zos);
                             zos.closeEntry();
                         } catch (IOException e) {
-                            System.err.println("压缩失败: " + path);
+                            log.error("压缩失败: {}", path);
                         }
                     });
         }
@@ -305,7 +330,7 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
                     try {
                         Files.deleteIfExists(path);
                     } catch (IOException e) {
-                        System.err.println("删除失败: " + path);
+                        log.error("删除失败: {}", path);
                     }
                 });
     }
@@ -339,7 +364,7 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
                 }
                 zos.closeEntry();
             } catch (Exception e) {
-                System.err.println("文件下载失败: " + url);
+                log.error("文件下载失败: {}", url);
             }
         });
     }
@@ -357,7 +382,7 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
             response.setStatus(500);
             response.getWriter().write("{\"error\":\"" + e.getMessage() + "\"}");
         } catch (IOException ex) {
-            System.err.println("异常处理失败");
+            log.error("异常处理失败", ex);
         }
     }
 }

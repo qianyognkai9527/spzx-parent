@@ -51,7 +51,7 @@ public class LoginAuthInterceptor implements HandlerInterceptor {
             log.warn("用户未登录，token无效");
             return false;
         }
-        redisTemplate.expire("user:login:" + token, 30, TimeUnit.MINUTES);
+        redisTemplate.expire("user:login:" + token, 7, TimeUnit.DAYS);
 
         SysUser sysUser = JSONObject.parseObject(sysUserStr, SysUser.class);
         AuthContextUtil.setUser(sysUser);

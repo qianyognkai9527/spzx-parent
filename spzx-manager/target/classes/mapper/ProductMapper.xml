@@ -6,8 +6,8 @@
         select
             p.id, p.name , p.brand_id , p.category1_id , p.category2_id , p.category3_id, p.unit_name,
             p.slider_urls , p.spec_value , p.status , p.audit_status , p.audit_message , p.create_time , p.update_time , p.is_deleted ,
-            b.name brandName , c1.name category1Name , c2.name category2Name , c2.name category3Name
-        from product p
+            b.name brandName , c1.name category1Name , c2.name category2Name , c3.name category3Name
+        from source_product p
                  LEFT JOIN brand b on b.id = p.brand_id
                  LEFT JOIN category c1 on c1.id = p.category1_id
                  LEFT JOIN category c2 on c2.id = p.category2_id
@@ -26,13 +26,16 @@
             p.head_img_url headImgUrl,
             p.logistics_name logisticsName,
             p.freight_cost freightCost,
+            p.source_price sourcePrice,
             p.dispatch_time dispatchTime,
-            p.steady_status steadyStatus
-        from product p
-        LEFT JOIN mall_product_factory mpf on mpf.id = p.product_factory_id
+            p.steady_status steadyStatus,
+            p.eval_with_image_count evalWithImageCount,
+            mpf.platform_type platformType
+        from source_product p
+        LEFT JOIN product_factory mpf on mpf.id = p.product_factory_id
         where p.is_deleted=0
         <if test="productDto.platformType != null">
-            and p.platform_type = #{productDto.platformType}
+            and mpf.platform_type = #{productDto.platformType}
         </if>
         <if test="productDto.sourceProductName != null and productDto.sourceProductName != ''">
             and p.source_product_name like concat('%',#{productDto.sourceProductName},'%')
@@ -59,10 +62,13 @@
             p.head_img_url headImgUrl,
             p.logistics_name logisticsName,
             p.freight_cost freightCost,
+            p.source_price sourcePrice,
             p.dispatch_time dispatchTime,
-            p.steady_status steadyStatus
-        from product p
-            LEFT JOIN mall_product_factory mpf on mpf.id = p.product_factory_id
+            p.steady_status steadyStatus,
+            p.eval_with_image_count evalWithImageCount,
+            mpf.platform_type platformType
+        from source_product p
+            LEFT JOIN product_factory mpf on mpf.id = p.product_factory_id
         where p.id = #{id}
     </select>
 </mapper>

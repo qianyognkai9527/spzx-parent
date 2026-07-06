@@ -15,34 +15,100 @@
         , mao.way_bill_money wayBillMoney
         , mao.way_bill_code wayBillCode
         , mao.way_bill_name wayBillName
+        , mao.platform_type platformType
+        , mao.hire_is_pay hireIsPay
+        , mao.is_evaluated isEvaluated
+        , mao.seed_is_pay seedIsPay
+        , mao.settlement_time settlementTime
         , mo.nick_name brushPersonName
         , mp.title  productName
-        , mp.pic_url  productPicUrl
         , mp.code productId
 
-        from mall_add_order mao
-        left join mall_oper mo on mao.brush_person_id = mo.id
-        left join mall_product mp on mao.product_id = mp.code
+        from brush_order mao
+        left join brush_person mo on mao.brush_person_id = mo.id
+        left join platform_product mp on mao.product_id = mp.code
 
         where 1=1
         <if test="mallAddOrderPageDto.platformType != null">
             and mao.platform_type = #{mallAddOrderPageDto.platformType}
         </if>
         <if test="mallAddOrderPageDto.brushId != null">
-            and brush_person_id = #{mallAddOrderPageDto.brushId}
+            and mao.brush_person_id = #{mallAddOrderPageDto.brushId}
         </if>
-        <if test="mallAddOrderPageDto.tbOrderId != null">
-            and tb_order_id = #{mallAddOrderPageDto.tbOrderId}
+        <if test="mallAddOrderPageDto.tbOrderId != null and mallAddOrderPageDto.tbOrderId != ''">
+            and mao.tb_order_id = #{mallAddOrderPageDto.tbOrderId}
         </if>
         <if test="mallAddOrderPageDto.orderstate != null">
-            and order_state = #{mallAddOrderPageDto.orderstate}
+            and mao.order_state = #{mallAddOrderPageDto.orderstate}
+        </if>
+        <if test="mallAddOrderPageDto.hireIsPay != null">
+            and mao.hire_is_pay = #{mallAddOrderPageDto.hireIsPay}
+        </if>
+        <if test="mallAddOrderPageDto.seedIsPay != null">
+            and mao.seed_is_pay = #{mallAddOrderPageDto.seedIsPay}
         </if>
         <if test="mallAddOrderPageDto.createTimeStart != null">
-            and create_time >= #{mallAddOrderPageDto.createTimeStart}
+            and mao.create_time >= #{mallAddOrderPageDto.createTimeStart}
         </if>
         <if test="mallAddOrderPageDto.createTimeEnd != null">
-            and create_time &lt;= #{mallAddOrderPageDto.createTimeEnd}
+            and mao.create_time &lt;= #{mallAddOrderPageDto.createTimeEnd}
         </if>
         order by    mao.order_time desc, mao.order_state asc
+    </select>
+
+    <select id="selectBrushPersonStat" resultType="com.joker.spzx.model.vo.mall.BrushPersonStatVo">
+        select
+            mo.id brushPersonId
+            , mo.nick_name brushPersonName
+            , count(mao.id) totalOrderCount
+            , sum(case when mao.order_state = 3 then 1 else 0 end) completedOrderCount
+            , coalesce(sum(mao.hire_money), 0) totalCommission
+            , coalesce(sum(case when mao.hire_is_pay = 1 then mao.hire_money else 0 end), 0) paidCommission
+            , coalesce(sum(case when mao.hire_is_pay = 0 then mao.hire_money else 0 end), 0) unpaidCommission
+            , coalesce(sum(mao.seed_money), 0) totalSeedMoney
+            , coalesce(sum(case when mao.seed_is_pay = 0 then mao.seed_money else 0 end), 0) unpaidSeedMoney
+        from brush_person mo
+        left join brush_order mao on mo.id = mao.brush_person_id
+        where mo.type = 1
+        <if test="platformType != null">
+            and mao.platform_type = #{platformType}
+        </if>
+        group by mo.id, mo.nick_name
+        order by totalOrderCount desc
+    </select>
+
+    <select id="selectBrushOrderStat" resultType="com.joker.spzx.model.vo.mall.BrushOrderStatVo">
+        select
+            <if test="dimension == 'month'">
+                DATE_FORMAT(mao.order_time, '%Y-%m') timeLabel
+            </if>
+            <if test="dimension == 'week'">
+                DATE_FORMAT(mao.order_time, '%x-W%v') timeLabel
+            </if>
+            , mao.product_id productId
+            , mp.title productTitle
+            , count(mao.id) totalOrderCount
+            , sum(case when mao.order_state = 3 then 1 else 0 end) completedCount
+            , sum(case when mao.order_state != 3 then 1 else 0 end) uncompletedCount
+            , sum(case when mao.order_state = 3 and mao.is_evaluated = 0 then 1 else 0 end) unreviewedCount
+            , coalesce(sum(mao.hire_money), 0) totalCommission
+            , coalesce(sum(case when mao.hire_is_pay = 1 then mao.hire_money else 0 end), 0) paidCommission
+            , coalesce(sum(case when mao.hire_is_pay = 0 then mao.hire_money else 0 end), 0) unpaidCommission
+            , coalesce(sum(mao.seed_money), 0) totalSeedMoney
+            , coalesce(sum(mao.way_bill_money), 0) totalWayBillMoney
+        from brush_order mao
+        left join platform_product mp on mao.product_id = mp.code
+        where mao.order_time is not null
+        <if test="platformType != null">
+            and mao.platform_type = #{platformType}
+        </if>
+        <if test="dimension == 'month'">
+            group by DATE_FORMAT(mao.order_time, '%Y-%m'), mao.product_id, mp.title
+            order by timeLabel desc, totalOrderCount desc
+        </if>
+        <if test="dimension == 'week'">
+            group by DATE_FORMAT(mao.order_time, '%x-W%v'), mao.product_id, mp.title
+            order by timeLabel desc, totalOrderCount desc
+        </if>
     </select>
 </mapper>

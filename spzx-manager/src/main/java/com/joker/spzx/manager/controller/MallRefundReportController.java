@@ -10,13 +10,17 @@ import com.joker.spzx.model.dto.mall.RefundReportPageDto;
 import com.joker.spzx.model.entity.oper.MallRefundOrder;
 import com.joker.spzx.model.entity.oper.MallRefundRecord;
 import com.joker.spzx.model.vo.common.Result;
+import com.joker.spzx.model.vo.mall.OrderReportDetailVo;
 import com.joker.spzx.model.vo.mall.RefundReportVo;
+import com.joker.spzx.model.vo.mall.ReportOrderVo;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -82,5 +86,20 @@ public class MallRefundReportController {
     public Result<String> generateReport(@RequestBody RefundReportGenerateDto refundReportGenerateDto) {
         mallRefundRecordService.generate(refundReportGenerateDto);
         return Result.build(null);
+    }
+
+    @Operation(summary = "获取订单报表详情（含统计卡片）")
+    @GetMapping("/orderReportDetail/{id}")
+    public Result<OrderReportDetailVo> getOrderReportDetail(@PathVariable Long id) {
+        OrderReportDetailVo vo = mallRefundRecordService.getOrderReportDetail(id);
+        return Result.build(vo);
+    }
+
+    @Operation(summary = "获取报表订单列表（含订单类型和关联货源订单）")
+    @GetMapping("/reportOrders/{id}")
+    public Result<List<ReportOrderVo>> getReportOrders(@PathVariable Long id,
+                                                       @RequestParam(required = false) String cardType) {
+        List<ReportOrderVo> list = mallRefundRecordService.getReportOrders(id, cardType);
+        return Result.build(list);
     }
 }

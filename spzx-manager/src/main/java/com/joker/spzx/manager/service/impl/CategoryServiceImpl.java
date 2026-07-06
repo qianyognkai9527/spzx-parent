@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.manager.mapper.CategoryMapper;
 import com.joker.spzx.manager.service.CategoryService;
 import com.joker.spzx.model.entity.product.Category;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
@@ -24,6 +26,7 @@ import java.util.stream.Collectors;
 public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> implements CategoryService {
 
     @Override
+    @Cacheable(cacheNames = "category:list", key = "#platformType + ':' + #parentId", unless = "#result == null || #result.isEmpty()")
     public List<Category> findByParentId(Long parentId, Integer platformType) {
         LambdaQueryWrapper<Category> wrapper = new LambdaQueryWrapper<Category>()
                 .eq(Category::getPlatformType, platformType)

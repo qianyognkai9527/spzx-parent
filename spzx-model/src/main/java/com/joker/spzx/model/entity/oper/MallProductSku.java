@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
  */
 @Getter
 @Setter
-@TableName("mall_product_sku")
+@TableName("platform_product_sku")
 @Schema(name = "MallProductSku", description = "商品sku表")
 public class MallProductSku extends Model<MallProductSku> {
 

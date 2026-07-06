@@ -16,14 +16,14 @@ spring:
     username: root
     password: root123456
     hikari:
-      maximum-pool-size: 8
-      minimum-idle: 8
-      idle-timeout: 30000
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 600000
       max-lifetime: 1800000
       connection-timeout: 20000
       validation-timeout: 10000
       pool-name: manager-pool
-      leak-detection-threshold: 20000
+      leak-detection-threshold: 60000
       data-source-properties:
         cachePrepStmts: true
         prepStmtCacheSize: 250
@@ -36,6 +36,15 @@ spring:
     redis:
       host: localhost
       port: 6379
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+          max-wait: 3000ms
+        shutdown-timeout: 100ms
+      timeout: 5000ms
+      connect-timeout: 3000ms
   mvc:
     servlet:
       load-on-startup: 1
@@ -45,18 +54,27 @@ spring:
     lazy-initialization: false
     allow-bean-definition-overriding: true
 
-# Drools 规则引擎
-drools:
-  enabled: true
-  rules-path: rules/
-
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
   global-config:
     db-config:
       id-type: auto
   configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+# 微信扫码登录配置
+wx:
+  login:
+    app-id: wxed9954c01bb89b47
+    app-secret: a7482517235173ddb4083788de60b90e
+    redirect-uri: http://guli.shop/admin/system/index/wxLogin/callback
+    auth-url: https://open.weixin.qq.com/connect/qrconnect
+    access-token-url: https://api.weixin.qq.com/sns/oauth2/access_token
+    user-info-url: https://api.weixin.qq.com/sns/userinfo
+    qr-ttl-seconds: 120
+    poll-interval-ms: 1500
+    mock-mode: true
+    mock-base-url: http://localhost:80
 
 # application.properties
 #  logging:

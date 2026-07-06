@@ -4,10 +4,11 @@
 
     <select id="selectPicVideoListByOrderId" resultType="com.joker.spzx.model.entity.oper.MallProductPicVideo">
         SELECT
-            mpp.*
+            mpp.id, mpp.platform_type, mpp.product_id, mpp.person_id, mpp.file_url, mpp.file_type,
+            mpp.state, mpp.take_date, mpp.remark, mpp.is_deleted, mpp.create_time, mpp.update_time
         FROM
-            mall_product_picvideo mpp
-                INNER JOIN mall_order_resource mor ON mor.file_id = mpp.id
+            product_media mpp
+                INNER JOIN brush_order_resource mor ON mor.file_id = mpp.id
         WHERE
             mor.order_id = #{orderId}
     </select>

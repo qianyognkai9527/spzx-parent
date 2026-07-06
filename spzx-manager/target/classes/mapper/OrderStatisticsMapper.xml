@@ -3,7 +3,7 @@
 <mapper namespace="com.joker.spzx.manager.mapper.OrderStatisticsMapper">
 
     <select id="selectSaticsList" resultType="com.joker.spzx.model.entity.order.OrderStatistics">
-        select *
+        select id, platform_type, order_date, total_amount, total_num, total_count, create_time, update_time, is_deleted
         from order_statistics
         <where>
             <if test="platformType != null">

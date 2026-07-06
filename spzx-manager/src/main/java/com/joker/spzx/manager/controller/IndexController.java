@@ -13,6 +13,7 @@ import com.joker.spzx.model.vo.system.ValidateCodeVo;
 import com.joker.spzx.utils.AuthContextUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,7 +32,7 @@ public class IndexController {
 
     @PostMapping("/login")
     @Operation(summary = "用户登录")
-    public Result<LoginVo> login(@RequestBody LoginDto loginDto) {
+    public Result<LoginVo> login(@Valid @RequestBody LoginDto loginDto) {
         LoginVo loginVo = sysUserService.login(loginDto);
         return Result.build(loginVo, ResultCodeEnum.SUCCESS);
     }

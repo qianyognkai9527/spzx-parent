@@ -19,7 +19,7 @@ import java.io.Serializable;
  * @since 2025-05-11 13:02:11
  */
 @Data
-@TableName("mall_order_resource")
+@TableName("brush_order_resource")
 @Schema(name = "MallOrderResource", description = "订单与图片视频关联关系表")
 public class MallOrderResource extends Model<MallOrderResource> {
 

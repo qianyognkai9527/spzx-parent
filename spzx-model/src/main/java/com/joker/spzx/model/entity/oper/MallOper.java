@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
  */
 @Getter
 @Setter
-@TableName("mall_oper")
+@TableName("brush_person")
 @Schema(name = "MallOper", description = "电商资源")
 public class MallOper extends Model<MallOper> {
 
@@ -71,7 +71,7 @@ public class MallOper extends Model<MallOper> {
     @TableField("update_time")
     private LocalDateTime updateTime;
 
-    @Schema(description = "1：买家秀 2：刷手")
+    @Schema(description = "1：刷手 2：买家秀")
     @TableField("type")
     private Integer type;
 
@@ -79,7 +79,7 @@ public class MallOper extends Model<MallOper> {
     @TableField("remark")
     private String remark;
 
-    @Schema(description = "平台类型：1-淘宝, 2-抖音")
+    @Schema(description = "平台类型：0-通用,1-淘宝,2-抖音")
     @TableField("platform_type")
     private Integer platformType;
 

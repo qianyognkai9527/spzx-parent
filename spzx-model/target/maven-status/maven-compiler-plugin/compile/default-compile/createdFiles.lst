@@ -1,7 +1,9 @@
 com/joker/spzx/model/entity/order/OrderInfo.class
+com/joker/spzx/model/vo/system/WxLoginBindInfoVo.class
 com/joker/spzx/model/entity/user/SysUserScheduleTask.class
 com/joker/spzx/model/vo/h5/IndexVo.class
 com/joker/spzx/model/entity/system/SysOperLog.class
+com/joker/spzx/model/dto/system/WxLoginBindDto.class
 com/joker/spzx/model/dto/product/ProductFactoryPageParam.class
 com/joker/spzx/model/entity/user/UserAddress.class
 com/joker/spzx/model/entity/oper/MallProductLink.class
@@ -15,6 +17,7 @@ com/joker/spzx/model/dto/system/AssginRoleDto.class
 com/joker/spzx/model/dto/mall/FarmOrderPageDto.class
 com/joker/spzx/model/entity/system/Region.class
 com/joker/spzx/model/entity/oper/MallFarmOrder.class
+com/joker/spzx/model/vo/system/WxLoginCreateVo.class
 com/joker/spzx/model/entity/user/UserCollect.class
 com/joker/spzx/model/entity/system/SysMenu.class
 com/joker/spzx/model/dto/system/SysOperLogDto.class
@@ -22,8 +25,10 @@ com/joker/spzx/model/entity/user/SysUserSchedule.class
 com/joker/spzx/model/dto/system/AssginMenuDto.class
 com/joker/spzx/model/vo/mall/RefundReportSimplePageVo.class
 com/joker/spzx/model/entity/user/SysPlan.class
+com/joker/spzx/model/vo/system/WxLoginStatusVo.class
 com/joker/spzx/model/entity/system/SysDictType.class
 com/joker/spzx/model/entity/oper/MallProduct.class
+com/joker/spzx/model/entity/system/SysWechatUser.class
 com/joker/spzx/model/entity/product/Brand.class
 com/joker/spzx/model/dto/product/ProductDto.class
 com/joker/spzx/model/dto/mall/RefundReportGenerateDto.class
@@ -73,6 +78,7 @@ com/joker/spzx/model/dto/product/CategoryBrandDto.class
 com/joker/spzx/model/entity/product/Category.class
 com/joker/spzx/model/entity/system/SysLoginLog.class
 com/joker/spzx/model/dto/product/SkuSaleDto.class
+com/joker/spzx/model/entity/system/SysQrLoginTicket.class
 com/joker/spzx/model/vo/order/OrderStatisticsVo.class
 com/joker/spzx/model/vo/h5/ProductItemVo.class
 com/joker/spzx/model/entity/order/OrderLog.class

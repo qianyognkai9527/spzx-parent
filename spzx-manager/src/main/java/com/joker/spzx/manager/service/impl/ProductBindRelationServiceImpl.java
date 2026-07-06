@@ -33,7 +33,6 @@ public class ProductBindRelationServiceImpl extends ServiceImpl<ProductBindRelat
     public List<Product> findUnBindSourceProduct(ProductBindQueryDto keyword) {
         LambdaQueryWrapper<Product> productQueryWrapper = new LambdaQueryWrapper<>();
         productQueryWrapper.eq(Product::getIsDeleted, 0)
-                .eq(keyword.getPlatformType() != null, Product::getPlatformType, keyword.getPlatformType())
                 .like(StringUtils.isNotBlank(keyword.getSourceProductName()), Product::getSourceProductName, keyword);
         productQueryWrapper.orderByDesc(Product::getCreateTime);
         return productMapper.selectList(productQueryWrapper);
@@ -41,6 +40,29 @@ public class ProductBindRelationServiceImpl extends ServiceImpl<ProductBindRelat
 
     @Override
     public void bindRelation(ProductBindRelationDto productBindRelationDto) {
+        ProductBindRelation relation = new ProductBindRelation();
+        relation.setProductId(productBindRelationDto.getProductId());
+        relation.setSourceProductid(productBindRelationDto.getSourceProductId());
+        relation.setCreateTime(java.time.LocalDateTime.now());
+        relation.setIsDeleted(0);
+        relation.insert();
+    }
 
+    @Override
+    public List<Product> findBoundSourceProduct(Long productId) {
+        LambdaQueryWrapper<ProductBindRelation> relationWrapper = new LambdaQueryWrapper<>();
+        relationWrapper.eq(ProductBindRelation::getProductId, productId)
+                .eq(ProductBindRelation::getIsDeleted, 0);
+        List<ProductBindRelation> relations = this.list(relationWrapper);
+        if (relations.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        List<Long> sourceProductIds = relations.stream()
+                .map(ProductBindRelation::getSourceProductid)
+                .collect(java.util.stream.Collectors.toList());
+        LambdaQueryWrapper<Product> productWrapper = new LambdaQueryWrapper<>();
+        productWrapper.in(Product::getId, sourceProductIds)
+                .eq(Product::getIsDeleted, 0);
+        return productMapper.selectList(productWrapper);
     }
 }

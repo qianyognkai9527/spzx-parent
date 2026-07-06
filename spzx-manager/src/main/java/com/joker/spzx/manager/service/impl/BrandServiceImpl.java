@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.manager.mapper.BrandMapper;
 import com.joker.spzx.manager.service.BrandService;
 import com.joker.spzx.model.entity.product.Brand;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -34,6 +35,7 @@ public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements
     }
 
     @Override
+    @Cacheable(cacheNames = "brand:all", key = "#platformType", unless = "#result == null || #result.isEmpty()")
     public List<Brand> findAll(Integer platformType) {
         LambdaQueryWrapper<Brand> wrapper = new LambdaQueryWrapper<Brand>()
                 .eq(Brand::getPlatformType, platformType)

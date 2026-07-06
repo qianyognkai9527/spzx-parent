@@ -22,7 +22,7 @@ import java.math.BigDecimal;
  */
 @Getter
 @Setter
-@TableName("mall_refund_order")
+@TableName("refund_import_order")
 @Schema(name = "MallRefundOrder", description = "excel订单数据")
 public class MallRefundOrder extends Model<MallRefundOrder> {
 

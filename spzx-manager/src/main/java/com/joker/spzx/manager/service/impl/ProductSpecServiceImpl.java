@@ -7,6 +7,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.manager.mapper.ProductSpecMapper;
 import com.joker.spzx.manager.service.ProductSpecService;
 import com.joker.spzx.model.entity.product.ProductSpec;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -35,6 +37,7 @@ public class ProductSpecServiceImpl extends ServiceImpl<ProductSpecMapper, Produ
     }
 
     @Override
+    @CacheEvict(cacheNames = "productSpec:all", allEntries = true)
     public void saveData(ProductSpec productSpec) {
         productSpec.setIsDeleted(0);
         productSpec.setCreateTime(LocalDateTime.now());
@@ -42,6 +45,7 @@ public class ProductSpecServiceImpl extends ServiceImpl<ProductSpecMapper, Produ
     }
 
     @Override
+    @CacheEvict(cacheNames = "productSpec:all", allEntries = true)
     public void deleteById(Long id) {
         ProductSpec productSpec = new ProductSpec();
         productSpec.setId(id);
@@ -50,12 +54,14 @@ public class ProductSpecServiceImpl extends ServiceImpl<ProductSpecMapper, Produ
     }
 
     @Override
+    @CacheEvict(cacheNames = "productSpec:all", allEntries = true)
     public void updateData(ProductSpec productSpec) {
         productSpec.setUpdateTime(LocalDateTime.now());
         productSpec.updateById();
     }
 
     @Override
+    @Cacheable(cacheNames = "productSpec:all", key = "#platformType", unless = "#result == null || #result.isEmpty()")
     public List<ProductSpec> findAll(Integer platformType) {
         LambdaQueryWrapper<ProductSpec> wrapper = new LambdaQueryWrapper<ProductSpec>()
                 .eq(ProductSpec::getPlatformType, platformType)

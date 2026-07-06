@@ -7,9 +7,14 @@ import com.joker.spzx.model.entity.product.Product;
 import com.joker.spzx.model.vo.common.Result;
 import com.joker.spzx.model.vo.common.ResultCodeEnum;
 import com.joker.spzx.model.vo.product.ProductPageVo;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * <p>
@@ -20,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
  * @since 2025-04-15 17:07:15
  */
 @RestController
+@Tag(name = "货源商品", description = "货源商品管理")
 @RequestMapping(value = "/admin/product/sourceProduct")
 public class ProductController {
     @Autowired
@@ -32,19 +38,19 @@ public class ProductController {
     }
 
     @PostMapping("/saveData")
-    public Result save(@RequestBody Product product) {
+    public Result<String> save(@Valid @RequestBody Product product) {
         productService.saveData(product);
         return Result.build(null, ResultCodeEnum.SUCCESS);
     }
 
     @PutMapping("/updateData")
-    public Result updateById(@RequestBody Product product) {
+    public Result<String> updateById(@Valid @RequestBody Product product) {
         productService.updateDataById(product);
         return Result.build(null, ResultCodeEnum.SUCCESS);
     }
 
     @DeleteMapping("/deleteById/{id}")
-    public Result deleteById(@Parameter(name = "id", description = "商品id", required = true) @PathVariable Long id) {
+    public Result<String> deleteById(@Parameter(name = "id", description = "商品id", required = true) @PathVariable Long id) {
         productService.deleteData(id);
         return Result.build(null, ResultCodeEnum.SUCCESS);
     }
@@ -54,5 +60,12 @@ public class ProductController {
     public Result<ProductPageVo> updateStatus(@RequestParam Long id) {
         ProductPageVo byId = productService.getDataById(id);
         return Result.build(byId, ResultCodeEnum.SUCCESS);
+    }
+
+    @Operation(summary = "查询所有货源商品")
+    @GetMapping("/all")
+    public Result<List<Product>> listAll() {
+        List<Product> list = productService.list();
+        return Result.build(list, ResultCodeEnum.SUCCESS);
     }
 }

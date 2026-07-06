@@ -60,7 +60,7 @@ public class ProductBindRelation extends Model<ProductBindRelation> {
     private Long updateBy;
 
     @Schema(description = "平台类型：1-淘宝, 2-抖音")
-    @TableField("platform_type")
+    @TableField(exist = false)
     private Integer platformType;
 
     @Override

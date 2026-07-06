@@ -18,5 +18,9 @@ public class MallAddOrderPageDto extends PageParam {
 
     private Integer platformType;
 
+    private Integer hireIsPay;
+
+    private Integer seedIsPay;
+
 
 }

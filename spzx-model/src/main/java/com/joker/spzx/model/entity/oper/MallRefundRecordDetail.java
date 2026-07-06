@@ -21,7 +21,7 @@ import java.math.BigDecimal;
  */
 @Getter
 @Setter
-@TableName("mall_refund_record_detail")
+@TableName("refund_analysis_detail")
 @Schema(name = "MallRefundRecordDetail", description = "退款报表详情")
 public class MallRefundRecordDetail extends Model<MallRefundRecordDetail> {
 

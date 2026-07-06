@@ -1,6 +1,7 @@
 package com.joker.spzx.model.entity.product;
 
 import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableName;
 import com.joker.spzx.model.entity.base.BaseEntity;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
@@ -8,7 +9,8 @@ import lombok.Data;
 import java.math.BigDecimal;
 
 @Data
-@Schema(description = "商品实体类")
+@TableName("source_product")
+@Schema(description = "货源商品实体类")
 public class Product extends BaseEntity {
 
     @Schema(description = "货源商品名称")
@@ -39,6 +41,10 @@ public class Product extends BaseEntity {
     @TableField("freight_cost")
     private BigDecimal freightCost;
 
+    @Schema(description = "货源价格")
+    @TableField("source_price")
+    private BigDecimal sourcePrice;
+
     @Schema(description = "发货时长")
     @TableField("dispatch_time")
     private Integer dispatchTime;
@@ -46,6 +52,10 @@ public class Product extends BaseEntity {
     @Schema(description = "稳定状态：1-稳定，1-不太稳定，3-不稳定")
     @TableField("steady_status")
     private Integer steadyStatus;
+
+    @Schema(description = "带图评价数量")
+    @TableField("eval_with_image_count")
+    private Integer evalWithImageCount;
 
     @Schema(description = "创建人")
     @TableField("create_by")
@@ -56,7 +66,7 @@ public class Product extends BaseEntity {
     private Long updateBy;
 
     @Schema(description = "平台类型：1-淘宝, 2-抖音")
-    @TableField("platform_type")
+    @TableField(exist = false)
     private Integer platformType;
 
 }

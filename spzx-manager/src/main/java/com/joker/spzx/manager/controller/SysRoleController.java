@@ -7,6 +7,7 @@ import com.joker.spzx.model.entity.system.SysRole;
 import com.joker.spzx.model.vo.common.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -47,14 +48,14 @@ public class SysRoleController {
 
     @Operation(summary = "新增角色")
     @PostMapping("/saveSysRole")
-    public Result<String> saveSysUser(@RequestBody SysRole sysRole) {
+    public Result<String> saveSysUser(@Valid @RequestBody SysRole sysRole) {
         sysRoleService.saveSysRole(sysRole);
         return Result.build(null);
     }
 
     @Operation(summary = "修改角色")
     @PostMapping("/updateSysRole")
-    public Result<String> updateSysRole(@RequestBody SysRole sysRole) {
+    public Result<String> updateSysRole(@Valid @RequestBody SysRole sysRole) {
         sysRoleService.updateSysRole(sysRole);
         return Result.build(null);
     }

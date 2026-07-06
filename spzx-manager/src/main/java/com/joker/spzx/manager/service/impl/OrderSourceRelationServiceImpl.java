@@ -30,6 +30,9 @@ public class OrderSourceRelationServiceImpl extends ServiceImpl<OrderSourceRelat
                 .eq(queryDto.getPlatformType() != null, OrderSourceRelation::getPlatformType, queryDto.getPlatformType())
                 .eq(StringUtils.hasText(queryDto.getOrderNo()), OrderSourceRelation::getOrderNo, queryDto.getOrderNo())
                 .eq(StringUtils.hasText(queryDto.getSourceOrderNo()), OrderSourceRelation::getSourceOrderNo, queryDto.getSourceOrderNo())
+                .eq(queryDto.getPlatformProductId() != null, OrderSourceRelation::getPlatformProductId, queryDto.getPlatformProductId())
+                .eq(queryDto.getSourceProductId() != null, OrderSourceRelation::getSourceProductId, queryDto.getSourceProductId())
+                .eq(queryDto.getOrderStatus() != null, OrderSourceRelation::getOrderStatus, queryDto.getOrderStatus())
                 .orderByDesc(OrderSourceRelation::getCreateTime);
         return page(new Page<>(pageNum, pageSize), wrapper);
     }

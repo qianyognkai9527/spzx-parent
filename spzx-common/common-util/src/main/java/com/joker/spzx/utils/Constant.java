@@ -11,6 +11,12 @@ public class Constant {
     public static final List<String> whiteList = List.of(
             "/admin/system/index/login",
             "/admin/system/index/genVarifyCode",
+            "/admin/system/index/wxLogin/create",
+            "/admin/system/index/wxLogin/status",
+            "/admin/system/index/wxLogin/callback",
+            "/admin/system/index/wxLogin/bind",
+            "/admin/system/index/wxLogin/mockScan",
+            "/admin/system/index/wxLogin/mockConfirm",
             "/admin/system/fileUpload",
             "/js/**",
             "/css/**",

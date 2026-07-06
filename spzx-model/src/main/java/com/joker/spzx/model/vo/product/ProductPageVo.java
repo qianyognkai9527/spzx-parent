@@ -37,9 +37,18 @@ public class ProductPageVo {
     @Schema(description = "运费")
     private BigDecimal freightCost;
 
+    @Schema(description = "货源价格")
+    private BigDecimal sourcePrice;
+
     @Schema(description = "发货时长")
     private Integer dispatchTime;
 
     @Schema(description = "稳定状态：1-稳定，1-不太稳定，3-不稳定")
     private Integer steadyStatus;
+
+    @Schema(description = "带图评价数量")
+    private Integer evalWithImageCount;
+
+    @Schema(description = "平台类型：1-淘宝, 2-抖音")
+    private Integer platformType;
 }

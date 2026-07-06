@@ -30,8 +30,11 @@ public class MallProductController {
     @Operation(summary = "分页查询")
     @GetMapping("/pageList/{pageNum}/{pageSize}")
     public Result<IPage<MallProduct>> page(@PathVariable Integer pageNum, @PathVariable Integer pageSize,
-                                           @RequestParam Integer platformType) {
-        IPage<MallProduct> page = mallProductService.pageList(pageNum, pageSize, platformType);
+                                           @RequestParam Integer platformType,
+                                           @RequestParam(required = false) String keyword,
+                                           @RequestParam(required = false) String createTimeBegin,
+                                           @RequestParam(required = false) String createTimeEnd) {
+        IPage<MallProduct> page = mallProductService.pageList(pageNum, pageSize, platformType, keyword, createTimeBegin, createTimeEnd);
         return Result.build(page);
     }
 
@@ -55,6 +58,17 @@ public class MallProductController {
     public Result<List<MallProduct>> list() {
         List<MallProduct> page = mallProductService.list();
         return Result.build(page);
+    }
+
+    @Operation(summary = "按平台类型查询所有商品")
+    @GetMapping("/allByPlatformType")
+    public Result<List<MallProduct>> listByPlatformType(@RequestParam Integer platformType) {
+        List<MallProduct> list = mallProductService.list(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<MallProduct>()
+                        .eq(MallProduct::getPlatformType, platformType)
+                        .orderByDesc(MallProduct::getCreateTime)
+        );
+        return Result.build(list);
     }
 
 

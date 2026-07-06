@@ -1,9 +1,8 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/ManagerApplication.java
-/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/config/DroolsConfig.java
-/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/config/DroolsProperties.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/config/LoginAuthInterceptor.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/config/MybatisPlusConfig.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/config/WebMvcConfiguration.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/config/WxLoginProperties.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/controller/BrandController.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/controller/CategoryBrandController.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/controller/CategoryController.java
@@ -23,6 +22,7 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/controller/MallRefundRecordDetailController.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/controller/MallRefundReportController.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/controller/OrderInfoController.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/controller/OrderSourceRelationController.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/controller/ProductBindRelationController.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/controller/ProductController.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/controller/ProductSpecController.java
@@ -37,8 +37,7 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/controller/SysUserScheduleController.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/controller/SysUserScheduleTaskController.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/controller/UserCostController.java
-/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/drools/DroolsRuleService.java
-/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/drools/model/OrderDiscountFact.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/controller/WxLoginController.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/excel/OrderSimpleExcelBo.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/excel/SecondOrderExcelBo.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/helper/MenuHelper.java
@@ -64,6 +63,7 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/OrderInfoMapper.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/OrderItemMapper.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/OrderLogMapper.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/OrderSourceRelationMapper.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/OrderStatisticsMapper.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/PaymentInfoMapper.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/ProductAttrMapper.java
@@ -81,12 +81,14 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/SysOperLogMapper.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/SysPlanMapper.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/SysPlanProductMapper.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/SysQrLoginTicketMapper.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/SysRoleMapper.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/SysRoleMenuMapper.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/SysUserMapper.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/SysUserRoleMapper.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/SysUserScheduleMapper.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/SysUserScheduleTaskMapper.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/SysWechatUserMapper.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/UserAddressMapper.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/UserBrowseHistoryMapper.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/UserCollectMapper.java
@@ -110,6 +112,7 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/MallRefundRecordDetailService.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/MallRefundRecordService.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/OrderInfoService.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/OrderSourceRelationService.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/ProductBindRelationService.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/ProductService.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/ProductSpecService.java
@@ -124,6 +127,7 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/SysUserScheduleTaskService.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/SysUserService.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/UserCostService.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/WxLoginService.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/impl/AsyncOperLogServiceImpl.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/impl/BrandServiceImpl.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/impl/CategoryBrandServiceImpl.java
@@ -143,6 +147,7 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/impl/MallRefundRecordDetailServiceImpl.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/impl/MallRefundRecordServiceImpl.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/impl/OrderInfoServiceImpl.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/impl/OrderSourceRelationServiceImpl.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/impl/ProductBindRelationServiceImpl.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/impl/ProductServiceImpl.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/impl/ProductSpecServiceImpl.java
@@ -157,4 +162,6 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/impl/SysUserScheduleTaskServiceImpl.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/impl/SysUserServiceImpl.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/impl/UserCostServiceImpl.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/impl/WxLoginServiceImpl.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/task/OrderStatisticsTask.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/task/QrLoginTicketCleanTask.java

@@ -23,7 +23,7 @@ import java.time.LocalDateTime;
  */
 @Getter
 @Setter
-@TableName("mall_refund_record")
+@TableName("refund_analysis_report")
 @Schema(name = "MallRefundRecord", description = "退款分析报表")
 public class MallRefundRecord extends Model<MallRefundRecord> {
 

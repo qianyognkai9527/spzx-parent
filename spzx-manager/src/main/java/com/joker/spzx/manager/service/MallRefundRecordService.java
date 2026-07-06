@@ -7,7 +7,9 @@ import com.joker.spzx.model.dto.mall.RefundReportGenerateDto;
 import com.joker.spzx.model.dto.mall.RefundReportPageDto;
 import com.joker.spzx.model.entity.oper.MallRefundOrder;
 import com.joker.spzx.model.entity.oper.MallRefundRecord;
+import com.joker.spzx.model.vo.mall.OrderReportDetailVo;
 import com.joker.spzx.model.vo.mall.RefundReportVo;
+import com.joker.spzx.model.vo.mall.ReportOrderVo;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -32,4 +34,8 @@ public interface MallRefundRecordService extends IService<MallRefundRecord> {
 
 
     void deleteReport(Long id);
+
+    OrderReportDetailVo getOrderReportDetail(Long id);
+
+    java.util.List<ReportOrderVo> getReportOrders(Long id, String cardType);
 }

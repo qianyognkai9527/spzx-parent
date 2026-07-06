@@ -21,4 +21,6 @@ public interface ProductBindRelationService extends IService<ProductBindRelation
     List<Product> findUnBindSourceProduct(ProductBindQueryDto keyword);
 
     void bindRelation(ProductBindRelationDto productBindRelationDto);
+
+    List<Product> findBoundSourceProduct(Long productId);
 }

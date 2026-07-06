@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
  * @since 2025-05-06 17:22:06
  */
 @Data
-@TableName("mall_farm_order")
+@TableName("brush_eval_order")
 @Schema(name = "MallFarmOrder", description = "补单表")
 public class MallFarmOrder extends Model<MallFarmOrder> {
 

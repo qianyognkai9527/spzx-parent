@@ -26,10 +26,10 @@
     </select>
     <select id="findBrandByCategoryId" resultType="com.joker.spzx.model.entity.product.Brand">
         select
-            b.*
+            b.id, b.platform_type, b.name, b.logo, b.is_deleted, b.create_time, b.update_time
         from category_brand cb
         left join brand b  on b.id = cb.brand_id
-        where cb.category_id = #{categoryId} 
+        where cb.category_id = #{categoryId}
             and cb.platform_type = #{platformType}
             and cb.is_deleted = 0
         order by cb.id desc

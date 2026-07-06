@@ -50,4 +50,19 @@ public class MallAddOrderPageVo {
 
     @Schema(description = "物流公司")
     private String wayBillName;
+
+    @Schema(description = "平台类型：1-淘宝,2-抖音")
+    private Integer platformType;
+
+    @Schema(description = "佣金是否已返：0-未返,1-已返")
+    private Integer hireIsPay;
+
+    @Schema(description = "是否已评价：0-未评价,1-已评价")
+    private Integer isEvaluated;
+
+    @Schema(description = "本金是否已返：0-未返,1-已返")
+    private Integer seedIsPay;
+
+    @Schema(description = "返佣时间")
+    private LocalDateTime settlementTime;
 }

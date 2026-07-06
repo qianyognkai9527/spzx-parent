@@ -25,5 +25,6 @@ public interface MallProductFactoryService extends IService<MallProductFactory> 
 
     List<MallProductFactory> getAllProductFactory(Integer platformType);
 
+    void deleteById(Long id);
 
 }

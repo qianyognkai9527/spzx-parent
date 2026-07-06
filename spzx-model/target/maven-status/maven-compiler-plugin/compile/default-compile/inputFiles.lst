@@ -30,6 +30,7 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/dto/system/SysRoleDto.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/dto/system/SysUserDto.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/dto/system/UserScheduleDtp.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/dto/system/WxLoginBindDto.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/base/BaseEntity.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/base/ProductUnit.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/base/Region.java
@@ -50,6 +51,7 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/order/OrderInfo.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/order/OrderItem.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/order/OrderLog.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/order/OrderSourceRelation.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/order/OrderStatistics.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/pay/PaymentInfo.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/product/Brand.java
@@ -71,10 +73,12 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/system/SysLoginLog.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/system/SysMenu.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/system/SysOperLog.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/system/SysQrLoginTicket.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/system/SysRole.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/system/SysRoleMenu.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/system/SysRoleUser.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/system/SysUser.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/system/SysWechatUser.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/user/SysPlan.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/user/SysPlanProduct.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/user/SysUserSchedule.java
@@ -101,3 +105,6 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/system/LoginVo.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/system/SysMenuVo.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/system/ValidateCodeVo.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/system/WxLoginBindInfoVo.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/system/WxLoginCreateVo.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/system/WxLoginStatusVo.java

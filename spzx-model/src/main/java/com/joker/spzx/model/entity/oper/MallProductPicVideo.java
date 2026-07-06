@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
  */
 @Getter
 @Setter
-@TableName("mall_product_picvideo")
+@TableName("product_media")
 @Schema(name = "MallProductPicvideo", description = "商品图片表")
 public class MallProductPicVideo extends Model<MallProductPicVideo> {
 

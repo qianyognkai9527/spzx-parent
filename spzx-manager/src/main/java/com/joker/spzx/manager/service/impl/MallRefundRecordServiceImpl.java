@@ -11,6 +11,7 @@ import com.joker.spzx.manager.mapper.MallAddOrderMapper;
 import com.joker.spzx.manager.mapper.MallRefundOrderMapper;
 import com.joker.spzx.manager.mapper.MallRefundRecordDetailMapper;
 import com.joker.spzx.manager.mapper.MallRefundRecordMapper;
+import com.joker.spzx.manager.mapper.OrderSourceRelationMapper;
 import com.joker.spzx.manager.service.MallRefundRecordService;
 import com.joker.spzx.model.dto.mall.OrderDetailQueryDto;
 import com.joker.spzx.model.dto.mall.RefundReportGenerateDto;
@@ -19,7 +20,11 @@ import com.joker.spzx.model.entity.oper.MallAddOrder;
 import com.joker.spzx.model.entity.oper.MallRefundOrder;
 import com.joker.spzx.model.entity.oper.MallRefundRecord;
 import com.joker.spzx.model.entity.oper.MallRefundRecordDetail;
+import com.joker.spzx.model.entity.order.OrderSourceRelation;
+import com.joker.spzx.model.vo.mall.OrderReportDetailVo;
 import com.joker.spzx.model.vo.mall.RefundReportVo;
+import com.joker.spzx.model.vo.mall.ReportOrderVo;
+import com.joker.spzx.model.vo.mall.ReportStatCardVo;
 import com.joker.spzx.utils.AuthContextUtil;
 import com.joker.spzx.utils.excel.DefaultExcelListener;
 import com.joker.spzx.utils.excel.ExcelResult;
@@ -63,6 +68,9 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
 
     @Autowired
     private MallRefundRecordDetailMapper mallRefundRecordDetailMapper;
+
+    @Autowired
+    private OrderSourceRelationMapper orderSourceRelationMapper;
 
     @SneakyThrows
     @Override
@@ -319,5 +327,231 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
         mallRefundRecord.setId(id);
         mallRefundRecord.setDelFlag(1);
         this.updateById(mallRefundRecord);
+    }
+
+    @Override
+    public OrderReportDetailVo getOrderReportDetail(Long id) {
+        MallRefundRecord record = this.getById(id);
+        if (Objects.isNull(record)) {
+            throw new ServiceException(500, "报表不存在");
+        }
+        OrderReportDetailVo vo = new OrderReportDetailVo();
+        vo.setId(record.getId());
+        vo.setCode(record.getCode());
+        vo.setName(record.getName());
+        vo.setOrderDataCode(record.getOrderDataCode());
+        vo.setState(record.getState());
+        vo.setStartTime(record.getStartTime());
+        vo.setEndTime(record.getEndTime());
+        vo.setTotalAmount(record.getTotalAmount());
+        vo.setSmartPromotion(record.getSmartPromotion());
+        vo.setCrowdPromotion(record.getCrowdPromotion());
+        vo.setSitePromotion(record.getSitePromotion());
+        vo.setKeywordPromotion(record.getKeywordPromotion());
+
+        // 获取详情统计
+        LambdaQueryWrapper<MallRefundRecordDetail> detailWrapper = new LambdaQueryWrapper<>();
+        detailWrapper.eq(MallRefundRecordDetail::getRecordId, id).last(" limit 1");
+        MallRefundRecordDetail detail = mallRefundRecordDetailMapper.selectOne(detailWrapper);
+
+        // 构建统计卡片
+        List<ReportStatCardVo> cards = Lists.newArrayList();
+
+        int totalCount = 0, brushCount = 0, successCount = 0, refundCount = 0, pendingCount = 0;
+        BigDecimal totalPayAmount = BigDecimal.ZERO, profitAmount = BigDecimal.ZERO;
+        BigDecimal successMoney = BigDecimal.ZERO, refundMoney = BigDecimal.ZERO, brushMoney = BigDecimal.ZERO;
+
+        if (detail != null) {
+            totalCount = detail.getTotalCount() != null ? detail.getTotalCount() : 0;
+            brushCount = detail.getBrushCount() != null ? detail.getBrushCount() : 0;
+            successCount = detail.getSuccessCount() != null ? detail.getSuccessCount() : 0;
+            refundCount = detail.getRefundCount() != null ? detail.getRefundCount() : 0;
+            pendingCount = detail.getPendingCount() != null ? detail.getPendingCount() : 0;
+            totalPayAmount = detail.getTotalPayAmount() != null ? detail.getTotalPayAmount() : BigDecimal.ZERO;
+            profitAmount = detail.getProfitAmount() != null ? detail.getProfitAmount() : BigDecimal.ZERO;
+            successMoney = detail.getSuccessMoney() != null ? detail.getSuccessMoney() : BigDecimal.ZERO;
+            refundMoney = detail.getRefundMoney() != null ? detail.getRefundMoney() : BigDecimal.ZERO;
+            brushMoney = detail.getBrushMoney() != null ? detail.getBrushMoney() : BigDecimal.ZERO;
+        }
+
+        // 如果还没有生成过，实时计算
+        if (detail == null && StringUtils.isNotBlank(record.getOrderDataCode())) {
+            LambdaQueryWrapper<MallRefundOrder> orderWrapper = new LambdaQueryWrapper<>();
+            orderWrapper.eq(MallRefundOrder::getCode, record.getOrderDataCode());
+            List<MallRefundOrder> allOrders = mallRefundOrderMapper.selectList(orderWrapper);
+            totalCount = allOrders.size();
+
+            // 获取补单订单
+            LambdaQueryWrapper<MallAddOrder> brushWrapper = new LambdaQueryWrapper<>();
+            brushWrapper.ge(MallAddOrder::getOrderTime, record.getStartTime())
+                    .le(MallAddOrder::getOrderTime, record.getEndTime());
+            List<MallAddOrder> brushOrders = mallAddOrderMapper.selectList(brushWrapper);
+            java.util.Set<String> brushOrderIds = brushOrders.stream()
+                    .map(MallAddOrder::getTbOrderId)
+                    .collect(Collectors.toSet());
+            brushCount = (int) allOrders.stream().filter(o -> brushOrderIds.contains(o.getOrderId())).count();
+
+            for (MallRefundOrder order : allOrders) {
+                if (brushOrderIds.contains(order.getOrderId())) continue;
+                if (order.getRefundMoney() != null && order.getRefundMoney().compareTo(BigDecimal.ZERO) > 0) {
+                    refundCount++;
+                    refundMoney = refundMoney.add(order.getRefundMoney());
+                } else if ("交易成功".equals(order.getOrderStatus())) {
+                    successCount++;
+                    successMoney = successMoney.add(order.getPayMoney() != null ? order.getPayMoney() : BigDecimal.ZERO);
+                } else if ("卖家已发货，等待买家确认".equals(order.getOrderStatus())) {
+                    pendingCount++;
+                }
+            }
+        }
+
+        int unknownCount = totalCount - brushCount - successCount - refundCount - pendingCount;
+        if (unknownCount < 0) unknownCount = 0;
+
+        vo.setTotalPayAmount(totalPayAmount);
+        vo.setProfitAmount(profitAmount);
+
+        // 总订单数卡片
+        ReportStatCardVo totalCard = new ReportStatCardVo();
+        totalCard.setCardType("total");
+        totalCard.setCardTitle("总订单数");
+        totalCard.setCount(totalCount);
+        totalCard.setAmount(totalPayAmount);
+        totalCard.setColor("#409eff");
+        totalCard.setIcon("Document");
+        cards.add(totalCard);
+
+        // 补单单量卡片
+        ReportStatCardVo brushCard = new ReportStatCardVo();
+        brushCard.setCardType("brush");
+        brushCard.setCardTitle("补单单量");
+        brushCard.setCount(brushCount);
+        brushCard.setAmount(brushMoney);
+        brushCard.setColor("#e6a23c");
+        brushCard.setIcon("Warning");
+        cards.add(brushCard);
+
+        // 真实订单卡片
+        ReportStatCardVo realCard = new ReportStatCardVo();
+        realCard.setCardType("real");
+        realCard.setCardTitle("真实订单");
+        realCard.setCount(successCount);
+        realCard.setAmount(successMoney);
+        realCard.setColor("#67c23a");
+        realCard.setIcon("CircleCheck");
+        cards.add(realCard);
+
+        // 退款订单卡片
+        ReportStatCardVo refundCard = new ReportStatCardVo();
+        refundCard.setCardType("refund");
+        refundCard.setCardTitle("退款订单");
+        refundCard.setCount(refundCount);
+        refundCard.setAmount(refundMoney);
+        refundCard.setColor("#f56c6c");
+        refundCard.setIcon("CircleClose");
+        cards.add(refundCard);
+
+        // 待定订单卡片
+        ReportStatCardVo pendingCard = new ReportStatCardVo();
+        pendingCard.setCardType("pending");
+        pendingCard.setCardTitle("待定订单");
+        pendingCard.setCount(pendingCount);
+        pendingCard.setColor("#909399");
+        pendingCard.setIcon("Question");
+        cards.add(pendingCard);
+
+        // 未知订单卡片
+        ReportStatCardVo unknownCard = new ReportStatCardVo();
+        unknownCard.setCardType("unknown");
+        unknownCard.setCardTitle("未知订单");
+        unknownCard.setCount(unknownCount);
+        unknownCard.setColor("#9c27b0");
+        unknownCard.setIcon("Question");
+        cards.add(unknownCard);
+
+        vo.setStatCards(cards);
+        return vo;
+    }
+
+    @Override
+    public List<ReportOrderVo> getReportOrders(Long id, String cardType) {
+        MallRefundRecord record = this.getById(id);
+        if (Objects.isNull(record)) {
+            throw new ServiceException(500, "报表不存在");
+        }
+
+        // 获取报表所有订单
+        LambdaQueryWrapper<MallRefundOrder> orderWrapper = new LambdaQueryWrapper<>();
+        orderWrapper.eq(MallRefundOrder::getCode, record.getOrderDataCode());
+        List<MallRefundOrder> allOrders = mallRefundOrderMapper.selectList(orderWrapper);
+
+        // 获取补单订单ID集合
+        LambdaQueryWrapper<MallAddOrder> brushWrapper = new LambdaQueryWrapper<>();
+        brushWrapper.ge(MallAddOrder::getOrderTime, record.getStartTime())
+                .le(MallAddOrder::getOrderTime, record.getEndTime());
+        List<MallAddOrder> brushOrders = mallAddOrderMapper.selectList(brushWrapper);
+        java.util.Set<String> brushOrderIds = brushOrders.stream()
+                .map(MallAddOrder::getTbOrderId)
+                .collect(Collectors.toSet());
+
+        // 获取所有关联的货源订单
+        List<String> orderIds = allOrders.stream().map(MallRefundOrder::getOrderId).collect(Collectors.toList());
+        java.util.Map<String, List<OrderSourceRelation>> sourceOrderMap = new java.util.HashMap<>();
+        if (!orderIds.isEmpty()) {
+            LambdaQueryWrapper<OrderSourceRelation> sourceWrapper = new LambdaQueryWrapper<>();
+            sourceWrapper.in(OrderSourceRelation::getOrderNo, orderIds);
+            List<OrderSourceRelation> sourceOrders = orderSourceRelationMapper.selectList(sourceWrapper);
+            sourceOrderMap = sourceOrders.stream()
+                    .collect(Collectors.groupingBy(OrderSourceRelation::getOrderNo));
+        }
+
+        // 构建结果
+        List<ReportOrderVo> result = Lists.newArrayList();
+        for (MallRefundOrder order : allOrders) {
+            ReportOrderVo vo = new ReportOrderVo();
+            vo.setId(order.getId());
+            vo.setOrderId(order.getOrderId());
+            vo.setPayMoney(order.getPayMoney());
+            vo.setRefundMoney(order.getRefundMoney());
+            vo.setOrderStatus(order.getOrderStatus());
+
+            // 判断订单类型
+            String orderType;
+            String orderTypeDesc;
+            if (brushOrderIds.contains(order.getOrderId())) {
+                orderType = "brush";
+                orderTypeDesc = "补单";
+            } else if (order.getRefundMoney() != null && order.getRefundMoney().compareTo(BigDecimal.ZERO) > 0) {
+                orderType = "refund";
+                orderTypeDesc = "真实订单-退款";
+            } else if ("交易成功".equals(order.getOrderStatus())) {
+                orderType = "real";
+                orderTypeDesc = "真实订单";
+            } else if ("卖家已发货，等待买家确认".equals(order.getOrderStatus())) {
+                orderType = "pending";
+                orderTypeDesc = "真实订单-待定";
+            } else {
+                orderType = "unknown";
+                orderTypeDesc = "未知";
+            }
+            vo.setOrderType(orderType);
+            vo.setOrderTypeDesc(orderTypeDesc);
+
+            // 关联货源订单
+            vo.setSourceOrders(sourceOrderMap.getOrDefault(order.getOrderId(), Lists.newArrayList()));
+
+            // 按卡片类型过滤
+            if (StringUtils.isNotBlank(cardType)) {
+                if (cardType.equals("total")) {
+                    result.add(vo);
+                } else if (cardType.equals(vo.getOrderType())) {
+                    result.add(vo);
+                }
+            } else {
+                result.add(vo);
+            }
+        }
+
+        return result;
     }
 }

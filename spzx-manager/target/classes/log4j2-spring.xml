@@ -1,10 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="WARN" monitorInterval="30">
+    <Properties>
+        <Property name="LOG_PATH">logs</Property>
+        <Property name="APP_NAME">spzx-manager</Property>
+        <Property name="PATTERN">%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%t] %logger{36} - %msg%n</Property>
+    </Properties>
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n"/>
+            <PatternLayout pattern="${PATTERN}"/>
         </Console>
+
+        <RollingFile name="FileLog" fileName="${LOG_PATH}/${APP_NAME}.log"
+                     filePattern="${LOG_PATH}/${APP_NAME}-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${PATTERN}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="100MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="30"/>
+        </RollingFile>
+
+        <RollingFile name="ErrorLog" fileName="${LOG_PATH}/${APP_NAME}-error.log"
+                     filePattern="${LOG_PATH}/${APP_NAME}-error-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${PATTERN}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="50MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="30"/>
+        </RollingFile>
+
+        <RollingFile name="SqlLog" fileName="${LOG_PATH}/${APP_NAME}-sql.log"
+                     filePattern="${LOG_PATH}/${APP_NAME}-sql-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${PATTERN}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="100MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="14"/>
+        </RollingFile>
     </Appenders>
     <Loggers>
+        <!-- SQL 日志单独输出 -->
+        <Logger name="com.joker.spzx.manager.mapper" level="debug" additivity="false">
+            <AppenderRef ref="SqlLog"/>
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+        <!-- 错误日志单独输出 -->
+        <Logger name="com.joker.spzx" level="info" additivity="false">
+            <AppenderRef ref="FileLog"/>
+            <AppenderRef ref="ErrorLog" level="error"/>
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+        <Logger name="com.zaxxer.hikari" level="warn"/>
+        <Logger name="org.springframework" level="warn"/>
+        <Logger name="org.mybatis" level="warn"/>
+
         <Root level="info">
             <AppenderRef ref="Console"/>
         </Root>

@@ -36,4 +36,10 @@ public class ProductBindRelationController {
         productBindRelationService.bindRelation(keyword);
         return Result.build(null);
     }
+
+    @GetMapping("/findBoundSourceProduct/{productId}")
+    public Result<List<Product>> findBoundSourceProduct(@PathVariable Long productId) {
+        List<Product> boundProducts = productBindRelationService.findBoundSourceProduct(productId);
+        return Result.build(boundProducts);
+    }
 }

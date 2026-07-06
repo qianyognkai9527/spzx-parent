@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
  */
 @Getter
 @Setter
-@TableName("mall_product")
+@TableName("platform_product")
 @Schema(name = "MallProduct", description = "商品基本表")
 public class MallProduct extends Model<MallProduct> {
 
@@ -39,14 +39,6 @@ public class MallProduct extends Model<MallProduct> {
     @Schema(description = "当前标题")
     @TableField("title")
     private String title;
-
-    @Schema(description = "当前标题")
-    @TableField("guide_title")
-    private String guideTitle;
-
-    @Schema(description = "头图url")
-    @TableField("pic_url")
-    private String picUrl;
 
     @Schema(description = "创建人")
     @TableField("create_by")
@@ -71,6 +63,14 @@ public class MallProduct extends Model<MallProduct> {
     @Schema(description = "平台类型：1-淘宝, 2-抖音")
     @TableField("platform_type")
     private Integer platformType;
+
+    @Schema(description = "定价")
+    @TableField("pricing")
+    private java.math.BigDecimal pricing;
+
+    @Schema(description = "运费/邮费")
+    @TableField("freight")
+    private java.math.BigDecimal freight;
 
     @Override
     public Serializable pkVal() {
