@@ -1,7 +1,14 @@
 server:
   port: 8501
   tomcat:
-    connection-timeout: 30000
+    connection-timeout: 20000
+    threads:
+      max: 50
+      min-spare: 5
+    max-connections: 2048
+    accept-count: 50
+    accesslog:
+      enabled: false
 
 # 配置数据库连接信息
 spring:
@@ -12,46 +19,44 @@ spring:
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/db_spzx?characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/db_spzx?characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true&connectTimeout=3000&socketTimeout=10000
     username: root
     password: root123456
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
+      maximum-pool-size: 5
+      minimum-idle: 2
       idle-timeout: 600000
       max-lifetime: 1800000
-      connection-timeout: 20000
-      validation-timeout: 10000
+      connection-timeout: 5000
+      validation-timeout: 3000
       pool-name: manager-pool
-      leak-detection-threshold: 60000
+      leak-detection-threshold: 0
       data-source-properties:
         cachePrepStmts: true
-        prepStmtCacheSize: 250
-        prepStmtCacheSqlLimit: 4096
+        prepStmtCacheSize: 500
+        prepStmtCacheSqlLimit: 2048
+        useServerPrepStmts: true
+        rewriteBatchedStatements: true
+        cacheResultSetMetadata: true
       initialization-fail-timeout: 1
       connection-init-sql: SELECT 1
 
-  # Redis的相关配置
+  # Redis的相关配置 — Lettuce 单连接多路复用，去掉 pool
   data:
     redis:
       host: localhost
       port: 6379
       lettuce:
-        pool:
-          max-active: 16
-          max-idle: 8
-          min-idle: 2
-          max-wait: 3000ms
         shutdown-timeout: 100ms
-      timeout: 5000ms
-      connect-timeout: 3000ms
+      timeout: 3000ms
+      connect-timeout: 2000ms
   mvc:
     servlet:
       load-on-startup: 1
     format:
       date-time: yyyy-MM-dd HH:mm:ss
   main:
-    lazy-initialization: false
+    lazy-initialization: true
     allow-bean-definition-overriding: true
 
 mybatis-plus:
@@ -61,6 +66,15 @@ mybatis-plus:
       id-type: auto
   configuration:
     log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+    cache-enabled: true
+    default-fetch-size: 100
+
+# MinIO 配置
+minio:
+  endpoint: http://127.0.0.1:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket: spzx-manager
 
 # 微信扫码登录配置
 wx:
@@ -75,9 +89,3 @@ wx:
     poll-interval-ms: 1500
     mock-mode: true
     mock-base-url: http://localhost:80
-
-# application.properties
-#  logging:
-#    level:
-#      com.zaxxer.hikari: DEBUG
-#      org.springframework: DEBUG

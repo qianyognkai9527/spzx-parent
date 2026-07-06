@@ -41,25 +41,25 @@
         </RollingFile>
     </Appenders>
     <Loggers>
-        <!-- SQL 日志单独输出 -->
-        <Logger name="com.joker.spzx.manager.mapper" level="debug" additivity="false">
+        <!-- SQL 日志单独输出，生产降为 info -->
+        <Logger name="com.joker.spzx.manager.mapper" level="info" additivity="false">
             <AppenderRef ref="SqlLog"/>
-            <AppenderRef ref="Console"/>
         </Logger>
 
         <!-- 错误日志单独输出 -->
         <Logger name="com.joker.spzx" level="info" additivity="false">
             <AppenderRef ref="FileLog"/>
             <AppenderRef ref="ErrorLog" level="error"/>
-            <AppenderRef ref="Console"/>
         </Logger>
 
         <Logger name="com.zaxxer.hikari" level="warn"/>
         <Logger name="org.springframework" level="warn"/>
         <Logger name="org.mybatis" level="warn"/>
+        <Logger name="org.springframework.data.redis" level="warn"/>
 
-        <Root level="info">
+        <!-- 异步根日志 -->
+        <AsyncRoot level="info">
             <AppenderRef ref="Console"/>
-        </Root>
+        </AsyncRoot>
     </Loggers>
 </Configuration>

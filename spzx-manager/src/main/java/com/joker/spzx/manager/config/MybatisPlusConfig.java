@@ -21,16 +21,15 @@ public class MybatisPlusConfig {
     @Bean("SpzxManagerThreadPoolTaskExecutor")
     public ThreadPoolTaskExecutor threadPoolTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        Runtime runtime = Runtime.getRuntime();
-        int cores = runtime.availableProcessors();
 
-        executor.setCorePoolSize(cores + 1); // 设置核心线程数
-        executor.setMaxPoolSize(cores * 20); // 设置最大线程数
-        executor.setKeepAliveSeconds(60); // 设置空闲时间
-        executor.setQueueCapacity(100); // 设置队列大小
-        executor.setThreadNamePrefix("Manager-ThreadPool-"); // 配置线程池的前缀
+        executor.setCorePoolSize(4);
+        executor.setMaxPoolSize(16);
+        executor.setKeepAliveSeconds(60);
+        executor.setQueueCapacity(200);
+        executor.setThreadNamePrefix("Manager-Async-");
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
-        // 进行加载
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
         executor.initialize();
         return executor;
     }

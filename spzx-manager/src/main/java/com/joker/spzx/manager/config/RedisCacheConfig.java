@@ -17,10 +17,12 @@ import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Redis 缓存配置
- * 启用 Spring Cache，使用 JSON 序列化，设置默认 TTL 为 30 分钟
+ * 启用 Spring Cache，使用 JSON 序列化，按 cacheName 分级 TTL
  */
 @Configuration
 @EnableCaching
@@ -56,14 +58,22 @@ public class RedisCacheConfig {
         om.registerModule(new JavaTimeModule());
         jsonSerializer.setObjectMapper(om);
 
-        RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
+        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(30))
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
                 .disableCachingNullValues();
 
+        // 按 cacheName 分级 TTL
+        Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
+        cacheConfigurations.put("menu:tree", defaultConfig.entryTtl(Duration.ofHours(2)));
+        cacheConfigurations.put("category:list", defaultConfig.entryTtl(Duration.ofHours(1)));
+        cacheConfigurations.put("productSpec:all", defaultConfig.entryTtl(Duration.ofMinutes(10)));
+        cacheConfigurations.put("productUnit:all", defaultConfig.entryTtl(Duration.ofHours(2)));
+
         RedisCacheManager cacheManager = RedisCacheManager.builder(factory)
-                .cacheDefaults(config)
+                .cacheDefaults(defaultConfig)
+                .withInitialCacheConfigurations(cacheConfigurations)
                 .build();
         cacheManager.setTransactionAware(true);
         return cacheManager;
