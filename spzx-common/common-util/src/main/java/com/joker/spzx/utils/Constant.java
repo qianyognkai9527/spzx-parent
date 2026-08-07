@@ -29,7 +29,10 @@ public class Constant {
             "/swagger-resources/**",
             "/v3/**",
             "/api-docs/**",
-            "/doc.html");
+            "/doc.html",
+            "/api/pay/notify/**",
+            "/api/v2/pay/notify/**",
+            "/api/test/callback/**");
 
     /**
      * 判断请求路径是否在白名单中（支持 Ant 风格通配符匹配）

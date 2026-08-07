@@ -12,6 +12,8 @@ server:
 
 # 配置数据库连接信息
 spring:
+  autoconfigure:
+    exclude: org.apache.rocketmq.spring.autoconfigure.RocketMQAutoConfiguration
   servlet:
     multipart:
       max-file-size: 20MB
@@ -50,6 +52,16 @@ spring:
         shutdown-timeout: 100ms
       timeout: 3000ms
       connect-timeout: 2000ms
+
+# Redisson 配置（分布式锁）
+redisson:
+  config: |
+    singleServerConfig:
+      address: "redis://localhost:6379"
+      connectionTimeout: 3000
+      timeout: 3000
+    codecConfig:
+      json: true
   mvc:
     servlet:
       load-on-startup: 1
@@ -89,3 +101,15 @@ wx:
     poll-interval-ms: 1500
     mock-mode: true
     mock-base-url: http://localhost:80
+
+# RocketMQ 配置
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
+  producer:
+    group: pay_producer_group
+    send-message-timeout: 3000
+    retry-times-when-send-failed: 3
+
+# 实验性基础设施开关(ClickHouse/ES/MQ 等):仅用 MySQL+Redis 时保持 false
+app:
+  enable-infra: false

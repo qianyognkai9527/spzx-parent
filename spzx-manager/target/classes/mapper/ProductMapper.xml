@@ -30,12 +30,22 @@
             p.dispatch_time dispatchTime,
             p.steady_status steadyStatus,
             p.eval_with_image_count evalWithImageCount,
-            mpf.platform_type platformType
+            p.supplier_name supplierName,
+            p.repurchase_rate repurchaseRate,
+            p.sales_count salesCount,
+            p.category_name categoryName,
+            p.keyword keyword,
+            p.trust_years trustYears,
+            p.source_factory_id sourceFactoryId,
+            p.crawl_time crawlTime,
+            p.platform_type platformType,
+            p.data_source dataSource,
+            p.quality_grade qualityGrade
         from source_product p
         LEFT JOIN product_factory mpf on mpf.id = p.product_factory_id
         where p.is_deleted=0
         <if test="productDto.platformType != null">
-            and mpf.platform_type = #{productDto.platformType}
+            and p.platform_type = #{productDto.platformType}
         </if>
         <if test="productDto.sourceProductName != null and productDto.sourceProductName != ''">
             and p.source_product_name like concat('%',#{productDto.sourceProductName},'%')
@@ -49,7 +59,19 @@
         <if test="productDto.steadyStatus != null">
             and p.steady_status = #{productDto.steadyStatus}
         </if>
-            order by p.create_time desc
+        <if test="productDto.categoryName != null and productDto.categoryName != ''">
+            and p.category_name = #{productDto.categoryName}
+        </if>
+        <if test="productDto.supplierName != null and productDto.supplierName != ''">
+            and p.supplier_name like concat('%',#{productDto.supplierName},'%')
+        </if>
+        <if test="productDto.dataSource != null">
+            and p.data_source = #{productDto.dataSource}
+        </if>
+        <if test="productDto.qualityGrade != null and productDto.qualityGrade != ''">
+            and p.quality_grade = #{productDto.qualityGrade}
+        </if>
+            order by case p.quality_grade when 'A' then 1 when 'B' then 2 when 'C' then 3 else 4 end asc, p.create_time desc
     </select>
     <select id="getDetail" resultType="com.joker.spzx.model.vo.product.ProductPageVo">
         select
@@ -66,7 +88,15 @@
             p.dispatch_time dispatchTime,
             p.steady_status steadyStatus,
             p.eval_with_image_count evalWithImageCount,
-            mpf.platform_type platformType
+            p.supplier_name supplierName,
+            p.repurchase_rate repurchaseRate,
+            p.sales_count salesCount,
+            p.category_name categoryName,
+            p.keyword keyword,
+            p.trust_years trustYears,
+            p.source_factory_id sourceFactoryId,
+            p.crawl_time crawlTime,
+            p.platform_type platformType
         from source_product p
             LEFT JOIN product_factory mpf on mpf.id = p.product_factory_id
         where p.id = #{id}

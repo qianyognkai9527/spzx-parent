@@ -1,6 +1,7 @@
 package com.joker.spzx.common.exception;
 
 import com.joker.spzx.model.vo.common.Result;
+import com.joker.spzx.model.exception.PayException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
@@ -41,5 +42,11 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining(", "));
         log.warn("参数绑定失败: {}", message);
         return Result.build(null, 400, message);
+    }
+
+    @ExceptionHandler(PayException.class)
+    public Result<String> handlePayException(PayException e) {
+        log.warn("支付业务异常: {} - {}", e.getErrorCode(), e.getMessage());
+        return Result.build(null, e.getHttpStatus(), e.getMessage());
     }
 }

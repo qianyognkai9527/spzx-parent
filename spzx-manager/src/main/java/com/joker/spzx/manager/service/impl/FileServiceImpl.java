@@ -7,6 +7,7 @@ import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -14,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.Date;
 
 
+@Slf4j
 @Service
 public class FileServiceImpl implements FileService {
 
@@ -43,7 +45,8 @@ public class FileServiceImpl implements FileService {
                 minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
             }
         } catch (Exception e) {
-            throw new RuntimeException("MinIO 初始化失败", e);
+            // MinIO 未运行时降级:不阻塞启动,上传时再报错
+            log.warn("MinIO 初始化失败(文件上传暂不可用): {}", e.getMessage());
         }
     }
 

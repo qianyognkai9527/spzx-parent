@@ -22,9 +22,9 @@ public class PaymentInfo extends BaseEntity {
     @TableField("order_no")
     private String orderNo;
 
-    @Schema(description = "付款方式：1-微信 2-支付宝")
+    @Schema(description = "付款方式，参见 PayTypeEnum")
     @TableField("pay_type")
-    private Byte payType;
+    private Integer payType;
 
     @Schema(description = "交易编号（微信或支付）")
     @TableField("out_trade_no")
@@ -38,9 +38,9 @@ public class PaymentInfo extends BaseEntity {
     @TableField("content")
     private String content;
 
-    @Schema(description = "支付状态：0-未支付 1-已支付")
+    @Schema(description = "支付状态，参见 PaymentStatusEnum")
     @TableField("payment_status")
-    private String paymentStatus;
+    private Integer paymentStatus;
 
     @Schema(description = "回调时间")
     @TableField("callback_time")
