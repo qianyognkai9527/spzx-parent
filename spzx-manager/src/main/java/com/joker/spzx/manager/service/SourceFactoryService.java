@@ -24,5 +24,7 @@ public interface SourceFactoryService extends IService<SourceFactory> {
 
     List<SourceFactory> getAll(Integer platformType);
 
+    List<SourceFactory> exportList(SourceFactoryPageParam pageParam);
+
     void deleteById(Long id);
 }
