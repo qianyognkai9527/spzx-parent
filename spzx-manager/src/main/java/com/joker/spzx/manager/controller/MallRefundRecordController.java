@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @since 2025-07-10 13:49:10
  */
 @RestController
-@RequestMapping("/manager/mall-refund-record")
+@RequestMapping("/admin/mall-refund-record")
 public class MallRefundRecordController {
 
 }
