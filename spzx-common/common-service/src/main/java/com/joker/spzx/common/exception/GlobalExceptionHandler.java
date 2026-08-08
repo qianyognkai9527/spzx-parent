@@ -2,6 +2,7 @@ package com.joker.spzx.common.exception;
 
 import com.joker.spzx.model.vo.common.Result;
 import com.joker.spzx.model.exception.PayException;
+import com.joker.spzx.model.vo.common.ResultCodeEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
@@ -17,7 +18,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public Result error(Exception e) {
         log.error("系统异常", e);
-        return Result.build(null, 201, "出现了异常");
+        return Result.build(null, ResultCodeEnum.SYSTEM_ERROR);
     }
 
     @ExceptionHandler(value = ServiceException.class)

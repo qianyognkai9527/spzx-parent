@@ -35,7 +35,13 @@ public class UserCostServiceImpl extends ServiceImpl<UserCostMapper, UserCost> i
 
     @Override
     public UserCostDetailVo getDetail(Long id) {
-        return null;
+        UserCost userCost = this.getById(id);
+        if (userCost == null) {
+            return null;
+        }
+        UserCostDetailVo vo = new UserCostDetailVo();
+        BeanUtils.copyProperties(userCost, vo);
+        return vo;
     }
 
     @Override
@@ -47,7 +53,7 @@ public class UserCostServiceImpl extends ServiceImpl<UserCostMapper, UserCost> i
         userCost.setUserId(id);
         userCost.setCreateBy(id);
         userCost.setCreateTime(LocalDateTime.now());
-        userCost.setIsDeleted(1);
+        userCost.setIsDeleted(0);
         userCost.insert();
 
     }
@@ -65,6 +71,11 @@ public class UserCostServiceImpl extends ServiceImpl<UserCostMapper, UserCost> i
 
     @Override
     public void removeData(Long id) {
-
+        UserCost userCost = new UserCost();
+        userCost.setId(id);
+        userCost.setIsDeleted(1);
+        userCost.setUpdateBy(AuthContextUtil.getUser().getId());
+        userCost.setUpdateTime(LocalDateTime.now());
+        userCost.updateById();
     }
 }

@@ -56,7 +56,7 @@ public class UserCost extends Model<UserCost> {
     @TableField("update_time")
     private LocalDateTime updateTime;
 
-    @Schema(description = "删除标记（0:不可用 1:可用）")
+    @Schema(description = "删除标记（0:可用 1:已删除）")
     @TableField("is_deleted")
     private Integer isDeleted;
 
