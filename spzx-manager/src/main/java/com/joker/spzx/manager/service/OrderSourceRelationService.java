@@ -24,4 +24,6 @@ public interface OrderSourceRelationService extends IService<OrderSourceRelation
 
     void deleteById(Long id);
 
+    OrderSourceRelation autoFillByPlatformProduct(Long platformProductId);
+
 }

@@ -65,4 +65,10 @@ public class OrderSourceRelationController {
         return Result.build(null, ResultCodeEnum.SUCCESS);
     }
 
+    @GetMapping("/autoFill")
+    @Operation(summary = "②自动关联: 按平台商品id回填货源侧(编码/标题/货源价/运费)")
+    public Result<OrderSourceRelation> autoFill(@RequestParam Long platformProductId) {
+        return Result.build(orderSourceRelationService.autoFillByPlatformProduct(platformProductId), ResultCodeEnum.SUCCESS);
+    }
+
 }

@@ -7,8 +7,13 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.common.exception.ServiceException;
 import com.joker.spzx.manager.mapper.OrderSourceRelationMapper;
 import com.joker.spzx.manager.service.OrderSourceRelationService;
+import com.joker.spzx.manager.service.ProductBindRelationService;
+import com.joker.spzx.manager.service.ProductService;
 import com.joker.spzx.model.entity.order.OrderSourceRelation;
+import com.joker.spzx.model.entity.product.ProductBindRelation;
+import com.joker.spzx.model.entity.product.Product;
 import com.joker.spzx.model.vo.common.ResultCodeEnum;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -22,6 +27,12 @@ import org.springframework.util.StringUtils;
  */
 @Service
 public class OrderSourceRelationServiceImpl extends ServiceImpl<OrderSourceRelationMapper, OrderSourceRelation> implements OrderSourceRelationService {
+
+    @Autowired
+    private ProductBindRelationService productBindRelationService;
+
+    @Autowired
+    private ProductService productService;
 
     @Override
     public IPage<OrderSourceRelation> findByPage(Integer pageNum, Integer pageSize, OrderSourceRelation queryDto) {
@@ -82,6 +93,34 @@ public class OrderSourceRelationServiceImpl extends ServiceImpl<OrderSourceRelat
         if (count > 0) {
             throw new ServiceException(ResultCodeEnum.DATA_ERROR);
         }
+    }
+
+    /**
+     * ②自动关联: 给定平台商品id, 查 ProductBindRelation -> source_product 自动回填货源侧(编码/标题/货源价/运费)
+     */
+    @Override
+    public OrderSourceRelation autoFillByPlatformProduct(Long platformProductId) {
+        OrderSourceRelation result = new OrderSourceRelation();
+        result.setPlatformProductId(platformProductId);
+        ProductBindRelation bind = productBindRelationService.getOne(
+                new LambdaQueryWrapper<ProductBindRelation>()
+                        .eq(ProductBindRelation::getProductId, platformProductId)
+                        .eq(ProductBindRelation::getIsDeleted, 0)
+                        .last("limit 1"));
+        if (bind == null) {
+            return result;
+        }
+        Long sourceProductId = bind.getSourceProductid();
+        Product source = productService.getById(sourceProductId);
+        if (source == null) {
+            return result;
+        }
+        result.setSourceProductId(sourceProductId);
+        result.setSourceProductCode(source.getSourceProductCode());
+        result.setSourceProductTitle(source.getSourceProductName());
+        result.setSourceSellingPrice(source.getSourcePrice());
+        result.setSourceFreight(source.getFreightCost());
+        return result;
     }
 
 }
