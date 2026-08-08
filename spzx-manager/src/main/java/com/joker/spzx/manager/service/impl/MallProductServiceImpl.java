@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * <p>
@@ -62,5 +63,12 @@ public class MallProductServiceImpl extends ServiceImpl<MallProductMapper, MallP
         mallProduct.setUpdateTime(LocalDateTime.now());
         mallProduct.updateById();
 
+    }
+
+    @Override
+    public List<MallProduct> listByPlatformType(Integer platformType) {
+        return this.list(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<MallProduct>()
+                .eq(MallProduct::getPlatformType, platformType)
+                .orderByDesc(MallProduct::getCreateTime));
     }
 }

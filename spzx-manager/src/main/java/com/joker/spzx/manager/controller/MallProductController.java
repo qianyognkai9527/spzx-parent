@@ -63,12 +63,7 @@ public class MallProductController {
     @Operation(summary = "按平台类型查询所有商品")
     @GetMapping("/allByPlatformType")
     public Result<List<MallProduct>> listByPlatformType(@RequestParam Integer platformType) {
-        List<MallProduct> list = mallProductService.list(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<MallProduct>()
-                        .eq(MallProduct::getPlatformType, platformType)
-                        .orderByDesc(MallProduct::getCreateTime)
-        );
-        return Result.build(list);
+        return Result.build(mallProductService.listByPlatformType(platformType));
     }
 
 
