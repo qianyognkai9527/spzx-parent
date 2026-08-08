@@ -16,7 +16,7 @@
         su.name
         from user_cost uc
         left join sys_user su on su.id = uc.user_id
-        where 1=1
+        where uc.is_deleted = 0
         <if test="dto.platformType != null">
             and uc.platform_type = #{dto.platformType}
         </if>
