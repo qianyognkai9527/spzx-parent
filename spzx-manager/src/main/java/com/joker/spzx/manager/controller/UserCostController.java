@@ -7,6 +7,7 @@ import com.joker.spzx.model.dto.product.UserCostPageDto;
 import com.joker.spzx.model.vo.common.Result;
 import com.joker.spzx.model.vo.product.UserCostDetailVo;
 import com.joker.spzx.model.vo.product.UserCostPageVo;
+import com.joker.spzx.common.annotation.Log;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,18 +39,21 @@ public class UserCostController {
     }
 
     @PostMapping("/save")
+    @Log(title = "账单管理", businessType = 1)
     public Result<String> save(@RequestBody UserCostDto userCostDto) {
         userCostService.saveData(userCostDto);
         return Result.build(null);
     }
 
     @PutMapping("/update")
+    @Log(title = "账单管理", businessType = 2)
     public Result<String> update(@RequestBody UserCostDto userCostDto) {
         userCostService.updateData(userCostDto);
         return Result.build(null);
     }
 
     @DeleteMapping("/remove")
+    @Log(title = "账单管理", businessType = 3)
     public Result<String> remove(Long id) {
         userCostService.removeData(id);
         return Result.build(null);

@@ -5,6 +5,7 @@ import com.joker.spzx.manager.service.SysRoleService;
 import com.joker.spzx.model.dto.system.SysRoleDto;
 import com.joker.spzx.model.entity.system.SysRole;
 import com.joker.spzx.model.vo.common.Result;
+import com.joker.spzx.common.annotation.Log;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -47,6 +48,7 @@ public class SysRoleController {
     }
 
     @Operation(summary = "新增角色")
+    @Log(title = "角色管理", businessType = 1)
     @PostMapping("/saveSysRole")
     public Result<String> saveSysUser(@Valid @RequestBody SysRole sysRole) {
         sysRoleService.saveSysRole(sysRole);
@@ -54,6 +56,7 @@ public class SysRoleController {
     }
 
     @Operation(summary = "修改角色")
+    @Log(title = "角色管理", businessType = 2)
     @PostMapping("/updateSysRole")
     public Result<String> updateSysRole(@Valid @RequestBody SysRole sysRole) {
         sysRoleService.updateSysRole(sysRole);
@@ -61,6 +64,7 @@ public class SysRoleController {
     }
 
     @Operation(summary = "逻辑删除角色")
+    @Log(title = "角色管理", businessType = 3)
     @DeleteMapping("/deleteById/{id}")
     public Result<String> delete(@PathVariable Long id) {
         sysRoleService.deleteSysRole(id);

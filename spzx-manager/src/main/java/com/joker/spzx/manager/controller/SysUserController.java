@@ -6,6 +6,7 @@ import com.joker.spzx.model.dto.system.AssginRoleDto;
 import com.joker.spzx.model.dto.system.SysUserDto;
 import com.joker.spzx.model.entity.system.SysUser;
 import com.joker.spzx.model.vo.common.Result;
+import com.joker.spzx.common.annotation.Log;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.validation.annotation.Validated;
@@ -40,6 +41,7 @@ public class SysUserController {
     }
 
     @PostMapping("/saveSysUser")
+    @Log(title = "用户管理", businessType = 1)
     @Operation(summary = "分页查询")
     public Result<IPage<SysUser>> saveSysUser(@RequestBody SysUser sysUser) {
         sysUserService.saveSysUser(sysUser);
@@ -47,6 +49,7 @@ public class SysUserController {
     }
 
     @PostMapping("/updateSysUser")
+    @Log(title = "用户管理", businessType = 2)
     @Operation(summary = "分页查询")
     public Result<IPage<SysUser>> updateSysUser(@RequestBody SysUser sysUser) {
         sysUserService.updateSysUser(sysUser);
@@ -54,6 +57,7 @@ public class SysUserController {
     }
 
     @DeleteMapping("/deleteById/{id}")
+    @Log(title = "用户管理", businessType = 3)
     @Operation(summary = "分页查询")
     public Result<IPage<SysUser>> delete(@PathVariable Long id) {
         sysUserService.deleteSysUser(id);
@@ -61,6 +65,7 @@ public class SysUserController {
     }
 
     @PostMapping("/doAssgin")
+    @Log(title = "用户角色分配", businessType = 2)
     @Operation(summary = "分配角色")
     public Result<String> assignRole(@RequestBody @Validated AssginRoleDto assginRoleDto) {
         sysUserService.assignRole(assginRoleDto);
