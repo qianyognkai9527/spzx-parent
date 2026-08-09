@@ -214,7 +214,7 @@ public class TaskProgressServiceImpl implements TaskProgressService {
         try {
             ProcessBuilder pb = new ProcessBuilder("sh", "-c",
                     "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                    "\"SELECT CONCAT(quality_grade, ':', COUNT(*)) FROM source_factory WHERE is_deleted=0 GROUP BY quality_grade ORDER BY quality_grade DESC\"");
+                    "\"SELECT CONCAT(quality_grade, ':', COUNT(*)) FROM source_factory WHERE is_deleted=0 GROUP BY quality_grade ORDER BY quality_grade DESC\" 2>/dev/null");
             pb.redirectErrorStream(true);
             Process p = pb.start();
             String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
@@ -245,9 +245,9 @@ public class TaskProgressServiceImpl implements TaskProgressService {
         try {
             ProcessBuilder pb = new ProcessBuilder("sh", "-c",
                     "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                    "\"SELECT COUNT(*) FROM source_product WHERE freight_cost IS NULL OR freight_cost=0;\" && " +
+                    "\"SELECT COUNT(*) FROM source_product WHERE freight_cost IS NULL OR freight_cost=0;\" 2>/dev/null && " +
                     "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                    "\"SELECT COUNT(*) FROM source_product WHERE freight_cost > 0;\"");
+                    "\"SELECT COUNT(*) FROM source_product WHERE freight_cost > 0;\" 2>/dev/null");
             pb.redirectErrorStream(true);
             Process p = pb.start();
             String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
@@ -279,6 +279,9 @@ public class TaskProgressServiceImpl implements TaskProgressService {
             Process p = pb.start();
             String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             p.waitFor();
+            if (p.exitValue() != 0) {
+                throw new RuntimeException("mysql 查询失败, exit=" + p.exitValue());
+            }
             String[] lines = out.trim().split("\n");
             int total = lines.length > 0 ? Integer.parseInt(lines[0].trim()) : 0;
             int written = lines.length > 1 ? Integer.parseInt(lines[1].trim()) : 0;
