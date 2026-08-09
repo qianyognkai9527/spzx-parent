@@ -27,4 +27,6 @@ public class NovelChapter extends BaseEntity {
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime publishedAt;
+
+    private Integer isModified;
 }

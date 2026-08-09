@@ -80,6 +80,7 @@ public class NovelController {
         if (chapter.getContent() != null) {
             chapter.setWordCount(chapter.getContent().length());
         }
+        chapter.setIsModified(0);
         novelChapterService.save(chapter);
         return Result.build(null);
     }
@@ -90,6 +91,7 @@ public class NovelController {
         if (chapter.getContent() != null) {
             chapter.setWordCount(chapter.getContent().length());
         }
+        chapter.setIsModified(1);
         novelChapterService.updateById(chapter);
         return Result.build(null);
     }
