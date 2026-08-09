@@ -66,6 +66,9 @@ public class TaskProgressServiceImpl implements TaskProgressService {
                     case "db_novel":
                         fillDbNovel(item);
                         break;
+                    case "db_inventory_alert":
+                        fillDbInventoryAlert(item);
+                        break;
                     default:
                         item.setStatus("unknown_type");
                 }
@@ -292,6 +295,37 @@ public class TaskProgressServiceImpl implements TaskProgressService {
             item.setFailed(0);
             item.setProgressPercent(total > 0 ? written * 100 / total : 0);
             item.setLastLog("已写" + written + "章/共" + total + "章，已发布" + published + "章");
+        } catch (Exception e) {
+            item.setLastLog("DB查询失败: " + e.getMessage());
+        }
+    }
+
+    private void fillDbInventoryAlert(TaskItemVo item) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder("sh", "-c",
+                    "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
+                    "\"SELECT COUNT(*) FROM source_sku WHERE status=1 AND is_deleted=0;\" 2>/dev/null && " +
+                    "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
+                    "\"SELECT COUNT(*) FROM sync_alert WHERE status=0;\" 2>/dev/null && " +
+                    "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
+                    "\"SELECT COUNT(*) FROM sku_bind_relation WHERE status=1 AND is_deleted=0;\" 2>/dev/null");
+            pb.redirectErrorStream(true);
+            Process p = pb.start();
+            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            p.waitFor();
+            if (p.exitValue() != 0) {
+                throw new RuntimeException("mysql 查询失败, exit=" + p.exitValue());
+            }
+            String[] lines = out.trim().split("\n");
+            int activeSku = lines.length > 0 ? Integer.parseInt(lines[0].trim()) : 0;
+            int unreadAlerts = lines.length > 1 ? Integer.parseInt(lines[1].trim()) : 0;
+            int confirmedBind = lines.length > 2 ? Integer.parseInt(lines[2].trim()) : 0;
+            item.setTotal(activeSku);
+            item.setProcessed(activeSku);
+            item.setSaved(confirmedBind);
+            item.setFailed(unreadAlerts);
+            item.setProgressPercent(activeSku > 0 ? 100 : 0);
+            item.setLastLog("未读提醒" + unreadAlerts + "条 / 活跃SKU " + activeSku + "条");
         } catch (Exception e) {
             item.setLastLog("DB查询失败: " + e.getMessage());
         }
