@@ -270,11 +270,11 @@ public class TaskProgressServiceImpl implements TaskProgressService {
         try {
             ProcessBuilder pb = new ProcessBuilder("sh", "-c",
                     "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                    "\"SELECT total_chapters FROM novel WHERE id=1 AND is_deleted=0;\" && " +
+                    "\"SELECT total_chapters FROM novel WHERE id=1 AND is_deleted=0;\" 2>/dev/null && " +
                     "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                    "\"SELECT COUNT(*) FROM novel_chapter WHERE novel_id=1 AND is_deleted=0;\" && " +
+                    "\"SELECT COUNT(*) FROM novel_chapter WHERE novel_id=1 AND is_deleted=0;\" 2>/dev/null && " +
                     "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                    "\"SELECT COUNT(*) FROM novel_chapter WHERE novel_id=1 AND is_deleted=0 AND status=2;\"");
+                    "\"SELECT COUNT(*) FROM novel_chapter WHERE novel_id=1 AND is_deleted=0 AND status=2;\" 2>/dev/null");
             pb.redirectErrorStream(true);
             Process p = pb.start();
             String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
