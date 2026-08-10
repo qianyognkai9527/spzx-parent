@@ -17,8 +17,4 @@ public interface MallOrderResourceService extends IService<MallOrderResource> {
 
     List<Long> getSelectResources(Long productId);
 
-    void handInsert();
-
-    void handInsert2();
-
 }

@@ -94,3 +94,7 @@ wx:
 # 实验性基础设施开关(ClickHouse/ES/MQ 等):仅用 MySQL+Redis 时保持 false
 app:
   enable-infra: false
+
+# 任务进度看板配置
+task-progress:
+  config-path: /Users/qyk9527/sourcing/task-progress-config.json

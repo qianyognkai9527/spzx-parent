@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joker.spzx.manager.mapper.EvalGapMapper">
+
+    <select id="pageList" resultType="com.joker.spzx.model.vo.mall.EvalGapVo">
+        SELECT
+            pp.id,
+            pp.code,
+            pp.title,
+            NULL AS headImgUrl,
+            COALESCE((
+                SELECT sp.eval_with_image_count
+                FROM product_bind_relation pbr
+                JOIN source_product sp ON sp.id = pbr.source_productId
+                WHERE pbr.product_id = pp.id AND pbr.is_deleted = 0
+                LIMIT 1
+            ), 0) AS sourceEvalCount,
+            COALESCE((
+                SELECT COUNT(*) FROM brush_order bo
+                WHERE bo.product_id = CONCAT('', pp.id) AND bo.is_evaluated = 1
+            ), 0) AS platformEvalCount,
+            GREATEST(
+                COALESCE((
+                    SELECT sp.eval_with_image_count
+                    FROM product_bind_relation pbr
+                    JOIN source_product sp ON sp.id = pbr.source_productId
+                    WHERE pbr.product_id = pp.id AND pbr.is_deleted = 0
+                    LIMIT 1
+                ), 0)
+                - COALESCE((
+                    SELECT COUNT(*) FROM brush_order bo
+                    WHERE bo.product_id = CONCAT('', pp.id) AND bo.is_evaluated = 1
+                ), 0), 0) AS gap
+        FROM platform_product pp
+        WHERE pp.platform_type = #{platformType}
+        <if test="keyword != null and keyword != ''">
+            AND (pp.title LIKE CONCAT('%', #{keyword}, '%') OR pp.code LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY pp.id
+    </select>
+
+</mapper>

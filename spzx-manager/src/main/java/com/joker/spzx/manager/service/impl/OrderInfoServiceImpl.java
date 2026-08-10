@@ -42,7 +42,7 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
 
         //日期列表
         DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        List<String> dateList = orderStatisticsList.stream().map(orderStatistics -> orderStatistics.getCreateTime().format(df)).collect(Collectors.toList());
+        List<String> dateList = orderStatisticsList.stream().map(orderStatistics -> orderStatistics.getOrderDate().format(df)).collect(Collectors.toList());
 
         //统计金额列表
         List<BigDecimal> amountList = orderStatisticsList.stream().map(OrderStatistics::getTotalAmount).collect(Collectors.toList());

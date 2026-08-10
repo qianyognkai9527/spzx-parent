@@ -35,4 +35,10 @@ public class SysUserScheduleController {
         return Result.build(null);
     }
 
+    @DeleteMapping("/deleteById/{id}")
+    public Result<String> deleteById(@PathVariable Long id) {
+        sysUserScheduleService.removeById(id);
+        return Result.build(null);
+    }
+
 }

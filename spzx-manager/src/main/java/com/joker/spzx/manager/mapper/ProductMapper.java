@@ -21,7 +21,5 @@ public interface ProductMapper extends BaseMapper<Product> {
 
     IPage<ProductPageVo> pageList(@Param("page") IPage<ProductPageVo> page, @Param("productDto") ProductDto productDto);
 
-    Product getById(@Param("id") Long id);
-
     ProductPageVo getDetail(Long id);
 }

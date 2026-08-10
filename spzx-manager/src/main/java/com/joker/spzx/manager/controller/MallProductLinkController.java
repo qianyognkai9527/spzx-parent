@@ -34,13 +34,13 @@ public class MallProductLinkController {
     }
 
     @PostMapping("/saveData")
-    public Result<Object> saveData(MallProductLink mallProductLink) {
+    public Result<Object> saveData(@RequestBody MallProductLink mallProductLink) {
         mallProductLinkService.saveData(mallProductLink);
         return Result.build(null);
     }
 
     @PutMapping("/updateData")
-    public Result<Object> updateData(MallProductLink mallProductLink) {
+    public Result<Object> updateData(@RequestBody MallProductLink mallProductLink) {
         mallProductLinkService.updateData(mallProductLink);
         return Result.build(null);
     }

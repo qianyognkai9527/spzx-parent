@@ -54,11 +54,15 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         this.baseMapper.insert(product);
 
         Long productFactoryId = product.getProductFactoryId();
-        MallProductFactory mallProductFactory = mallProductFactoryMapper.selectById(productFactoryId);
-        mallProductFactory.setDeployCount(mallProductFactory.getDeployCount() + 1);
-        mallProductFactory.setUpdateBy(id);
-        mallProductFactory.setUpdateTime(LocalDateTime.now());
-        mallProductFactoryMapper.updateById(mallProductFactory);
+        if (productFactoryId != null) {
+            MallProductFactory mallProductFactory = mallProductFactoryMapper.selectById(productFactoryId);
+            if (mallProductFactory != null) {
+                mallProductFactory.setDeployCount(mallProductFactory.getDeployCount() + 1);
+                mallProductFactory.setUpdateBy(id);
+                mallProductFactory.setUpdateTime(LocalDateTime.now());
+                mallProductFactoryMapper.updateById(mallProductFactory);
+            }
+        }
     }
 
     @Override
@@ -74,20 +78,24 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
 
         Long id = product.getId();
         Product productDb = this.getById(id);
-        Long productFactoryIdDb = productDb.getProductFactoryId();
+        Long productFactoryIdDb = productDb != null ? productDb.getProductFactoryId() : null;
         Long productFactoryId = product.getProductFactoryId();
-        Boolean isUpdateFactoryId = !productFactoryId.equals(productFactoryIdDb);
+        Boolean isUpdateFactoryId = productFactoryId != null && !productFactoryId.equals(productFactoryIdDb);
 
         product.setUpdateBy(AuthContextUtil.getUser().getId());
         product.setUpdateTime(LocalDateTime.now());
         this.baseMapper.updateById(product);
-        if (isUpdateFactoryId) {
+        if (isUpdateFactoryId && productFactoryIdDb != null && productFactoryId != null) {
             MallProductFactory mallProductFactory = mallProductFactoryMapper.selectById(productFactoryIdDb);
-            mallProductFactory.setDeployCount(mallProductFactory.getDeployCount() - 1);
-            mallProductFactoryMapper.updateById(mallProductFactory);
+            if (mallProductFactory != null) {
+                mallProductFactory.setDeployCount(mallProductFactory.getDeployCount() - 1);
+                mallProductFactoryMapper.updateById(mallProductFactory);
+            }
             mallProductFactory = mallProductFactoryMapper.selectById(productFactoryId);
-            mallProductFactory.setDeployCount(mallProductFactory.getDeployCount() + 1);
-            mallProductFactoryMapper.updateById(mallProductFactory);
+            if (mallProductFactory != null) {
+                mallProductFactory.setDeployCount(mallProductFactory.getDeployCount() + 1);
+                mallProductFactoryMapper.updateById(mallProductFactory);
+            }
         }
 
     }
@@ -112,29 +120,4 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
 
     }
 
-    @Override
-    public void updateAuditStatus(Long id, Integer auditStatus) {
-        Product product = new Product();
-        product.setId(id);
-        if (auditStatus == 1) {
-//            product.setAuditStatus(1);
-//            product.setAuditMessage("审批通过");
-//        } else {
-//            product.setAuditStatus(-1);
-//            product.setAuditMessage("审批不通过");
-        }
-        this.baseMapper.updateById(product);
-    }
-
-    @Override
-    public void updateStatus(Long id, Integer status) {
-        Product product = new Product();
-        product.setId(id);
-        if (status == 1) {
-//            product.setStatus(1);
-//        } else {
-//            product.setStatus(-1);
-        }
-        this.baseMapper.updateById(product);
-    }
 }

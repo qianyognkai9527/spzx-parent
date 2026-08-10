@@ -107,10 +107,6 @@ public class OrderInfo extends BaseEntity {
     @TableField("cancel_reason")
     private String cancelReason;
 
-    @Schema(description = "订单项列表")
-    @TableField(exist = false)
-    private List<OrderItem> orderItemList;
-
     @Schema(description = "平台类型：1-淘宝, 2-抖音")
     @TableField("platform_type")
     private Integer platformType;

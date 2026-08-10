@@ -19,7 +19,7 @@ public class LogAspect {            // 环绕通知切面类定义
     private AsyncOperLogService asyncOperLogService ;
 
     @Around(value = "@annotation(sysLog)")
-    public Object doAroundAdvice(ProceedingJoinPoint joinPoint , Log sysLog) {
+    public Object doAroundAdvice(ProceedingJoinPoint joinPoint , Log sysLog) throws Throwable {
         // 构建前置参数
         SysOperLog sysOperLog = new SysOperLog() ;
 
@@ -34,7 +34,7 @@ public class LogAspect {            // 环绕通知切面类定义
         } catch (Throwable e) {
             log.error("操作日志记录异常", e);
             LogUtil.afterHandlLog(sysLog, proceed, sysOperLog, 1, e.getMessage());
-            throw new RuntimeException(e);
+            throw e;
         }
 
         // 保存日志数据

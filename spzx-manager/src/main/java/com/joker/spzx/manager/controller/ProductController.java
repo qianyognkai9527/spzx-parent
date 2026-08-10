@@ -62,7 +62,7 @@ public class ProductController {
 
 
     @GetMapping("/getDetail")
-    public Result<ProductPageVo> updateStatus(@RequestParam Long id) {
+    public Result<ProductPageVo> getDetail(@RequestParam Long id) {
         ProductPageVo byId = productService.getDataById(id);
         return Result.build(byId, ResultCodeEnum.SUCCESS);
     }

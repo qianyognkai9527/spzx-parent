@@ -31,16 +31,4 @@ public class MallOrderResourceController {
         List<Long> resourceIdList = mallOrderResourceService.getSelectResources(orderId);
         return Result.build(resourceIdList);
     }
-
-    @GetMapping("/handInsert")
-    public Result<String> handInsert() {
-        mallOrderResourceService.handInsert();
-        return Result.build(null);
-    }
-
-    @GetMapping("/updateDataTest")
-    public Result<String> handInsert2() {
-        mallOrderResourceService.handInsert2();
-        return Result.build(null);
-    }
 }

@@ -31,13 +31,13 @@ public class MallProductTitleController {
     }
 
     @PostMapping("/saveData")
-    public Result<String> saveData(MallProductTitle mallProductTitle) {
+    public Result<String> saveData(@RequestBody MallProductTitle mallProductTitle) {
         mallProductTitleService.saveData(mallProductTitle);
         return Result.build(null);
     }
 
     @PutMapping("/updateData")
-    public Result<String> updateData(MallProductTitle mallProductTitle) {
+    public Result<String> updateData(@RequestBody MallProductTitle mallProductTitle) {
         mallProductTitleService.updateData(mallProductTitle);
         return Result.build(null);
     }

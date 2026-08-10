@@ -39,21 +39,21 @@ public class IndexController {
 
     @GetMapping("/genVarifyCode")
     @Operation(summary = "生成验证码")
-    private Result<ValidateCodeVo> genVarifyCode() {
+    public Result<ValidateCodeVo> genVarifyCode() {
         ValidateCodeVo validateCodeVo = sysUserService.genVarifyCode();
         return Result.build(validateCodeVo, ResultCodeEnum.SUCCESS);
     }
 
     @GetMapping("/getUserInfo")
     @Operation(summary = "获取用户信息")
-    private Result<SysUser> getUserInfo(@RequestHeader(name = "token") String token) {
+    public Result<SysUser> getUserInfo(@RequestHeader(name = "token") String token) {
         SysUser sysUser = AuthContextUtil.getUser();
         return Result.build(sysUser, ResultCodeEnum.SUCCESS);
     }
 
     @GetMapping("/logout")
     @Operation(summary = "用户退出")
-    private Result<SysUser> logout(@RequestHeader(name = "token") String token) {
+    public Result<SysUser> logout(@RequestHeader(name = "token") String token) {
         sysUserService.logout(token);
         return Result.build(null);
     }
@@ -61,7 +61,7 @@ public class IndexController {
 
     @GetMapping("/menus")
     @Operation(summary = "动态菜单")
-    private Result<List<SysMenuVo>> getMenus() {
+    public Result<List<SysMenuVo>> getMenus() {
         List<SysMenuVo> validateCodeVo = sysMenuService.findUserMenuList();
         return Result.build(validateCodeVo, ResultCodeEnum.SUCCESS);
     }
