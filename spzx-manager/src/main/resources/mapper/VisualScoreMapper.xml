@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joker.spzx.manager.mapper.VisualScoreMapper">
+
+    <select id="pageListPlatform" resultType="com.joker.spzx.model.vo.mall.VisualScoreVo">
+        SELECT pm.product_id AS productId, pp.code, pp.title, pm.platform_type AS platformType
+        FROM product_media pm
+        JOIN platform_product pp ON pp.id = pm.product_id
+        WHERE pm.platform_type = #{platformType} AND pm.file_type=1 AND pm.img_pos IN (1,2,3,4,5)
+        <if test="keyword != null and keyword != ''">
+            AND (pp.title LIKE CONCAT('%', #{keyword}, '%') OR pp.code LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="scoreMin != null or scoreMax != null">
+            AND pm.id IN (
+                SELECT id FROM product_media
+                WHERE product_id = pm.product_id AND file_type=1 AND img_pos IN (1,2,3,4,5)
+                <if test="scoreMin != null">AND visual_score >= #{scoreMin}</if>
+                <if test="scoreMax != null">AND visual_score &lt;= #{scoreMax}</if>
+            )
+        </if>
+        GROUP BY pm.product_id, pp.code, pp.title, pm.platform_type
+        ORDER BY MAX(pm.visual_score) DESC
+    </select>
+
+    <select id="selectImgs" resultType="com.joker.spzx.model.vo.mall.VisualScoreImgVo">
+        SELECT product_id AS productId, id AS mediaId, img_pos AS imgPos, file_url AS fileUrl,
+               visual_score AS visualScore
+        FROM product_media
+        WHERE platform_type = #{platformType} AND file_type=1 AND img_pos IN (1,2,3,4,5)
+          AND product_id IN
+        <foreach collection="productIds" item="pid" open="(" separator="," close=")">
+            #{pid}
+        </foreach>
+        ORDER BY product_id, img_pos
+    </select>
+
+    <select id="pageListSource" resultType="com.joker.spzx.model.vo.mall.VisualScoreSourceVo">
+        SELECT id, source_product_code AS code, source_product_name AS title,
+               head_img_url AS fileUrl, visual_score AS visualScore,
+               platform_type AS platformType
+        FROM source_product
+        WHERE is_deleted=0 AND head_img_url IS NOT NULL
+        <if test="keyword != null and keyword != ''">
+            AND (source_product_name LIKE CONCAT('%', #{keyword}, '%') OR source_product_code LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="scoreMin != null">AND visual_score >= #{scoreMin}</if>
+        <if test="scoreMax != null">AND visual_score &lt;= #{scoreMax}</if>
+        ORDER BY visual_score DESC
+    </select>
+
+    <select id="statsPlatform" resultType="com.joker.spzx.model.vo.mall.VisualScoreStatsVo">
+        SELECT COUNT(*) AS total,
+               SUM(CASE WHEN pm.visual_score IS NULL THEN 1 ELSE 0 END) AS unscored,
+               ROUND(AVG(pm.visual_score), 1) AS avgScore,
+               SUM(CASE WHEN pm.visual_score = 100 THEN 1 ELSE 0 END) AS countS,
+               SUM(CASE WHEN pm.visual_score >= 95 AND pm.visual_score &lt; 100 THEN 1 ELSE 0 END) AS countAPlus,
+               SUM(CASE WHEN pm.visual_score >= 90 AND pm.visual_score &lt; 95 THEN 1 ELSE 0 END) AS countA,
+               SUM(CASE WHEN pm.visual_score >= 80 AND pm.visual_score &lt; 90 THEN 1 ELSE 0 END) AS countB,
+               SUM(CASE WHEN pm.visual_score >= 70 AND pm.visual_score &lt; 80 THEN 1 ELSE 0 END) AS countC,
+               SUM(CASE WHEN pm.visual_score >= 60 AND pm.visual_score &lt; 70 THEN 1 ELSE 0 END) AS countD,
+               SUM(CASE WHEN pm.visual_score &lt; 60 THEN 1 ELSE 0 END) AS countDMinus
+        FROM product_media pm
+        JOIN (SELECT product_id, MIN(id) AS mid FROM product_media WHERE file_type=1 GROUP BY product_id) t
+          ON pm.id = t.mid
+        WHERE pm.platform_type = #{platformType}
+    </select>
+
+    <select id="statsSource" resultType="com.joker.spzx.model.vo.mall.VisualScoreStatsVo">
+        SELECT COUNT(*) AS total,
+               SUM(CASE WHEN visual_score IS NULL THEN 1 ELSE 0 END) AS unscored,
+               ROUND(AVG(visual_score), 1) AS avgScore,
+               SUM(CASE WHEN visual_score = 100 THEN 1 ELSE 0 END) AS countS,
+               SUM(CASE WHEN visual_score >= 95 AND visual_score &lt; 100 THEN 1 ELSE 0 END) AS countAPlus,
+               SUM(CASE WHEN visual_score >= 90 AND visual_score &lt; 95 THEN 1 ELSE 0 END) AS countA,
+               SUM(CASE WHEN visual_score >= 80 AND visual_score &lt; 90 THEN 1 ELSE 0 END) AS countB,
+               SUM(CASE WHEN visual_score >= 70 AND visual_score &lt; 80 THEN 1 ELSE 0 END) AS countC,
+               SUM(CASE WHEN visual_score >= 60 AND visual_score &lt; 70 THEN 1 ELSE 0 END) AS countD,
+               SUM(CASE WHEN visual_score &lt; 60 THEN 1 ELSE 0 END) AS countDMinus
+        FROM source_product
+        WHERE is_deleted=0 AND head_img_url IS NOT NULL
+    </select>
+
+    <select id="selectVariants" resultType="com.joker.spzx.model.vo.mall.VariantItemVo">
+        SELECT variant_set AS variantSet, img_pos AS imgPos, rule_name AS ruleName, file_url AS fileUrl,
+               visual_score AS visualScore
+        FROM product_media_variant
+        WHERE product_id = #{productId} AND platform_type = #{platformType}
+        ORDER BY variant_set, img_pos, rule_name
+    </select>
+
+</mapper>

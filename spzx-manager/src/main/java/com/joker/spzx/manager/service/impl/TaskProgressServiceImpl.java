@@ -173,23 +173,28 @@ public class TaskProgressServiceImpl implements TaskProgressService {
         int dataCount = countJsonlLines(cfg.getStr("dataFile"));
         JSONObject progress = readJsonFile(cfg.getStr("progressFile"));
 
-        int saved = 0, failed = 0;
+        int created = 0, saved = 0, failed = 0;
         if (progress != null) {
-            JSONObject created = progress.getJSONObject("created");
-            if (created != null) {
-                for (String k : created.keySet()) {
-                    JSONObject v = created.getJSONObject(k);
+            JSONObject createdObj = progress.getJSONObject("created");
+            if (createdObj != null) {
+                created = createdObj.size();
+                for (String k : createdObj.keySet()) {
+                    JSONObject v = createdObj.getJSONObject(k);
                     String status = v != null ? v.getStr("status", "") : "";
                     if ("saved".equals(status)) saved++;
                     else if (status.contains("fail") || status.contains("error")) failed++;
                 }
             }
         }
+        // total = 待铺候选(worklist); processed = 已创建的草稿数(created); saved = 建成草稿
         item.setTotal(worklistCount);
-        item.setProcessed(dataCount);
+        item.setProcessed(created);
         item.setSaved(saved);
         item.setFailed(failed);
-        item.setProgressPercent(worklistCount > 0 ? dataCount * 100 / worklistCount : 0);
+        item.setProgressPercent(worklistCount > 0 ? created * 100 / worklistCount : 0);
+        if (worklistCount > 0) {
+            item.setLastLog("已铺" + created + "个(草稿" + saved + ")/候选" + worklistCount + ", 失败" + failed);
+        }
     }
 
     private void fillSourcingProgress(TaskItemVo item, JSONObject cfg) {

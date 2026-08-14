@@ -23,7 +23,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(value = ServiceException.class)
     public Result<String> error(ServiceException exception) {
         log.error("业务异常: {}", exception.getMessage());
-        return Result.build(exception.getMessage(), exception.getResultCodeEnum());
+        if (exception.getResultCodeEnum() != null) {
+            return Result.build(exception.getMessage(), exception.getResultCodeEnum());
+        }
+        return Result.build(null, exception.getCode(), exception.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

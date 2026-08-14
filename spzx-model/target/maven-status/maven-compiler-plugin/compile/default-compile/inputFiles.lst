@@ -1,5 +1,6 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/dto/mall/BrushPersonDto.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/dto/mall/FarmOrderPageDto.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/dto/mall/GenerateVariantDto.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/dto/mall/MallAddOrderPageDto.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/dto/mall/MallAddOrderPageVo.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/dto/mall/OrderDetailQueryDto.java
@@ -8,6 +9,7 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/dto/mall/ProductPicVideoDto.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/dto/mall/RefundReportGenerateDto.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/dto/mall/RefundReportPageDto.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/dto/mall/RescoreDto.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/dto/order/OrderStatisticsDto.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/dto/product/CategoryBrandDto.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/dto/product/ProductBindQueryDto.java
@@ -94,6 +96,13 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/mall/RefundReportVo.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/mall/ReportOrderVo.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/mall/ReportStatCardVo.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/mall/SalesRankingVo.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/mall/VariantItemVo.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/mall/VariantSetVo.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/mall/VisualScoreImgVo.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/mall/VisualScoreSourceVo.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/mall/VisualScoreStatsVo.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/mall/VisualScoreVo.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/order/OrderStatisticsVo.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/product/CategoryExcelVo.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/product/ProductPageVo.java

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joker.spzx.manager.mapper.SalesRankingMapper">
+
+    <select id="ranking" resultType="com.joker.spzx.model.vo.mall.SalesRankingVo">
+        SELECT
+            sp.id AS sourceProductId,
+            sp.source_product_name AS sourceProductName,
+            sp.source_product_code AS sourceProductCode,
+            sp.head_img_url AS headImgUrl,
+            sp.category_name AS categoryName,
+            COALESCE(SUM(CASE WHEN icl.change_amount &lt; 0 THEN -icl.change_amount ELSE 0 END), 0) AS sold,
+            COALESCE(SUM(CASE WHEN icl.change_amount &gt; 0 THEN icl.change_amount ELSE 0 END), 0) AS restocked,
+            COALESCE(SUM(-icl.change_amount), 0) AS netChange,
+            COUNT(*) AS changeCount,
+            MAX(icl.create_time) AS lastChangeTime
+        FROM inventory_change_log icl
+        JOIN source_product sp ON sp.id = icl.source_product_id
+        WHERE sp.is_deleted = 0
+        <if test="beginTime != null and beginTime != ''">
+            AND icl.create_time &gt;= #{beginTime}
+        </if>
+        <if test="endTime != null and endTime != ''">
+            AND icl.create_time &lt;= #{endTime}
+        </if>
+        GROUP BY sp.id, sp.source_product_name, sp.source_product_code, sp.head_img_url, sp.category_name
+        ORDER BY sold DESC
+    </select>
+
+    <select id="qualityRanking" resultType="com.joker.spzx.model.vo.mall.SalesRankingVo">
+        SELECT
+            sp.id AS sourceProductId,
+            sp.source_product_name AS sourceProductName,
+            sp.source_product_code AS sourceProductCode,
+            sp.head_img_url AS headImgUrl,
+            sp.category_name AS categoryName,
+            sp.quality_grade AS qualityGrade,
+            COALESCE(SUM(CASE WHEN icl.change_amount &lt; 0 THEN -icl.change_amount ELSE 0 END), 0) AS sold,
+            COALESCE(SUM(CASE WHEN icl.change_amount &gt; 0 THEN icl.change_amount ELSE 0 END), 0) AS restocked,
+            COALESCE(SUM(-icl.change_amount), 0) AS netChange,
+            COUNT(icl.id) AS changeCount,
+            MAX(icl.create_time) AS lastChangeTime
+        FROM source_product sp
+        LEFT JOIN inventory_change_log icl ON icl.source_product_id = sp.id
+        WHERE sp.is_deleted = 0
+          AND (sp.quality_grade IN ('A','B') OR EXISTS (
+            SELECT 1 FROM source_factory f WHERE f.id = sp.source_factory_id
+            AND f.is_deleted=0 AND f.quality_grade IN ('A','B')))
+        <if test="beginTime != null and beginTime != ''">
+            AND (icl.create_time &gt;= #{beginTime} OR icl.id IS NULL)
+        </if>
+        <if test="endTime != null and endTime != ''">
+            AND (icl.create_time &lt;= #{endTime} OR icl.id IS NULL)
+        </if>
+        GROUP BY sp.id, sp.source_product_name, sp.source_product_code, sp.head_img_url, sp.category_name, sp.quality_grade
+        ORDER BY sold DESC
+    </select>
+
+</mapper>

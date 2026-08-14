@@ -98,3 +98,8 @@ app:
 # 任务进度看板配置
 task-progress:
   config-path: /Users/qyk9527/sourcing/task-progress-config.json
+
+# 主图质量分重算配置
+visual:
+  python-bin: /Users/qyk9527/tb-auto/venv/bin/python
+  script-dir: /Users/qyk9527/sourcing
