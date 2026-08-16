@@ -182,7 +182,13 @@ public class TaskProgressServiceImpl implements TaskProgressService {
             String body = new String(conn.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             JSONArray targets = JSONUtil.parseArray(body);
 
-            // 2. 关闭非保留 URL 的 page 类型标签
+            // 2. 智能保留: item.upload 仅在铺货(auto_list)运行时保留, 否则属残留一并清理
+            List<String> keepPrefixes = new ArrayList<>(KEEP_URL_PREFIXES);
+            if (!isScriptRunning("auto_list.py")) {
+                keepPrefixes.remove("item.upload.taobao.com");
+            }
+
+            // 3. 关闭非保留 URL 的 page 类型标签
             List<String> toClose = new ArrayList<>();
             for (Object o : targets) {
                 JSONObject t = (JSONObject) o;
@@ -194,7 +200,7 @@ public class TaskProgressServiceImpl implements TaskProgressService {
                     continue;
                 }
                 boolean keep = false;
-                for (String prefix : KEEP_URL_PREFIXES) {
+                for (String prefix : keepPrefixes) {
                     if (url.contains(prefix)) {
                         keep = true;
                         break;
@@ -203,7 +209,7 @@ public class TaskProgressServiceImpl implements TaskProgressService {
                 if (!keep) toClose.add(t.getStr("id"));
             }
 
-            // 3. 逐个关闭
+            // 4. 逐个关闭
             for (String id : toClose) {
                 try {
                     URL closeUrl = new URL("http://127.0.0.1:" + port + "/json/close/" + id);
@@ -647,6 +653,12 @@ public class TaskProgressServiceImpl implements TaskProgressService {
         } catch (Exception e) {
             return "";
         }
+    }
+
+    /** 脚本是否正在运行 (单次 ps 检查) */
+    private boolean isScriptRunning(String scriptName) {
+        if (scriptName == null) return false;
+        return processSnapshot().containsKey(scriptName);
     }
 
     /** 单次 ps 快照, 返回 scriptName -> pid (匹配命令中的脚本名) */
