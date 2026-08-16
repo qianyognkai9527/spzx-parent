@@ -1,12 +1,15 @@
 package com.joker.spzx.manager.controller;
 
+import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.joker.spzx.manager.service.FanqiePublishService;
 import com.joker.spzx.manager.service.NovelChapterService;
 import com.joker.spzx.manager.service.NovelService;
 import com.joker.spzx.model.entity.novel.Novel;
 import com.joker.spzx.model.entity.novel.NovelChapter;
 import com.joker.spzx.model.vo.common.Result;
+import com.joker.spzx.model.vo.common.ResultCodeEnum;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Tag(name = "小说章节管理")
 @RestController
@@ -26,6 +30,9 @@ public class NovelController {
 
     @Autowired
     private NovelChapterService novelChapterService;
+
+    @Autowired
+    private FanqiePublishService fanqiePublishService;
 
     // ===== 小说 =====
 
@@ -65,7 +72,19 @@ public class NovelController {
                 .eq(status != null, NovelChapter::getStatus, status)
                 .eq(NovelChapter::getIsDeleted, 0)
                 .orderByAsc(NovelChapter::getChapterNum);
-        return Result.build(novelChapterService.page(page, wrapper));
+        Page<NovelChapter> result = novelChapterService.page(page, wrapper);
+        Map<String, JSONObject> fanqieState = fanqiePublishService.readState();
+        if (!fanqieState.isEmpty()) {
+            for (NovelChapter c : result.getRecords()) {
+                JSONObject st = fanqieState.get(String.valueOf(c.getChapterNum()));
+                if (st != null) {
+                    c.setFanqieSchedule(st.getStr("schedule"));
+                    c.setFanqieStatus(st.getStr("status"));
+                    c.setFanqieError(st.getStr("error"));
+                }
+            }
+        }
+        return Result.build(result);
     }
 
     @Operation(summary = "章节详情(含正文)")
@@ -105,6 +124,18 @@ public class NovelController {
         chapter.setPublishedAt(LocalDateTime.now());
         novelChapterService.updateById(chapter);
         return Result.build(null);
+    }
+
+    @Operation(summary = "一键启动番茄发布")
+    @PostMapping("/publish/start")
+    public Result<Map<String, Object>> startFanqiePublish() {
+        return Result.build(fanqiePublishService.start(), ResultCodeEnum.SUCCESS);
+    }
+
+    @Operation(summary = "停止番茄发布")
+    @PostMapping("/publish/stop")
+    public Result<Map<String, Object>> stopFanqiePublish() {
+        return Result.build(fanqiePublishService.stop(), ResultCodeEnum.SUCCESS);
     }
 
     @Operation(summary = "删除章节")

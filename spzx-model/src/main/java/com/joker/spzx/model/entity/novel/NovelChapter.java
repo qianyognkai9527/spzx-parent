@@ -1,5 +1,6 @@
 package com.joker.spzx.model.entity.novel;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.joker.spzx.model.entity.base.BaseEntity;
@@ -29,4 +30,13 @@ public class NovelChapter extends BaseEntity {
     private LocalDateTime publishedAt;
 
     private Integer isModified;
+
+    @TableField(exist = false)
+    private String fanqieSchedule;
+
+    @TableField(exist = false)
+    private String fanqieStatus;
+
+    @TableField(exist = false)
+    private String fanqieError;
 }
