@@ -1,8 +1,10 @@
 package com.joker.spzx.manager.service.impl;
 
+import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.joker.spzx.manager.service.TaskProgressService;
+import com.joker.spzx.model.vo.taskprogress.ChromeStatusVo;
 import com.joker.spzx.model.vo.taskprogress.ProcessStatusVo;
 import com.joker.spzx.model.vo.taskprogress.TaskItemVo;
 import com.joker.spzx.model.vo.taskprogress.TaskOverviewVo;
@@ -12,6 +14,8 @@ import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -24,6 +28,16 @@ import java.util.*;
 @Slf4j
 @Service
 public class TaskProgressServiceImpl implements TaskProgressService {
+
+    /** 清理标签页时保留的关键 URL 前缀 (登录页/主页/工作页) */
+    private static final List<String> KEEP_URL_PREFIXES = List.of(
+            "myseller.taobao.com",
+            "item.upload.taobao.com",
+            "s.1688.com",
+            "ufuwu.1688.com",
+            "fxg.jinritemai.com",
+            "detail.1688.com"
+    );
 
     @Value("${task-progress.config-path:/Users/qyk9527/sourcing/task-progress-config.json}")
     private String configPath;
@@ -44,12 +58,25 @@ public class TaskProgressServiceImpl implements TaskProgressService {
             TaskItemVo item = new TaskItemVo();
             item.setKey(cfg.getStr("key"));
             item.setName(cfg.getStr("name"));
+            // 透传新配置字段
+            item.setCategory(cfg.getStr("category", "manual"));
+            item.setTags(toStringList(cfg.getJSONArray("tags")));
+            item.setPort(cfg.getInt("port", 0));
+            item.setLaunchCmd(cfg.getStr("launchCmd"));
+            item.setSchedule(cfg.getStr("schedule"));
+            item.setNextRun(cfg.getStr("nextRun"));
             String type = cfg.getStr("type");
 
             try {
                 switch (type) {
                     case "json_progress":
                         fillJsonProgress(item, cfg);
+                        break;
+                    case "list_progress":
+                        fillListProgress(item, cfg);
+                        break;
+                    case "map_progress":
+                        fillMapProgress(item, cfg);
                         break;
                     case "douyin_pipeline":
                         fillDouyinPipeline(item, cfg);
@@ -72,6 +99,9 @@ public class TaskProgressServiceImpl implements TaskProgressService {
                     case "db_inventory_alert":
                         fillDbInventoryAlert(item);
                         break;
+                    case "process_only":
+                        fillProcessOnly(item, cfg);
+                        break;
                     default:
                         item.setStatus("unknown_type");
                 }
@@ -83,8 +113,8 @@ public class TaskProgressServiceImpl implements TaskProgressService {
             // 收集脚本名
             String script = cfg.getStr("script");
             if (script != null) allScripts.add(script);
-            cn.hutool.json.JSONArray scriptsArr = cfg.getJSONArray("scripts");
-            if (scriptsArr == null) scriptsArr = new cn.hutool.json.JSONArray();
+            JSONArray scriptsArr = cfg.getJSONArray("scripts");
+            if (scriptsArr == null) scriptsArr = new JSONArray();
             for (Object s : scriptsArr) {
                 allScripts.add((String) s);
             }
@@ -92,11 +122,12 @@ public class TaskProgressServiceImpl implements TaskProgressService {
             tasks.add(item);
         }
 
-        // 检查进程状态
+        // 检查进程状态 (单次 ps 快照, 避免 30+ 次子进程)
+        Map<String, String> procMap = processSnapshot();
         for (String script : allScripts) {
             ProcessStatusVo ps = new ProcessStatusVo();
             ps.setScript(script);
-            String pid = checkProcessRunning(script);
+            String pid = procMap.get(script);
             ps.setRunning(pid != null);
             ps.setPid(pid != null ? pid : "");
             processes.add(ps);
@@ -104,15 +135,15 @@ public class TaskProgressServiceImpl implements TaskProgressService {
 
         // 更新任务状态: 如果任务有关联脚本且至少一个在跑 -> running
         for (TaskItemVo item : tasks) {
-            if (item.getStatus() == null || item.getStatus().equals("error")) {
+            if (item.getStatus() == null || item.getStatus().equals("error") || item.getStatus().equals("unknown_type")) {
                 item.setStatus("stopped");
             }
         }
         for (JSONObject cfg : taskConfigs) {
             String key = cfg.getStr("key");
             String script = cfg.getStr("script");
-            cn.hutool.json.JSONArray scripts = cfg.getJSONArray("scripts");
-            if (scripts == null) scripts = new cn.hutool.json.JSONArray();
+            JSONArray scripts = cfg.getJSONArray("scripts");
+            if (scripts == null) scripts = new JSONArray();
             boolean anyRunning = false;
             if (script != null) {
                 anyRunning = processes.stream().anyMatch(p -> p.getScript().equals(script) && p.getRunning());
@@ -135,8 +166,153 @@ public class TaskProgressServiceImpl implements TaskProgressService {
 
         vo.setTasks(tasks);
         vo.setProcesses(processes);
+        vo.setChromeStats(collectChromeStats());
         return vo;
     }
+
+    @Override
+    public int closeTabs(int port) {
+        int closed = 0;
+        try {
+            // 1. 查询目标列表
+            URL jsonUrl = new URL("http://127.0.0.1:" + port + "/json");
+            HttpURLConnection conn = (HttpURLConnection) jsonUrl.openConnection();
+            conn.setConnectTimeout(2000);
+            conn.setReadTimeout(3000);
+            String body = new String(conn.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            JSONArray targets = JSONUtil.parseArray(body);
+
+            // 2. 关闭非保留 URL 的 page 类型标签
+            List<String> toClose = new ArrayList<>();
+            for (Object o : targets) {
+                JSONObject t = (JSONObject) o;
+                String type = t.getStr("type");
+                String url = t.getStr("url", "");
+                if (!"page".equals(type)) continue;
+                if (url.isEmpty() || url.startsWith("about:") || url.startsWith("chrome://")) {
+                    toClose.add(t.getStr("id"));
+                    continue;
+                }
+                boolean keep = false;
+                for (String prefix : KEEP_URL_PREFIXES) {
+                    if (url.contains(prefix)) {
+                        keep = true;
+                        break;
+                    }
+                }
+                if (!keep) toClose.add(t.getStr("id"));
+            }
+
+            // 3. 逐个关闭
+            for (String id : toClose) {
+                try {
+                    URL closeUrl = new URL("http://127.0.0.1:" + port + "/json/close/" + id);
+                    HttpURLConnection c2 = (HttpURLConnection) closeUrl.openConnection();
+                    c2.setConnectTimeout(1500);
+                    c2.setReadTimeout(1500);
+                    c2.getInputStream().close();
+                    closed++;
+                } catch (Exception e) {
+                    log.warn("关闭标签 {} 失败: {}", id, e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("清理端口 {} 标签页失败: {}", port, e.getMessage());
+        }
+        return closed;
+    }
+
+    // ==================== Chrome 资源统计 ====================
+
+    private List<ChromeStatusVo> collectChromeStats() {
+        List<ChromeStatusVo> stats = new ArrayList<>();
+        stats.add(chromeStat(9222));
+        stats.add(chromeStat(9223));
+        return stats;
+    }
+
+    private ChromeStatusVo chromeStat(int port) {
+        ChromeStatusVo vo = new ChromeStatusVo();
+        vo.setPort(port);
+        // 1. Chrome 主进程是否存活
+        boolean running = isPortAlive(port);
+        vo.setRunning(running);
+        if (!running) {
+            vo.setTabs(0);
+            vo.setRssMB(0);
+            vo.setCpuPercent(0.0);
+            vo.setDesc("Chrome 未运行");
+            return vo;
+        }
+        // 2. 标签页数
+        int tabs = countTabs(port);
+        vo.setTabs(tabs);
+        // 3. RSS/CPU 聚合
+        long[] rssCpu = rssCpuForPort(port);
+        vo.setRssMB((int) (rssCpu[0] / 1024));
+        vo.setCpuPercent(rssCpu[1] / 100.0);
+        vo.setDesc(tabs + " 个标签页");
+        return vo;
+    }
+
+    private boolean isPortAlive(int port) {
+        try {
+            URL url = new URL("http://127.0.0.1:" + port + "/json/version");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(1500);
+            conn.setReadTimeout(1500);
+            int code = conn.getResponseCode();
+            conn.getInputStream().close();
+            return code == 200;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private int countTabs(int port) {
+        try {
+            URL url = new URL("http://127.0.0.1:" + port + "/json");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(1500);
+            conn.setReadTimeout(2000);
+            String body = new String(conn.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            return JSONUtil.parseArray(body).size();
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    /** 返回 [rssKB, cpuHundredths] */
+    private long[] rssCpuForPort(int port) {
+        long rss = 0;
+        long cpu = 0;
+        int count = 0;
+        try {
+            ProcessBuilder pb = new ProcessBuilder("sh", "-c",
+                    "ps -Ao rss=,pcpu=,command | grep 'remote-debugging-port=" + port + "' | grep -v grep");
+            pb.redirectErrorStream(true);
+            Process p = pb.start();
+            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            p.waitFor();
+            for (String line : out.split("\n")) {
+                if (line.trim().isEmpty()) continue;
+                String[] parts = line.trim().split("\\s+", 3);
+                if (parts.length >= 2) {
+                    try {
+                        rss += Long.parseLong(parts[0].trim());
+                        cpu += (long) (Double.parseDouble(parts[1].trim()) * 100);
+                        count++;
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("统计端口 {} 资源失败: {}", port, e.getMessage());
+        }
+        return new long[]{rss, cpu};
+    }
+
+    // ==================== 配置读取 ====================
 
     private List<JSONObject> loadTaskConfigs() {
         try {
@@ -147,6 +323,24 @@ public class TaskProgressServiceImpl implements TaskProgressService {
             log.error("读取任务配置失败: {}", e.getMessage());
             return Collections.emptyList();
         }
+    }
+
+    // ==================== 进度读取器 ====================
+
+    private List<String> toStringList(JSONArray arr) {
+        List<String> out = new ArrayList<>();
+        if (arr == null) return out;
+        for (Object o : arr) out.add(String.valueOf(o));
+        return out;
+    }
+
+    /** 读取 JSON 进度字段, 兼容 int 与数组 */
+    private int jsonIntOrLen(JSONObject data, String key) {
+        Object v = data.get(key);
+        if (v == null) return 0;
+        if (v instanceof JSONArray arr) return arr.size();
+        if (v instanceof List list) return list.size();
+        return data.getInt(key, 0);
     }
 
     private void fillJsonProgress(TaskItemVo item, JSONObject cfg) {
@@ -160,14 +354,64 @@ public class TaskProgressServiceImpl implements TaskProgressService {
             item.setProgressPercent(0);
             return;
         }
-        int processed = data.getInt(fields.getStr("processed", "processed"), 0);
-        int failed = data.getInt(fields.getStr("failed", "failed"), 0);
-        int count = data.getInt(fields.getStr("count", "count"), processed);
+        int processed = jsonIntOrLen(data, fields.getStr("processed", "processed"));
+        int failed = jsonIntOrLen(data, fields.getStr("failed", "failed"));
+        int count = jsonIntOrLen(data, fields.getStr("count", "count"));
+        if (count == 0 && fields.containsKey("done")) {
+            count = jsonIntOrLen(data, fields.getStr("done"));
+        }
         item.setProcessed(processed);
         item.setFailed(failed);
         item.setTotal(count > 0 ? count : processed + failed);
-        item.setSaved(processed - failed);
+        item.setSaved(processed - failed > 0 ? processed - failed : 0);
         item.setProgressPercent(item.getTotal() > 0 ? processed * 100 / item.getTotal() : 0);
+        item.setLastLog(readLogTail(cfg.getStr("logPath"), 1));
+    }
+
+    private void fillListProgress(TaskItemVo item, JSONObject cfg) {
+        JSONObject data = readJsonFile(cfg.getStr("path"));
+        int processed = 0, failed = 0;
+        if (data != null) {
+            processed = jsonIntOrLen(data, cfg.getStr("doneKey", "done"));
+            failed = jsonIntOrLen(data, cfg.getStr("failedKey", "failed"));
+        }
+        item.setProcessed(processed);
+        item.setFailed(failed);
+        item.setSaved(processed - failed > 0 ? processed - failed : 0);
+        item.setTotal(processed + failed);
+        item.setProgressPercent(item.getTotal() > 0 ? processed * 100 / item.getTotal() : 0);
+        item.setLastLog(readLogTail(cfg.getStr("logPath"), 1));
+    }
+
+    private void fillMapProgress(TaskItemVo item, JSONObject cfg) {
+        JSONObject data = readJsonFile(cfg.getStr("path"));
+        JSONObject map = data;
+        String mapKey = cfg.getStr("mapKey");
+        if (data != null && mapKey != null) map = data.getJSONObject(mapKey);
+        int saved = 0, failed = 0;
+        if (map != null) {
+            for (String k : map.keySet()) {
+                JSONObject v = map.getJSONObject(k);
+                String status = v != null ? v.getStr("status", "") : "";
+                if ("saved".equals(status)) saved++;
+                else if (status.contains("fail") || status.contains("error") || status.contains("risk")) failed++;
+            }
+        }
+        int total = map != null ? map.size() : 0;
+        item.setTotal(total);
+        item.setProcessed(total);
+        item.setSaved(saved);
+        item.setFailed(failed);
+        item.setProgressPercent(total > 0 ? 100 : 0);
+        if (total > 0) item.setLastLog("已处理" + total + ", 成功" + saved + ", 失败" + failed);
+    }
+
+    private void fillProcessOnly(TaskItemVo item, JSONObject cfg) {
+        item.setProcessed(0);
+        item.setTotal(0);
+        item.setSaved(0);
+        item.setFailed(0);
+        item.setProgressPercent(0);
         item.setLastLog(readLogTail(cfg.getStr("logPath"), 1));
     }
 
@@ -204,19 +448,18 @@ public class TaskProgressServiceImpl implements TaskProgressService {
         JSONObject progress = readJsonFile(cfg.getStr("progressFile"));
         int donePages = 0, failedKw = 0;
         if (progress != null) {
-            donePages = progress.getInt("done", 0) != null ? 0 : 0;
-            // hutool getInt returns Integer, need null check
             Object doneObj = progress.get("done");
             if (doneObj instanceof List) donePages = ((List<?>) doneObj).size();
             Object failedObj = progress.get("failed_kw");
             if (failedObj instanceof List) failedKw = ((List<?>) failedObj).size();
         }
         int rawCount = countJsonlLines(cfg.getStr("rawFile"));
-        item.setTotal(donePages);
+        item.setTotal(rawCount);
         item.setProcessed(rawCount);
         item.setSaved(rawCount);
         item.setFailed(failedKw);
-        item.setProgressPercent(100); // 376页已完成
+        item.setProgressPercent(100);
+        item.setLastLog("已完成 " + donePages + " 页 / 已采 " + rawCount + " 条, 失败关键词 " + failedKw);
     }
 
     private void fillDbFactoryGrade(TaskItemVo item) {
@@ -225,7 +468,7 @@ public class TaskProgressServiceImpl implements TaskProgressService {
         try {
             ProcessBuilder pb = new ProcessBuilder("sh", "-c",
                     "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                    "\"SELECT CONCAT(quality_grade, ':', COUNT(*)) FROM source_factory WHERE is_deleted=0 GROUP BY quality_grade ORDER BY quality_grade DESC\" 2>/dev/null");
+                            "\"SELECT CONCAT(quality_grade, ':', COUNT(*)) FROM source_factory WHERE is_deleted=0 GROUP BY quality_grade ORDER BY quality_grade DESC\" 2>/dev/null");
             pb.redirectErrorStream(true);
             Process p = pb.start();
             String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
@@ -256,9 +499,9 @@ public class TaskProgressServiceImpl implements TaskProgressService {
         try {
             ProcessBuilder pb = new ProcessBuilder("sh", "-c",
                     "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                    "\"SELECT COUNT(*) FROM source_product WHERE freight_cost IS NULL OR freight_cost=0;\" 2>/dev/null && " +
-                    "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                    "\"SELECT COUNT(*) FROM source_product WHERE freight_cost > 0;\" 2>/dev/null");
+                            "\"SELECT COUNT(*) FROM source_product WHERE freight_cost IS NULL OR freight_cost=0;\" 2>/dev/null && " +
+                            "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
+                            "\"SELECT COUNT(*) FROM source_product WHERE freight_cost > 0;\" 2>/dev/null");
             pb.redirectErrorStream(true);
             Process p = pb.start();
             String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
@@ -281,11 +524,11 @@ public class TaskProgressServiceImpl implements TaskProgressService {
         try {
             ProcessBuilder pb = new ProcessBuilder("sh", "-c",
                     "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                    "\"SELECT total_chapters FROM novel WHERE id=1 AND is_deleted=0;\" 2>/dev/null && " +
-                    "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                    "\"SELECT COUNT(*) FROM novel_chapter WHERE novel_id=1 AND is_deleted=0;\" 2>/dev/null && " +
-                    "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                    "\"SELECT COUNT(*) FROM novel_chapter WHERE novel_id=1 AND is_deleted=0 AND status=2;\" 2>/dev/null");
+                            "\"SELECT total_chapters FROM novel WHERE id=1 AND is_deleted=0;\" 2>/dev/null && " +
+                            "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
+                            "\"SELECT COUNT(*) FROM novel_chapter WHERE novel_id=1 AND is_deleted=0;\" 2>/dev/null && " +
+                            "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
+                            "\"SELECT COUNT(*) FROM novel_chapter WHERE novel_id=1 AND is_deleted=0 AND status=2;\" 2>/dev/null");
             pb.redirectErrorStream(true);
             Process p = pb.start();
             String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
@@ -342,11 +585,11 @@ public class TaskProgressServiceImpl implements TaskProgressService {
         try {
             ProcessBuilder pb = new ProcessBuilder("sh", "-c",
                     "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                    "\"SELECT COUNT(*) FROM source_sku WHERE status=1 AND is_deleted=0;\" 2>/dev/null && " +
-                    "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                    "\"SELECT COUNT(*) FROM sync_alert WHERE status=0;\" 2>/dev/null && " +
-                    "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                    "\"SELECT COUNT(*) FROM sku_bind_relation WHERE status=1 AND is_deleted=0;\" 2>/dev/null");
+                            "\"SELECT COUNT(*) FROM source_sku WHERE status=1 AND is_deleted=0;\" 2>/dev/null && " +
+                            "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
+                            "\"SELECT COUNT(*) FROM sync_alert WHERE status=0;\" 2>/dev/null && " +
+                            "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
+                            "\"SELECT COUNT(*) FROM sku_bind_relation WHERE status=1 AND is_deleted=0;\" 2>/dev/null");
             pb.redirectErrorStream(true);
             Process p = pb.start();
             String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
@@ -368,6 +611,8 @@ public class TaskProgressServiceImpl implements TaskProgressService {
             item.setLastLog("DB查询失败: " + e.getMessage());
         }
     }
+
+    // ==================== 工具方法 ====================
 
     private JSONObject readJsonFile(String path) {
         if (path == null) return null;
@@ -404,19 +649,29 @@ public class TaskProgressServiceImpl implements TaskProgressService {
         }
     }
 
-    private String checkProcessRunning(String scriptName) {
-        if (scriptName == null) return null;
+    /** 单次 ps 快照, 返回 scriptName -> pid (匹配命令中的脚本名) */
+    private Map<String, String> processSnapshot() {
+        Map<String, String> result = new HashMap<>();
         try {
             ProcessBuilder pb = new ProcessBuilder("sh", "-c",
-                    "ps aux | grep '" + scriptName + "' | grep -v grep | head -1 | awk '{print $2}'");
+                    "ps -Ao pid=,command=");
             pb.redirectErrorStream(true);
             Process p = pb.start();
             String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             p.waitFor();
-            String pid = out.trim();
-            return pid.isEmpty() ? null : pid;
+            for (String line : out.split("\n")) {
+                if (line.trim().isEmpty()) continue;
+                String pid = line.trim().split("\\s+", 2)[0];
+                String cmd = line.contains(" ") ? line.trim().split("\\s+", 2)[1] : "";
+                // 从命令中提取脚本文件名 (xxx.py / xxx.sh)
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile("([\\w.]+)\\.(?:py|sh)").matcher(cmd);
+                if (m.find()) {
+                    result.putIfAbsent(m.group(0), pid);
+                }
+            }
         } catch (Exception e) {
-            return null;
+            log.warn("ps 快照失败: {}", e.getMessage());
         }
+        return result;
     }
 }

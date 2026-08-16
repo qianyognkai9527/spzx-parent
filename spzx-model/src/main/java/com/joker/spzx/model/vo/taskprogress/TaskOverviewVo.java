@@ -12,4 +12,7 @@ public class TaskOverviewVo {
 
     @Schema(description = "进程状态列表")
     private java.util.List<ProcessStatusVo> processes;
+
+    @Schema(description = "Chrome 实例资源状态列表")
+    private java.util.List<ChromeStatusVo> chromeStats;
 }

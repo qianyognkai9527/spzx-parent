@@ -33,4 +33,22 @@ public class TaskItemVo {
 
     @Schema(description = "最近日志摘要")
     private String lastLog;
+
+    @Schema(description = "任务类别: scheduled/manual")
+    private String category;
+
+    @Schema(description = "平台标签: 淘宝/抖音/1688/其他")
+    private java.util.List<String> tags;
+
+    @Schema(description = "CDP端口 0=纯DB")
+    private Integer port;
+
+    @Schema(description = "只读展示的启动命令")
+    private String launchCmd;
+
+    @Schema(description = "调度表达式(仅定时任务)")
+    private String schedule;
+
+    @Schema(description = "下次运行时间(仅定时任务)")
+    private String nextRun;
 }
