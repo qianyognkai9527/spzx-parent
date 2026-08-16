@@ -66,6 +66,9 @@ public class TaskProgressServiceImpl implements TaskProgressService {
                     case "db_novel":
                         fillDbNovel(item);
                         break;
+                    case "fanqie_publish":
+                        fillFanqiePublish(item, cfg);
+                        break;
                     case "db_inventory_alert":
                         fillDbInventoryAlert(item);
                         break;
@@ -303,6 +306,36 @@ public class TaskProgressServiceImpl implements TaskProgressService {
         } catch (Exception e) {
             item.setLastLog("DB查询失败: " + e.getMessage());
         }
+    }
+
+    private void fillFanqiePublish(TaskItemVo item, JSONObject cfg) {
+        JSONObject state = readJsonFile(cfg.getStr("path"));
+        int published = 0, pending = 0, failed = 0;
+        if (state != null) {
+            JSONObject chapters = state.getJSONObject("chapters");
+            if (chapters != null) {
+                for (String k : chapters.keySet()) {
+                    JSONObject c = chapters.getJSONObject(k);
+                    String st = c != null ? c.getStr("status", "") : "";
+                    if ("published".equals(st)) published++;
+                    else if ("failed".equals(st)) failed++;
+                    else pending++;
+                }
+            }
+        }
+        int total = published + pending + failed;
+        item.setTotal(total);
+        item.setProcessed(published + failed);
+        item.setSaved(published);
+        item.setFailed(failed);
+        item.setProgressPercent(total > 0 ? published * 100 / total : 0);
+        String updatedAt = state != null ? state.getStr("updatedAt", "") : "";
+        String tail = readLogTail(cfg.getStr("logPath"), 3);
+        StringBuilder sb = new StringBuilder("已发布").append(published).append("/").append(total)
+                .append("章, 待发").append(pending).append(", 失败").append(failed);
+        if (!updatedAt.isEmpty()) sb.append(" | 更新于 ").append(updatedAt);
+        if (!tail.isEmpty()) sb.append(" | ").append(tail);
+        item.setLastLog(sb.toString());
     }
 
     private void fillDbInventoryAlert(TaskItemVo item) {
