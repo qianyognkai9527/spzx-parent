@@ -58,6 +58,9 @@ public class ProductPageVo {
     @Schema(description = "全网销量(爬虫)")
     private Integer salesCount;
 
+    @Schema(description = "近14天销量(累计差值)")
+    private Integer salesCount14d;
+
     @Schema(description = "类目(爬虫)")
     private String categoryName;
 
