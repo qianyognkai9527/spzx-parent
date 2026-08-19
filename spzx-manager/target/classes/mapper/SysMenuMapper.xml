@@ -9,5 +9,6 @@
         INNER JOIN sys_user_role ur ON ur.role_id = rm.role_id
         WHERE ur.user_id = #{userId}
           and m.is_deleted = 0
+          and m.status = 1
     </select>
 </mapper>

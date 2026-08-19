@@ -1,5 +1,7 @@
 com/joker/spzx/manager/mapper/SysDictTypeMapper.class
+com/joker/spzx/manager/service/impl/FanqiePublishServiceImpl.class
 com/joker/spzx/manager/controller/OrderBindController.class
+com/joker/spzx/manager/service/ProfitAnalysisRecordService.class
 com/joker/spzx/manager/mapper/OrderStatisticsMapper.class
 com/joker/spzx/manager/config/ClickHouseConfig.class
 com/joker/spzx/manager/mapper/SyncAlertMapper.class
@@ -29,7 +31,6 @@ com/joker/spzx/manager/controller/ProductController.class
 com/joker/spzx/manager/service/OrderBindService.class
 com/joker/spzx/manager/service/TaskProgressService.class
 com/joker/spzx/manager/service/impl/SalesRankingServiceImpl.class
-com/joker/spzx/manager/config/WebMvcConfiguration.class
 com/joker/spzx/manager/config/LoginAuthInterceptor.class
 com/joker/spzx/manager/controller/MallProductLinkController.class
 com/joker/spzx/manager/ManagerApplication.class
@@ -45,6 +46,7 @@ com/joker/spzx/manager/controller/SyncAlertController.class
 com/joker/spzx/manager/service/MallRefundOrderService.class
 com/joker/spzx/manager/config/HttpClientConfig.class
 com/joker/spzx/manager/controller/SysDictTypeController.class
+com/joker/spzx/manager/controller/ProfitAnalysisRecordController.class
 com/joker/spzx/manager/service/impl/MallFarmOrderServiceImpl$1.class
 com/joker/spzx/manager/mapper/SysPlanProductMapper.class
 com/joker/spzx/manager/controller/CategoryController.class
@@ -114,6 +116,7 @@ com/joker/spzx/manager/service/SyncAlertService.class
 com/joker/spzx/manager/excel/SecondOrderExcelBo.class
 com/joker/spzx/manager/mapper/MallProductFactoryMapper.class
 com/joker/spzx/manager/service/impl/CategoryServiceImpl.class
+com/joker/spzx/manager/service/FanqiePublishService.class
 com/joker/spzx/manager/controller/SysDictDataController.class
 com/joker/spzx/manager/controller/IndexController.class
 com/joker/spzx/manager/service/MallRefundRecordService.class
@@ -155,6 +158,7 @@ com/joker/spzx/manager/service/impl/ProductSpecServiceImpl.class
 com/joker/spzx/manager/controller/MallOperController.class
 com/joker/spzx/manager/service/impl/SysUserScheduleServiceImpl.class
 com/joker/spzx/manager/controller/SysUserScheduleController.class
+com/joker/spzx/manager/mapper/FeeBenchmarkMapper.class
 com/joker/spzx/manager/mapper/SysUserScheduleTaskMapper.class
 com/joker/spzx/manager/service/ProductUnitService.class
 com/joker/spzx/manager/service/WxLoginService.class
@@ -178,10 +182,12 @@ com/joker/spzx/manager/mapper/MallRefundOrderMapper.class
 com/joker/spzx/manager/service/BrandService.class
 com/joker/spzx/manager/mapper/SourceFactoryMapper.class
 com/joker/spzx/manager/service/impl/MallRefundRecordDetailServiceImpl.class
+com/joker/spzx/manager/service/impl/ProfitAnalysisRecordServiceImpl.class
 com/joker/spzx/manager/service/impl/SysMenuServiceImpl$2.class
 com/joker/spzx/manager/service/impl/MallOperServiceImpl.class
 com/joker/spzx/manager/service/SysMenuService.class
 com/joker/spzx/manager/service/SysDictTypeService.class
+com/joker/spzx/manager/mapper/ProfitAnalysisRecordMapper.class
 com/joker/spzx/manager/service/MallProductTitleService.class
 com/joker/spzx/manager/mapper/SysRoleMapper.class
 com/joker/spzx/manager/service/impl/MallRefundOrderServiceImpl.class

@@ -47,4 +47,14 @@ public class DashboardController {
     public Result<List<RecentLogVo>> getRecentLogs() {
         return Result.build(dashboardService.getRecentLogs(), ResultCodeEnum.SUCCESS);
     }
+
+    @GetMapping("/watermarkProducts")
+    public Result<java.util.List<java.util.Map<String, Object>>> getWatermarkProducts() {
+        return Result.build(dashboardService.getWatermarkProducts(), ResultCodeEnum.SUCCESS);
+    }
+
+    @GetMapping("/taskAnomalies")
+    public Result<java.util.List<java.util.Map<String, Object>>> getTaskAnomalies() {
+        return Result.build(dashboardService.getTaskAnomalies(), ResultCodeEnum.SUCCESS);
+    }
 }

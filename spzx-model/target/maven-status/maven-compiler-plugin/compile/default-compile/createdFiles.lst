@@ -15,6 +15,7 @@ com/joker/spzx/model/vo/mall/VisualScoreVo.class
 com/joker/spzx/model/dto/system/AssginRoleDto.class
 com/joker/spzx/model/dto/mall/FarmOrderPageDto.class
 com/joker/spzx/model/vo/taskprogress/TaskItemVo.class
+com/joker/spzx/model/entity/oper/FeeBenchmark.class
 com/joker/spzx/model/vo/mall/EvalGapVo.class
 com/joker/spzx/model/entity/oper/MallFarmOrder.class
 com/joker/spzx/model/vo/system/WxLoginCreateVo.class
@@ -88,6 +89,7 @@ com/joker/spzx/model/entity/base/BaseEntity.class
 com/joker/spzx/model/entity/novel/NovelChapter.class
 com/joker/spzx/model/entity/system/SysRoleMenu.class
 com/joker/spzx/model/dto/product/CategoryBrandDto.class
+com/joker/spzx/model/vo/taskprogress/ChromeStatusVo.class
 com/joker/spzx/model/entity/product/Category.class
 com/joker/spzx/model/vo/mall/BrushOrderStatVo.class
 com/joker/spzx/model/vo/mall/VisualScoreStatsVo.class
@@ -108,6 +110,7 @@ com/joker/spzx/model/dto/mall/PicVideoSimplerDto.class
 com/joker/spzx/model/dto/system/UserScheduleDtp.class
 com/joker/spzx/model/entity/system/SysRoleUser.class
 com/joker/spzx/model/entity/oper/MallRefundRecordDetail.class
+com/joker/spzx/model/entity/oper/ProfitAnalysisRecord.class
 com/joker/spzx/model/dto/system/PageParam.class
 com/joker/spzx/model/dto/mall/MallAddOrderPageVo.class
 com/joker/spzx/model/entity/product/ProductDetails.class

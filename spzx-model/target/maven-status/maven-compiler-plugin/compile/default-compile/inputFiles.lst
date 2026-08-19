@@ -37,6 +37,7 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/inventory/SyncAlert.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/novel/Novel.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/novel/NovelChapter.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/oper/FeeBenchmark.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/oper/MallAddOrder.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/oper/MallFarmOrder.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/oper/MallOper.java
@@ -50,6 +51,7 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/oper/MallRefundOrder.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/oper/MallRefundRecord.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/oper/MallRefundRecordDetail.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/oper/ProfitAnalysisRecord.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/order/OrderBind.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/order/OrderInfo.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/order/OrderSourceRelation.java
@@ -114,6 +116,7 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/system/WxLoginBindInfoVo.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/system/WxLoginCreateVo.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/system/WxLoginStatusVo.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/taskprogress/ChromeStatusVo.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/taskprogress/ProcessStatusVo.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/taskprogress/TaskItemVo.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/taskprogress/TaskOverviewVo.java

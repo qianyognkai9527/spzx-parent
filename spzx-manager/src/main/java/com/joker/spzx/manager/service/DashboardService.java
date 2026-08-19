@@ -20,4 +20,8 @@ public interface DashboardService {
     List<TopFactoryVo> getTopFactories();
 
     List<RecentLogVo> getRecentLogs();
+
+    java.util.List<java.util.Map<String, Object>> getWatermarkProducts();
+
+    java.util.List<java.util.Map<String, Object>> getTaskAnomalies();
 }

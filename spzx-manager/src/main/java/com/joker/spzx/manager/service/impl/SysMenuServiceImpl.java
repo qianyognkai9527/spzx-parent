@@ -42,6 +42,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     @Cacheable(cacheNames = "menu:tree", key = "'tree'", unless = "#result == null || #result.isEmpty()")
     public List<SysMenu> getTreeNodes() {
         LambdaQueryWrapper<SysMenu> eq = lambdaQuery().getWrapper().eq(SysMenu::getIsDeleted, 0)
+                .eq(SysMenu::getStatus, 1)
                 .orderByAsc(SysMenu::getSortValue);
         List<SysMenu> list = list(eq);
         if (CollectionUtils.isEmpty(list)) {

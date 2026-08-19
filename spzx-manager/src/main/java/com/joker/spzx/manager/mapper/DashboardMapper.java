@@ -48,4 +48,10 @@ public interface DashboardMapper {
     @Select("SELECT title, oper_name AS operName, create_time AS createTime " +
             "FROM sys_oper_log ORDER BY create_time DESC LIMIT 10")
     List<RecentLogVo> selectRecentLogs();
+
+    @Select("SELECT item_id AS itemId, title, issue, mark_type AS markType, " +
+            "suggest_category AS suggestCategory, create_time AS createTime " +
+            "FROM taobao_1688_mark WHERE status = 0 AND mark_type IS NOT NULL " +
+            "ORDER BY create_time DESC LIMIT 100")
+    List<java.util.Map<String, Object>> selectWatermarkProducts();
 }

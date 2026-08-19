@@ -20,6 +20,15 @@
             p.supplier_name supplierName,
             p.repurchase_rate repurchaseRate,
             p.sales_count salesCount,
+            ((
+                SELECT MAX(h1.sales_count) FROM source_product_sales_history h1
+                WHERE h1.source_product_id = p.id
+                  AND h1.snapshot_time &gt;= NOW() - INTERVAL 14 DAY
+            ) - (
+                SELECT MAX(h2.sales_count) FROM source_product_sales_history h2
+                WHERE h2.source_product_id = p.id
+                  AND h2.snapshot_time &lt; NOW() - INTERVAL 14 DAY
+            )) salesCount14d,
             p.category_name categoryName,
             p.keyword keyword,
             p.trust_years trustYears,
