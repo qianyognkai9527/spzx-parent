@@ -1,6 +1,5 @@
 package com.joker.spzx.model.entity.oper;
 
-import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.joker.spzx.model.entity.base.BaseEntity;
 import lombok.Data;

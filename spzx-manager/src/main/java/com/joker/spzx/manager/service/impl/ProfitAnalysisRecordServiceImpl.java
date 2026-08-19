@@ -65,13 +65,16 @@ public class ProfitAnalysisRecordServiceImpl
     public FeeBenchmark getFeeBenchmark(Integer platformType, String category) {
         LambdaQueryWrapper<FeeBenchmark> w = new LambdaQueryWrapper<>();
         w.eq(FeeBenchmark::getPlatformType, platformType)
-            .eq(FeeBenchmark::getCategoryName, category)
-            .last("LIMIT 1");
+                .eq(category != null && !category.isEmpty(), FeeBenchmark::getCategoryName, category)
+                .eq(FeeBenchmark::getIsDeleted, 0)
+                .last("LIMIT 1");
         FeeBenchmark hit = feeBenchmarkMapper.selectOne(w);
         if (hit != null) return hit;
         // 兜底：同平台任意类目
         w = new LambdaQueryWrapper<>();
-        w.eq(FeeBenchmark::getPlatformType, platformType).last("LIMIT 1");
+        w.eq(FeeBenchmark::getPlatformType, platformType)
+                .eq(FeeBenchmark::getIsDeleted, 0)
+                .last("LIMIT 1");
         return feeBenchmarkMapper.selectOne(w);
     }
 }
