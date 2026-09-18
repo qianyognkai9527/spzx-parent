@@ -99,9 +99,10 @@ public class KwWordbankService {
         return batch.getId();
     }
 
-    /** EasyExcel 无模型读：第一行表头，之后每行数据 */
+    /** EasyExcel 无模型读：所有行均进监听器（headRowNumber(0)），由监听器扫描表头行 */
     private void parseFile(MultipartFile f, Map<String, KwWordbankItem> merged) throws Exception {
-        EasyExcel.read(f.getInputStream(), new AnalysisEventListenerAdapter(merged)).sheet().doRead();
+        EasyExcel.read(f.getInputStream(), new AnalysisEventListenerAdapter(merged))
+                .sheet().headRowNumber(0).doRead();
     }
 
     private double nz(Integer v) {
