@@ -62,6 +62,13 @@
                 <version>${lombok.version}</version>
             </dependency>
 
+            <!-- POI 5.2.5（easyexcel 4.0.3）需要 ≥1.25.0 的 putArchiveEntry(ZipArchiveEntry)；minio 8.5.2 传递的 1.21 会触发 NoSuchMethodError -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-compress</artifactId>
+                <version>1.25.0</version>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
 
