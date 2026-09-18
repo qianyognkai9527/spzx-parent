@@ -3,6 +3,7 @@ package com.joker.spzx.manager.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.joker.spzx.manager.service.kw.KwExportService;
 import com.joker.spzx.manager.service.kw.KwTaskService;
 import com.joker.spzx.model.entity.kw.KwSelectTask;
 import com.joker.spzx.model.vo.common.Result;
@@ -18,6 +19,9 @@ public class KwTaskController {
 
     @Autowired
     private KwTaskService kwTaskService;
+
+    @Autowired
+    private KwExportService kwExportService;
 
     public record PickDto(List<Long> wordIds, List<Long> titleIds) {
     }
@@ -65,5 +69,10 @@ public class KwTaskController {
             kwTaskService.pickTitles(id, dto.titleIds());
         }
         return Result.build(null);
+    }
+
+    @GetMapping("/{id}/export")
+    public void export(@PathVariable Long id, jakarta.servlet.http.HttpServletResponse response) throws Exception {
+        kwExportService.export(id, response);
     }
 }
