@@ -36,3 +36,4 @@ jvisualvm_pid*
 .idea/
 /**/target/
 .qoder/*8.superpowers/
+application-local.yml
