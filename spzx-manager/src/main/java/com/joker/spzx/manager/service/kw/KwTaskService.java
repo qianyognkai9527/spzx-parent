@@ -4,6 +4,7 @@ import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.joker.spzx.manager.config.KwProperties;
 import com.joker.spzx.manager.mapper.*;
 import com.joker.spzx.model.entity.kw.*;
@@ -69,10 +70,12 @@ public class KwTaskService {
         if (task.getStatus() != ST_FAIL) {
             throw new RuntimeException("仅失败任务可重试");
         }
-        task.setStatus(ST_PENDING);
-        task.setErrorMsg(null);
-        task.setTextProvider(configService.getProvider(KwConfigService.KEY_TEXT));
-        taskMapper.updateById(task);
+        // updateById 对 null 字段不生效，须用 UpdateWrapper 显式 SET error_msg = NULL
+        taskMapper.update(null, new LambdaUpdateWrapper<KwSelectTask>()
+                .set(KwSelectTask::getStatus, ST_PENDING)
+                .set(KwSelectTask::getErrorMsg, null)
+                .set(KwSelectTask::getTextProvider, configService.getProvider(KwConfigService.KEY_TEXT))
+                .eq(KwSelectTask::getId, taskId));
         submit(taskId);
     }
 
@@ -86,6 +89,9 @@ public class KwTaskService {
             if (task == null) {
                 return;
             }
+            // 重跑幂等：清掉上次可能残留的选词/标题结果，避免重复
+            wordMapper.delete(new LambdaQueryWrapper<KwTaskWord>().eq(KwTaskWord::getTaskId, taskId));
+            titleMapper.delete(new LambdaQueryWrapper<KwTitleSuggestion>().eq(KwTitleSuggestion::getTaskId, taskId));
             Long analysisId = task.getAnalysisId();
             JSONObject profile;
             if (analysisId == null) {
@@ -117,9 +123,12 @@ public class KwTaskService {
             doSelect(task, profile);
             // 标题
             doTitles(task, profile);
-            task.setStatus(ST_DONE);
-            task.setFinishTime(LocalDateTime.now());
-            taskMapper.updateById(task);
+            // 成功也要显式清 error_msg：失败后重试成功的任务不能残留红色报错
+            taskMapper.update(null, new LambdaUpdateWrapper<KwSelectTask>()
+                    .set(KwSelectTask::getStatus, ST_DONE)
+                    .set(KwSelectTask::getErrorMsg, null)
+                    .set(KwSelectTask::getFinishTime, LocalDateTime.now())
+                    .eq(KwSelectTask::getId, taskId));
             log.info("kw任务完成: id={}", taskId);
         } catch (Exception e) {
             log.error("kw任务失败: id={}", taskId, e);
@@ -233,7 +242,9 @@ public class KwTaskService {
                     + "\n任务：为该产品评估每个词的匹配度。match_score 0-100：完全契合人群/品类/卖点给 80 以上，沾边 50-79，不匹配低于 50（仍要输出，不要删词）。\n"
                     + "reason 用一句话说明匹配或不匹配的原因。\n"
                     + "只输出 JSON 数组 [{\"keyword\":\"词\",\"match_score\":85,\"reason\":\"一句话\"}]，不要输出其他内容。";
-            String provider = configService.getProvider(KwConfigService.KEY_TEXT);
+            // 锁定任务创建时捕获的引擎，中途切换引擎不能混用
+            String provider = task.getTextProvider() != null ? task.getTextProvider()
+                    : configService.getProvider(KwConfigService.KEY_TEXT);
             String content = aiClient.text(provider, prompt);
             int s = content.indexOf('[');
             int e = content.lastIndexOf(']');
@@ -284,7 +295,8 @@ public class KwTaskService {
                 + "3. 不含广告法违禁词（最/第一/顶级/极致/100%等一律不用）\n"
                 + "4. 空格分隔不同卖点短语\n"
                 + "只输出 JSON 数组 [{\"title\":\"...\",\"reason\":\"一句话\"}]。";
-        String provider = configService.getProvider(KwConfigService.KEY_TEXT);
+        String provider = task.getTextProvider() != null ? task.getTextProvider()
+                : configService.getProvider(KwConfigService.KEY_TEXT);
         String content = aiClient.text(provider, prompt);
         int s = content.indexOf('[');
         int e = content.lastIndexOf(']');

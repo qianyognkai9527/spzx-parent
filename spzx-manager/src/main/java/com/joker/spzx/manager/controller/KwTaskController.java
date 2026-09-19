@@ -8,10 +8,16 @@ import com.joker.spzx.manager.service.kw.KwTaskService;
 import com.joker.spzx.model.entity.kw.KwSelectTask;
 import com.joker.spzx.model.vo.common.Result;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/admin/kw/task")
@@ -22,6 +28,9 @@ public class KwTaskController {
 
     @Autowired
     private KwExportService kwExportService;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     public record PickDto(List<Long> wordIds, List<Long> titleIds) {
     }
@@ -38,15 +47,48 @@ public class KwTaskController {
     }
 
     @GetMapping("/list/{pageNum}/{pageSize}")
-    public Result<IPage<KwSelectTask>> list(@PathVariable long pageNum,
-                                            @PathVariable long pageSize,
-                                            @RequestParam(required = false) Integer status) {
+    public Result<Page<Map<String, Object>>> list(@PathVariable long pageNum,
+                                                  @PathVariable long pageSize,
+                                                  @RequestParam(required = false) Integer status) {
         LambdaQueryWrapper<KwSelectTask> qw = new LambdaQueryWrapper<KwSelectTask>()
                 .orderByDesc(KwSelectTask::getId);
         if (status != null) {
             qw.eq(KwSelectTask::getStatus, status);
         }
-        return Result.build(kwTaskService.getTaskMapper().selectPage(new Page<>(pageNum, pageSize), qw));
+        Page<KwSelectTask> page = kwTaskService.getTaskMapper().selectPage(new Page<>(pageNum, pageSize), qw);
+        // 一次性 IN 查询补商品编码/标题（原始实体无商品列，前端列空白）
+        Map<Long, Map<String, Object>> products = new HashMap<>();
+        Set<Long> productIds = page.getRecords().stream()
+                .map(KwSelectTask::getProductId).collect(Collectors.toSet());
+        if (!productIds.isEmpty()) {
+            String in = productIds.stream().map(String::valueOf).collect(Collectors.joining(","));
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT id, code, title FROM platform_product WHERE id IN (" + in + ")");
+            for (Map<String, Object> r : rows) {
+                products.put(((Number) r.get("id")).longValue(), r);
+            }
+        }
+        Page<Map<String, Object>> out = new Page<>(page.getCurrent(), page.getSize(), page.getTotal());
+        List<Map<String, Object>> records = new ArrayList<>();
+        for (KwSelectTask t : page.getRecords()) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", t.getId());
+            row.put("productId", t.getProductId());
+            row.put("batchId", t.getBatchId());
+            row.put("analysisId", t.getAnalysisId());
+            row.put("note", t.getNote());
+            row.put("status", t.getStatus());
+            row.put("errorMsg", t.getErrorMsg());
+            row.put("textProvider", t.getTextProvider());
+            row.put("createTime", t.getCreateTime());
+            row.put("finishTime", t.getFinishTime());
+            Map<String, Object> p = products.get(t.getProductId());
+            row.put("productCode", p == null ? null : p.get("code"));
+            row.put("productTitle", p == null ? null : p.get("title"));
+            records.add(row);
+        }
+        out.setRecords(records);
+        return Result.build(out);
     }
 
     @GetMapping("/{id}")
