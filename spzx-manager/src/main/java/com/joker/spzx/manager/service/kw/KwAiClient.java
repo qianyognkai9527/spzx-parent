@@ -58,8 +58,12 @@ public class KwAiClient {
                 body.set("model", model);
                 body.set("messages", messages);
                 body.set("temperature", 0.3);
-                // reasoning 模型（如 glm-5.3-flash）会先产出思考内容，max_tokens 必须给足
-                body.set("max_tokens", 4096);
+                // reasoning 模型（如 glm-5.3-flash）会先产出思考内容，max_tokens 必须给足；默认 4096，可在 provider 配置 max-tokens 覆盖
+                body.set("max_tokens", p.getMaxTokens() != null ? p.getMaxTokens() : 4096);
+                // provider 可注入额外请求参数（如 thinking.type=disabled 关闭深度思考，避免推理耗尽 max_tokens）
+                if (p.getExtraBody() != null) {
+                    p.getExtraBody().forEach(body::set);
+                }
                 String resp = HttpRequest.post(p.getBaseUrl() + "/chat/completions")
                         .header("Authorization", "Bearer " + p.getApiKey())
                         .header("Content-Type", "application/json")

@@ -14,7 +14,7 @@ public class KwProperties {
 
     private Map<String, Provider> providers = new LinkedHashMap<>();
     private int topN = 2000;
-    private int batchSize = 500;
+    private int batchSize = 100;
     private int minPopularity = 60;
     private int imageCount = 5;
     private int timeoutMs = 180000;
@@ -26,6 +26,8 @@ public class KwProperties {
         private String apiKey;
         private String visionModel;
         private String textModel;
+        private Integer maxTokens;
+        private Map<String, Object> extraBody;
     }
 
     @Data
