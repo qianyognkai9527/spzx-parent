@@ -4,6 +4,7 @@ import cn.hutool.http.HttpRequest;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.joker.spzx.manager.mapper.KwProviderMapper;
 import com.joker.spzx.manager.service.kw.KwConfigService;
 import com.joker.spzx.manager.service.kw.KwProviderService;
@@ -82,7 +83,17 @@ public class KwProviderController {
             return Result.build(null, 204, extraErr);
         }
         applyDto(row, dto, row.getApiKey());
-        kwProviderMapper.updateById(row);
+        LambdaUpdateWrapper<KwProvider> uw = new LambdaUpdateWrapper<KwProvider>()
+                .eq(KwProvider::getId, row.getId())
+                .set(KwProvider::getBaseUrl, row.getBaseUrl())
+                .set(KwProvider::getApiKey, row.getApiKey())
+                .set(KwProvider::getVisionModel, row.getVisionModel())
+                .set(KwProvider::getTextModel, row.getTextModel())
+                .set(KwProvider::getImageModel, row.getImageModel())
+                .set(KwProvider::getMaxTokens, row.getMaxTokens())
+                .set(KwProvider::getExtraBody, row.getExtraBody())
+                .set(KwProvider::getRemark, row.getRemark());
+        kwProviderMapper.update(null, uw);
         return Result.build(null);
     }
 
