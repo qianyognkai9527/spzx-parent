@@ -94,3 +94,32 @@ WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE component='kwTask');
 INSERT INTO sys_role_menu (role_id, menu_id)
 SELECT 9, id FROM sys_menu WHERE component IN ('kwProduct','kwWordbank','kwTask')
 AND id NOT IN (SELECT menu_id FROM sys_role_menu WHERE role_id=9);
+
+-- ============ 2026-09-20 provider 定义入库（spec: docs/superpowers/specs/2026-09-20-llm-provider-config-design.md）============
+
+CREATE TABLE IF NOT EXISTS kw_provider (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(50) NOT NULL COMMENT '唯一标识，创建后不可改（任务快照按 name 引用）',
+  base_url VARCHAR(200) NOT NULL,
+  api_key VARCHAR(500) NOT NULL DEFAULT '' COMMENT '明文本地存储，与原yml等级一致，不入git',
+  vision_model VARCHAR(100) DEFAULT '',
+  text_model VARCHAR(100) DEFAULT '',
+  image_model VARCHAR(100) DEFAULT '' COMMENT '预留：子项目B生图模型，本期不读',
+  max_tokens INT DEFAULT 4096,
+  extra_body VARCHAR(1000) COMMENT 'JSON对象字符串，如 {"thinking":{"type":"disabled"}}',
+  status TINYINT DEFAULT 1 COMMENT '1启用 0停用',
+  remark VARCHAR(255),
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_name (name)
+) COMMENT 'AI provider 定义（运行时配置源）';
+
+-- 菜单：运营管理(38)下，AI选词三页面(65-67)之后；写死 id=68（当前空闲）
+INSERT INTO sys_menu (id, parent_id, title, component, sort_value, status)
+SELECT 68, 38, 'AI引擎配置', 'kwConfig', 63, 1
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE component = 'kwConfig');
+
+-- 授权 admin 角色(role_id=9)
+INSERT INTO sys_role_menu (role_id, menu_id)
+SELECT 9, 68
+WHERE NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 9 AND menu_id = 68);
