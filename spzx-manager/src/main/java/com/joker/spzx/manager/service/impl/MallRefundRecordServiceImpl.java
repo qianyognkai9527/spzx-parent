@@ -30,6 +30,7 @@ import com.joker.spzx.utils.excel.DefaultExcelListener;
 import com.joker.spzx.utils.excel.ExcelResult;
 import com.joker.spzx.utils.excel.ExcelUtil;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,6 +57,7 @@ import java.util.stream.Collectors;
  * @author joker
  * @since 2025-07-10 13:49:10
  */
+@Slf4j
 @Service
 public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMapper, MallRefundRecord> implements MallRefundRecordService {
 
@@ -205,7 +207,7 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
                     orderPayMoneyStr = BigDecimal.ZERO;
                     break;
             }
-            System.out.println(mallRefundOrder.getOrderId() + "  " + orderPayMoneyStr.toString());
+            log.debug("订单 {} 应收金额 {}", mallRefundOrder.getOrderId(), orderPayMoneyStr);
             totalMoney.set(totalMoney.get().add(orderPayMoneyStr));
             allOrderList.get().add(mallRefundOrder.getOrderId());
         });
@@ -213,7 +215,7 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
         mallRefundRecordDetail.setTotalCount(list.size());
 
         List<String> totalOrderList = allOrderList.get();
-        System.out.println("总订单数：" + totalOrderList.size());
+        log.debug("总订单数：{}", totalOrderList.size());
         LocalDateTime createTime = mallRefundRecord.getStartTime();
         LocalDateTime endTime = mallRefundRecord.getEndTime();
 
@@ -230,12 +232,12 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
             brushTotalMoneyRef.set(brushTotalMoneyRef.get().add(new BigDecimal(mallAddOrder.getSeedMoney().toString())));
             brushOrderListRef.get().add(mallAddOrder.getTbOrderId());
         });
-        System.out.println("刷单订单数：" + brushOrderListRef.get().size());
+        log.debug("刷单订单数：{}", brushOrderListRef.get().size());
         mallRefundRecordDetail.setBrushMoney(brushTotalMoneyRef.get());
         BigDecimal multiply = new BigDecimal(brushCount.toString()).multiply(new BigDecimal("7.3"));
         mallRefundRecordDetail.setBrushOtherMoney(multiply);
         totalOrderList.removeAll(brushOrderListRef.get());
-        System.out.println("排除刷单订单后有效订单数：" + totalOrderList.size());
+        log.debug("排除刷单订单后有效订单数：{}", totalOrderList.size());
         //有效订单
         List<MallRefundOrder> effectOrderList = totalOrderList.stream().map(orderId -> {
             MallRefundOrder mallRefundOrder = collect.get(orderId);
@@ -271,10 +273,8 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
         });
         List<String> refundOrderList = refundOrderListRef.get();
         mallRefundRecordDetail.setRefundCount(refundOrderList.size());
-        System.out.println("退款订单数：" + refundOrderList.size());
-        System.out.println("退款订单金额：" + totalRefundMoneyRef.get());
-        System.out.println("交易成功订单数：" + successOrderListRef.get().size());
-        System.out.println("待定订单数：" + pendingOrderListRef.get().size());
+        log.debug("退款订单数：{}，退款订单金额：{}，交易成功订单数：{}，待定订单数：{}",
+                refundOrderList.size(), totalRefundMoneyRef.get(), successOrderListRef.get().size(), pendingOrderListRef.get().size());
 
         mallRefundRecordDetail.setRefundMoney(totalRefundMoneyRef.get());
         mallRefundRecordDetail.setPendingCount(pendingOrderListRef.get().size());
@@ -304,9 +304,8 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
         BigDecimal pessimistTotalOrder = new BigDecimal(refundOrderList.size() + "").add(new BigDecimal(pendingOrderListRef.get().size() + ""));
         BigDecimal pessimistRefundRate = pessimistTotalOrder.divide(optimistTotalOrder, 4, RoundingMode.HALF_UP);
         mallRefundRecordDetail.setPessimistRefundRate(pessimistRefundRate);
-        System.out.println();
         totalOrderList.removeAll(refundOrderList);
-        System.out.println("排除刷单、退款单后的成交订单数量：" + totalOrderList.size());
+        log.debug("排除刷单、退款单后的成交订单数量：{}", totalOrderList.size());
 
         BigDecimal subtract = totalMoney.get().subtract(brushTotalMoneyRef.get())
                 .subtract(multiply).subtract(totalRefundMoneyRef.get())

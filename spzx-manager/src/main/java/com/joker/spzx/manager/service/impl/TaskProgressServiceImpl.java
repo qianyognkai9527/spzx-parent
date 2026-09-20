@@ -309,6 +309,7 @@ public class TaskProgressServiceImpl implements TaskProgressService {
                         cpu += (long) (Double.parseDouble(parts[1].trim()) * 100);
                         count++;
                     } catch (NumberFormatException ignored) {
+                        log.warn("端口 {} 资源行解析失败: {}", port, line, ignored);
                     }
                 }
             }
@@ -326,7 +327,7 @@ public class TaskProgressServiceImpl implements TaskProgressService {
             JSONObject root = JSONUtil.parseObj(content);
             return root.getJSONArray("tasks").toList(JSONObject.class);
         } catch (Exception e) {
-            log.error("读取任务配置失败: {}", e.getMessage());
+            log.error("读取任务配置失败", e);
             return Collections.emptyList();
         }
     }

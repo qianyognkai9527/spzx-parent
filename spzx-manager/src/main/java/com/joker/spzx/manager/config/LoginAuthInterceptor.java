@@ -69,7 +69,7 @@ public class LoginAuthInterceptor implements HandlerInterceptor {
             writer = response.getWriter();
             writer.print(JSON.toJSONString(result));
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("响应未登录信息失败", e);
         } finally {
             if (writer != null) writer.close();
         }

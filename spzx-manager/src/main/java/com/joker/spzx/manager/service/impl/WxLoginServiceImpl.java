@@ -189,7 +189,8 @@ public class WxLoginServiceImpl implements WxLoginService {
 
         JSONObject wxUserInfo = getWxUserInfo(accessToken, openid);
         if (wxUserInfo == null) {
-            log.error("获取微信用户信息失败: openid={}", openid);
+            String masked = openid == null ? "null" : openid.length() <= 8 ? openid.substring(0, 2) + "****" : openid.substring(0, 4) + "****" + openid.substring(openid.length() - 4);
+            log.error("获取微信用户信息失败: openid={}", masked);
             return html;
         }
 

@@ -57,17 +57,13 @@ public class DefaultExcelListener<T> extends AnalysisEventListener<T> implements
             Integer columnIndex = excelDataConvertException.getColumnIndex();
             errMsg = StrUtil.format("第{}行-第{}列-表头{}: 解析异常<br/>",
                     rowIndex + 1, columnIndex + 1, headMap.get(columnIndex));
-            if (log.isDebugEnabled()) {
-                log.error(errMsg);
-            }
+            log.error(errMsg);
         }
         if (exception instanceof ConstraintViolationException constraintViolationException) {
             Set<ConstraintViolation<?>> constraintViolations = constraintViolationException.getConstraintViolations();
             String constraintViolationsMsg =constraintViolations.stream().map(ConstraintViolation::getMessage).collect(Collectors.joining(","));
             errMsg = StrUtil.format("第{}行数据校验异常: {}", context.readRowHolder().getRowIndex() + 1, constraintViolationsMsg);
-            if (log.isDebugEnabled()) {
-                log.error(errMsg);
-            }
+            log.error(errMsg);
         }
         excelResult.getErrorList().add(errMsg);
         throw new ExcelAnalysisException(errMsg);

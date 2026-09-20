@@ -15,6 +15,7 @@ import com.joker.spzx.model.vo.mall.RefundReportVo;
 import com.joker.spzx.model.vo.mall.ReportOrderVo;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -31,6 +32,7 @@ import java.util.Map;
  * @author joker
  * @since 2025-06-10 14:05:10
  */
+@Slf4j
 @RestController
 @Tag(name = "退款报表", description = "退款报表接口")
 @RequestMapping("/admin/mall/refundReport")
@@ -53,7 +55,7 @@ public class MallRefundReportController {
     public Result<IPage<MallRefundRecord>> findByPage(RefundReportPageDto refundReportPageDto) {
         long l = System.currentTimeMillis();
         IPage<MallRefundRecord> map = mallRefundRecordService.findByPage(refundReportPageDto);
-        System.out.println("耗时：" + (System.currentTimeMillis() - l));
+        log.debug("分页查询耗时：{}ms", System.currentTimeMillis() - l);
         return Result.build(map);
     }
 

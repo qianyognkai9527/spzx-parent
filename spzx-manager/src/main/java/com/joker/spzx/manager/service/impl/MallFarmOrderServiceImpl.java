@@ -271,7 +271,7 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
                 }
                 zos.closeEntry();
             } catch (Exception e) {
-                log.error("文件下载失败: {}", url);
+                log.error("文件下载失败: {}", url, e);
             }
         });
     }

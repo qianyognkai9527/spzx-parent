@@ -14,6 +14,7 @@ import com.joker.spzx.model.vo.mall.VisualScoreVo;
 import com.joker.spzx.model.vo.mall.VariantItemVo;
 import com.joker.spzx.model.vo.mall.VariantSetVo;
 import com.joker.spzx.utils.GradeUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class VisualScoreServiceImpl implements VisualScoreService {
 
@@ -173,13 +175,15 @@ public class VisualScoreServiceImpl implements VisualScoreService {
                 throw new ServiceException(500, "脚本执行超时(" + SCRIPT_TIMEOUT_SECONDS + "s): " + script);
             }
             if (process.exitValue() != 0) {
-                throw new ServiceException(500, "脚本执行失败: " + output.toString().trim());
+                log.error("视觉评分脚本执行失败: script={}, output={}", script, output.toString().trim());
+                throw new ServiceException(500, "脚本执行失败");
             }
             return output.toString();
         } catch (ServiceException e) {
             throw e;
         } catch (Exception e) {
-            throw new ServiceException(500, "脚本执行异常: " + e.getMessage());
+            log.error("视觉评分脚本执行异常: script={}", script, e);
+            throw new ServiceException(500, "脚本执行异常");
         }
     }
 }
