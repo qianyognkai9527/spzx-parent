@@ -34,7 +34,7 @@ public class SyncAlertController {
     public Result<String> read(@PathVariable Long id) {
         syncAlertService.lambdaUpdate()
                 .eq(SyncAlert::getId, id)
-                .set(SyncAlert::getStatus, 1)
+                .set(SyncAlert::getStatus, SyncAlert.STATUS_READ)
                 .update();
         return Result.build(null);
     }
@@ -42,8 +42,8 @@ public class SyncAlertController {
     @PutMapping("/readAll")
     public Result<String> readAll() {
         syncAlertService.lambdaUpdate()
-                .eq(SyncAlert::getStatus, 0)
-                .set(SyncAlert::getStatus, 1)
+                .eq(SyncAlert::getStatus, SyncAlert.STATUS_UNREAD)
+                .set(SyncAlert::getStatus, SyncAlert.STATUS_READ)
                 .update();
         return Result.build(null);
     }
@@ -51,7 +51,7 @@ public class SyncAlertController {
     @GetMapping("/count")
     public Result<Long> count() {
         return Result.build(syncAlertService.lambdaQuery()
-                .eq(SyncAlert::getStatus, 0)
+                .eq(SyncAlert::getStatus, SyncAlert.STATUS_UNREAD)
                 .count());
     }
 }

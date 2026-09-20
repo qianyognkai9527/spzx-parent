@@ -16,6 +16,9 @@ import java.time.LocalDateTime;
 @TableName("sync_alert")
 public class SyncAlert {
 
+    public static final Integer STATUS_UNREAD = 0;
+    public static final Integer STATUS_READ = 1;
+
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 

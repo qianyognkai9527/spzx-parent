@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.manager.mapper.FeeBenchmarkMapper;
+import com.joker.spzx.common.util.SqlConstants;
 import com.joker.spzx.manager.mapper.ProfitAnalysisRecordMapper;
 import com.joker.spzx.manager.service.ProfitAnalysisRecordService;
 import com.joker.spzx.model.entity.oper.FeeBenchmark;
@@ -67,14 +68,14 @@ public class ProfitAnalysisRecordServiceImpl
         w.eq(FeeBenchmark::getPlatformType, platformType)
                 .eq(category != null && !category.isEmpty(), FeeBenchmark::getCategoryName, category)
                 .eq(FeeBenchmark::getIsDeleted, 0)
-                .last("LIMIT 1");
+                .last(SqlConstants.LIMIT_1);
         FeeBenchmark hit = feeBenchmarkMapper.selectOne(w);
         if (hit != null) return hit;
         // 兜底：同平台任意类目
         w = new LambdaQueryWrapper<>();
         w.eq(FeeBenchmark::getPlatformType, platformType)
                 .eq(FeeBenchmark::getIsDeleted, 0)
-                .last("LIMIT 1");
+                .last(SqlConstants.LIMIT_1);
         return feeBenchmarkMapper.selectOne(w);
     }
 }

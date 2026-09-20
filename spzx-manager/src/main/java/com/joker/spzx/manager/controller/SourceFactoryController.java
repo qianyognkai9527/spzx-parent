@@ -1,19 +1,18 @@
 package com.joker.spzx.manager.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.joker.spzx.common.util.CsvExportUtil;
 import com.joker.spzx.manager.service.SourceFactoryService;
 import com.joker.spzx.model.dto.product.SourceFactoryPageParam;
 import com.joker.spzx.model.entity.product.SourceFactory;
+import com.joker.spzx.model.enums.PlatformTypeEnum;
 import com.joker.spzx.model.vo.common.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -46,40 +45,25 @@ public class SourceFactoryController {
     public void export(SourceFactoryPageParam pageParam, HttpServletResponse response) {
         List<SourceFactory> list = sourceFactoryService.exportList(pageParam);
         try {
-            String fileName = URLEncoder.encode("货源工厂排行榜", StandardCharsets.UTF_8.name()).replaceAll("\\+", "%20");
-            response.setContentType("text/csv;charset=utf-8");
-            response.setHeader("Content-disposition", "attachment;filename*=utf-8''" + fileName + ".csv");
-            PrintWriter writer = new PrintWriter(new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8));
+            PrintWriter writer = CsvExportUtil.writeCsvHeaders(response, "货源工厂排行榜");
             writer.println("厂家名称,主类目,平台,优质等级,诚信通年限,商品数,平均回头率%,总销量,厂家链接");
             for (SourceFactory f : list) {
-                Integer pt = f.getPlatformType();
-                String platformName = pt != null && pt == 2 ? "抖音" : (pt != null && pt == 1 ? "淘宝" : "");
+                String platformName = PlatformTypeEnum.nameOf(f.getPlatformType());
                 writer.println(String.join(",",
-                        csv(f.getFactoryName()),
-                        csv(f.getCategoryName()),
+                        CsvExportUtil.escapeCsv(f.getFactoryName()),
+                        CsvExportUtil.escapeCsv(f.getCategoryName()),
                         platformName,
-                        csv(f.getQualityGrade()),
+                        CsvExportUtil.escapeCsv(f.getQualityGrade()),
                         f.getTrustYears() == null ? "" : String.valueOf(f.getTrustYears()),
                         f.getProductCount() == null ? "" : String.valueOf(f.getProductCount()),
                         f.getAvgRepurchaseRate() == null ? "" : String.valueOf(f.getAvgRepurchaseRate()),
                         f.getTotalSales() == null ? "" : String.valueOf(f.getTotalSales()),
-                        csv(f.getFactoryUrl())));
+                        CsvExportUtil.escapeCsv(f.getFactoryUrl())));
             }
             writer.flush();
         } catch (Exception e) {
             throw new RuntimeException("导出CSV异常", e);
         }
-    }
-
-    private static String csv(Object v) {
-        if (v == null) {
-            return "";
-        }
-        String s = v.toString().replace("\"", "\"\"");
-        if (s.contains(",") || s.contains("\"") || s.contains("\n")) {
-            return "\"" + s + "\"";
-        }
-        return s;
     }
 
     @Operation(summary = "新增工厂")

@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.common.collect.Lists;
 import com.joker.spzx.common.exception.ServiceException;
+import com.joker.spzx.common.util.SqlConstants;
 import com.joker.spzx.manager.excel.OrderSimpleExcelBo;
 import com.joker.spzx.manager.mapper.MallAddOrderMapper;
 import com.joker.spzx.manager.mapper.MallRefundOrderMapper;
@@ -61,6 +62,16 @@ import java.util.stream.Collectors;
 @Service
 public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMapper, MallRefundRecord> implements MallRefundRecordService {
 
+    private static final String ORDER_STATUS_SUCCESS = "交易成功";
+    private static final String ORDER_STATUS_CLOSED = "交易关闭";
+    private static final String ORDER_STATUS_SHIPPED_WAIT = "卖家已发货，等待买家确认";
+
+    private static final String CARD_TYPE_TOTAL = "total";
+    private static final String CARD_TYPE_BRUSH = "brush";
+    private static final String CARD_TYPE_REAL = "real";
+    private static final String CARD_TYPE_REFUND = "refund";
+    private static final String CARD_TYPE_PENDING = "pending";
+    private static final String CARD_TYPE_UNKNOWN = "unknown";
 
     @Autowired
     private MallRefundOrderMapper mallRefundOrderMapper;
@@ -139,7 +150,7 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
     public RefundReportVo getDetail(Long id) {
         LambdaQueryWrapper<MallRefundRecordDetail> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(MallRefundRecordDetail::getRecordId, id)
-                .last(" limit 1");
+                .last(SqlConstants.LIMIT_1);
         MallRefundRecordDetail mallRefundRecordDetail = mallRefundRecordDetailMapper.selectOne(lambdaQueryWrapper);
         RefundReportVo refundReportVo = new RefundReportVo();
         BeanUtils.copyProperties(mallRefundRecordDetail, refundReportVo);
@@ -174,7 +185,7 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
         }
         LambdaQueryWrapper<MallRefundRecordDetail> recordDetailLambdaQueryWrapper = new LambdaQueryWrapper<>();
         recordDetailLambdaQueryWrapper.eq(MallRefundRecordDetail::getRecordId, reportRecordId);
-        recordDetailLambdaQueryWrapper.last(" limit 1");
+        recordDetailLambdaQueryWrapper.last(SqlConstants.LIMIT_1);
         MallRefundRecordDetail mallRefundRecordDetail = this.mallRefundRecordDetailMapper.selectOne(recordDetailLambdaQueryWrapper);
         if (Objects.isNull(mallRefundRecordDetail)) {
             mallRefundRecordDetail = new MallRefundRecordDetail();
@@ -192,13 +203,13 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
             String orderStatus = mallRefundOrder.getOrderStatus();
             BigDecimal orderPayMoneyStr = BigDecimal.ZERO;
             switch (orderStatus) {
-                case "交易成功":
+                case ORDER_STATUS_SUCCESS:
                     orderPayMoneyStr = mallRefundOrder.getPayMoney();
                     break;
-                case "交易关闭":
+                case ORDER_STATUS_CLOSED:
                     orderPayMoneyStr = mallRefundOrder.getRefundMoney();
                     break;
-                case "卖家已发货，等待买家确认":
+                case ORDER_STATUS_SHIPPED_WAIT:
                     orderPayMoneyStr = mallRefundOrder.getPayMoney();
                     break;
                 default:
@@ -258,12 +269,12 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
                 //有退款金额
                 totalRefundMoneyRef.set(totalRefundMoneyRef.get().add(refundMoney));
                 refundOrderListRef.get().add(orderId);
-            } else if (refundMoney.compareTo(BigDecimal.ZERO) == 0 && orderStatus.equals("交易成功")) {
+            } else if (refundMoney.compareTo(BigDecimal.ZERO) == 0 && orderStatus.equals(ORDER_STATUS_SUCCESS)) {
                 //无退款金额
                 successOrderListRef.get().add(orderId);
                 successRefundMoneyRef.set(successRefundMoneyRef.get().add(refundMoney));
             }
-            if (refundMoney.compareTo(BigDecimal.ZERO) == 0 && orderStatus.equals("卖家已发货，等待买家确认")) {
+            if (refundMoney.compareTo(BigDecimal.ZERO) == 0 && orderStatus.equals(ORDER_STATUS_SHIPPED_WAIT)) {
                 pendingOrderListRef.get().add(orderId);
                 pendingRefundMoneyRef.set(pendingRefundMoneyRef.get().add(refundMoney));
             }
@@ -348,7 +359,7 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
 
         // 获取详情统计
         LambdaQueryWrapper<MallRefundRecordDetail> detailWrapper = new LambdaQueryWrapper<>();
-        detailWrapper.eq(MallRefundRecordDetail::getRecordId, id).last(" limit 1");
+        detailWrapper.eq(MallRefundRecordDetail::getRecordId, id).last(SqlConstants.LIMIT_1);
         MallRefundRecordDetail detail = mallRefundRecordDetailMapper.selectOne(detailWrapper);
 
         // 构建统计卡片
@@ -393,10 +404,10 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
                 if (order.getRefundMoney() != null && order.getRefundMoney().compareTo(BigDecimal.ZERO) > 0) {
                     refundCount++;
                     refundMoney = refundMoney.add(order.getRefundMoney());
-                } else if ("交易成功".equals(order.getOrderStatus())) {
+                } else if (ORDER_STATUS_SUCCESS.equals(order.getOrderStatus())) {
                     successCount++;
                     successMoney = successMoney.add(order.getPayMoney() != null ? order.getPayMoney() : BigDecimal.ZERO);
-                } else if ("卖家已发货，等待买家确认".equals(order.getOrderStatus())) {
+                } else if (ORDER_STATUS_SHIPPED_WAIT.equals(order.getOrderStatus())) {
                     pendingCount++;
                 }
             }
@@ -410,7 +421,7 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
 
         // 总订单数卡片
         ReportStatCardVo totalCard = new ReportStatCardVo();
-        totalCard.setCardType("total");
+        totalCard.setCardType(CARD_TYPE_TOTAL);
         totalCard.setCardTitle("总订单数");
         totalCard.setCount(totalCount);
         totalCard.setAmount(totalPayAmount);
@@ -420,7 +431,7 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
 
         // 补单单量卡片
         ReportStatCardVo brushCard = new ReportStatCardVo();
-        brushCard.setCardType("brush");
+        brushCard.setCardType(CARD_TYPE_BRUSH);
         brushCard.setCardTitle("补单单量");
         brushCard.setCount(brushCount);
         brushCard.setAmount(brushMoney);
@@ -430,7 +441,7 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
 
         // 真实订单卡片
         ReportStatCardVo realCard = new ReportStatCardVo();
-        realCard.setCardType("real");
+        realCard.setCardType(CARD_TYPE_REAL);
         realCard.setCardTitle("真实订单");
         realCard.setCount(successCount);
         realCard.setAmount(successMoney);
@@ -440,7 +451,7 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
 
         // 退款订单卡片
         ReportStatCardVo refundCard = new ReportStatCardVo();
-        refundCard.setCardType("refund");
+        refundCard.setCardType(CARD_TYPE_REFUND);
         refundCard.setCardTitle("退款订单");
         refundCard.setCount(refundCount);
         refundCard.setAmount(refundMoney);
@@ -450,7 +461,7 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
 
         // 待定订单卡片
         ReportStatCardVo pendingCard = new ReportStatCardVo();
-        pendingCard.setCardType("pending");
+        pendingCard.setCardType(CARD_TYPE_PENDING);
         pendingCard.setCardTitle("待定订单");
         pendingCard.setCount(pendingCount);
         pendingCard.setColor("#909399");
@@ -459,7 +470,7 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
 
         // 未知订单卡片
         ReportStatCardVo unknownCard = new ReportStatCardVo();
-        unknownCard.setCardType("unknown");
+        unknownCard.setCardType(CARD_TYPE_UNKNOWN);
         unknownCard.setCardTitle("未知订单");
         unknownCard.setCount(unknownCount);
         unknownCard.setColor("#9c27b0");
@@ -516,19 +527,19 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
             String orderType;
             String orderTypeDesc;
             if (brushOrderIds.contains(order.getOrderId())) {
-                orderType = "brush";
+                orderType = CARD_TYPE_BRUSH;
                 orderTypeDesc = "补单";
             } else if (order.getRefundMoney() != null && order.getRefundMoney().compareTo(BigDecimal.ZERO) > 0) {
-                orderType = "refund";
+                orderType = CARD_TYPE_REFUND;
                 orderTypeDesc = "真实订单-退款";
-            } else if ("交易成功".equals(order.getOrderStatus())) {
-                orderType = "real";
+            } else if (ORDER_STATUS_SUCCESS.equals(order.getOrderStatus())) {
+                orderType = CARD_TYPE_REAL;
                 orderTypeDesc = "真实订单";
-            } else if ("卖家已发货，等待买家确认".equals(order.getOrderStatus())) {
-                orderType = "pending";
+            } else if (ORDER_STATUS_SHIPPED_WAIT.equals(order.getOrderStatus())) {
+                orderType = CARD_TYPE_PENDING;
                 orderTypeDesc = "真实订单-待定";
             } else {
-                orderType = "unknown";
+                orderType = CARD_TYPE_UNKNOWN;
                 orderTypeDesc = "未知";
             }
             vo.setOrderType(orderType);
@@ -539,7 +550,7 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
 
             // 按卡片类型过滤
             if (StringUtils.isNotBlank(cardType)) {
-                if (cardType.equals("total")) {
+                if (cardType.equals(CARD_TYPE_TOTAL)) {
                     result.add(vo);
                 } else if (cardType.equals(vo.getOrderType())) {
                     result.add(vo);

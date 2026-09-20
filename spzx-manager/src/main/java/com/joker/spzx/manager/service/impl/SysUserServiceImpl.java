@@ -9,6 +9,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.common.exception.ServiceException;
+import com.joker.spzx.common.util.SqlConstants;
 import com.joker.spzx.manager.mapper.SysUserMapper;
 import com.joker.spzx.manager.mapper.SysUserRoleMapper;
 import com.joker.spzx.manager.service.SysUserService;
@@ -67,7 +68,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
         LambdaQueryWrapper<SysUser> eq = lambdaQuery().getWrapper().eq(SysUser::getUsername, loginDto.getUserName())
                 .eq(SysUser::getIsDeleted, 0)
-                .last(" limit 1");
+                .last(SqlConstants.LIMIT_1);
         SysUser one = this.getOne(eq);
         if (Objects.isNull(one)) {
             throw new ServiceException(ResultCodeEnum.LOGIN_ERROR);
@@ -133,7 +134,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     private void verifyUserName(String username) {
         LambdaQueryWrapper<SysUser> last = lambdaQuery().getWrapper().eq(SysUser::getUsername, username)
                 .eq(SysUser::getIsDeleted, 0)
-                .last("limit 1");
+                .last(SqlConstants.LIMIT_1);
         SysUser one = this.getOne(last);
         if (Objects.nonNull(one)) {
             throw new ServiceException(ResultCodeEnum.USERNAME_EXISTS);

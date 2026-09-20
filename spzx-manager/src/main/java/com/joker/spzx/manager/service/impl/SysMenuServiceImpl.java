@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.common.collect.Lists;
 import com.joker.spzx.manager.helper.MenuHelper;
+import com.joker.spzx.common.util.SqlConstants;
 import com.joker.spzx.manager.mapper.SysMenuMapper;
 import com.joker.spzx.manager.mapper.SysRoleMenuMapper;
 import com.joker.spzx.manager.service.SysMenuService;
@@ -67,7 +68,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     private void updateSysRoleMenuIsHalf(SysMenu sysMenu) {
         LambdaQueryWrapper<SysMenu> eq = lambdaQuery().getWrapper().eq(SysMenu::getId, sysMenu.getParentId())
                 .eq(SysMenu::getIsDeleted, 0)
-                .last(" limit 1");
+                .last(SqlConstants.LIMIT_1);
         SysMenu one = this.getOne(eq);
         if (Objects.nonNull(one)) {
             LambdaQueryWrapper<SysRoleMenu> eq1 = new LambdaQueryWrapper<SysRoleMenu>()

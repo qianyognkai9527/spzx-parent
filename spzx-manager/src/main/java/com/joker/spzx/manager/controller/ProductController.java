@@ -1,9 +1,11 @@
 package com.joker.spzx.manager.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.joker.spzx.common.util.CsvExportUtil;
 import com.joker.spzx.manager.service.ProductService;
 import com.joker.spzx.model.dto.product.ProductDto;
 import com.joker.spzx.model.entity.product.Product;
+import com.joker.spzx.model.enums.PlatformTypeEnum;
 import com.joker.spzx.model.vo.common.Result;
 import com.joker.spzx.model.vo.common.ResultCodeEnum;
 import com.joker.spzx.model.vo.product.ProductPageVo;
@@ -15,10 +17,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -81,22 +80,18 @@ public class ProductController {
         productDto.setPageSize(100000);
         List<ProductPageVo> list = productService.findByPage(productDto).getRecords();
         try {
-            String fileName = URLEncoder.encode("货源商品", StandardCharsets.UTF_8.name()).replaceAll("\\+", "%20");
-            response.setContentType("text/csv;charset=utf-8");
-            response.setHeader("Content-disposition", "attachment;filename*=utf-8''" + fileName + ".csv");
-            PrintWriter writer = new PrintWriter(new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8));
+            PrintWriter writer = CsvExportUtil.writeCsvHeaders(response, "货源商品");
             writer.println("商品标题,厂商,商品ID,类目,平台,等级,供应商,货源价格,运费,销量,回头率%,诚信通年限,抓取时间");
             for (ProductPageVo p : list) {
-                Integer pt = p.getPlatformType();
-                String platformName = pt != null && pt == 2 ? "抖音" : (pt != null && pt == 1 ? "淘宝" : "");
+                String platformName = PlatformTypeEnum.nameOf(p.getPlatformType());
                 writer.println(String.join(",",
-                        csv(p.getSourceProductName()),
-                        csv(p.getProductFactoryName()),
-                        csv(p.getSourceProductCode()),
-                        csv(p.getCategoryName()),
+                        CsvExportUtil.escapeCsv(p.getSourceProductName()),
+                        CsvExportUtil.escapeCsv(p.getProductFactoryName()),
+                        CsvExportUtil.escapeCsv(p.getSourceProductCode()),
+                        CsvExportUtil.escapeCsv(p.getCategoryName()),
                         platformName,
-                        csv(p.getQualityGrade()),
-                        csv(p.getSupplierName()),
+                        CsvExportUtil.escapeCsv(p.getQualityGrade()),
+                        CsvExportUtil.escapeCsv(p.getSupplierName()),
                         p.getSourcePrice() == null ? "" : String.valueOf(p.getSourcePrice()),
                         p.getFreightCost() == null ? "" : String.valueOf(p.getFreightCost()),
                         p.getSalesCount() == null ? "" : String.valueOf(p.getSalesCount()),
@@ -108,16 +103,5 @@ public class ProductController {
         } catch (Exception e) {
             throw new RuntimeException("导出CSV异常", e);
         }
-    }
-
-    private static String csv(Object v) {
-        if (v == null) {
-            return "";
-        }
-        String s = v.toString().replace("\"", "\"\"");
-        if (s.contains(",") || s.contains("\"") || s.contains("\n")) {
-            return "\"" + s + "\"";
-        }
-        return s;
     }
 }

@@ -4,6 +4,7 @@ import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.joker.spzx.common.util.ShellUtil;
+import com.joker.spzx.common.util.TaskStatusUtil;
 import com.joker.spzx.manager.service.TaskProgressService;
 import com.joker.spzx.model.vo.taskprogress.ChromeStatusVo;
 import com.joker.spzx.model.vo.taskprogress.ProcessStatusVo;
@@ -14,7 +15,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -42,6 +45,9 @@ public class TaskProgressServiceImpl implements TaskProgressService {
 
     @Value("${task-progress.config-path:/Users/qyk9527/sourcing/task-progress-config.json}")
     private String configPath;
+
+    @Value("${task-progress.cdp-base-url:http://127.0.0.1}")
+    private String cdpBaseUrl;
 
     @Override
     public TaskOverviewVo getOverview() {
@@ -176,14 +182,7 @@ public class TaskProgressServiceImpl implements TaskProgressService {
         int closed = 0;
         try {
             // 1. 查询目标列表
-            URL jsonUrl = new URL("http://127.0.0.1:" + port + "/json");
-            HttpURLConnection conn = (HttpURLConnection) jsonUrl.openConnection();
-            conn.setConnectTimeout(2000);
-            conn.setReadTimeout(3000);
-            String body;
-            try (InputStream in = conn.getInputStream()) {
-                body = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-            }
+            String body = httpGet(cdpBaseUrl + ":" + port + "/json", 2000, 3000);
             JSONArray targets = JSONUtil.parseArray(body);
 
             // 2. 智能保留: item.upload 仅在铺货(auto_list)运行时保留, 否则属残留一并清理
@@ -216,13 +215,7 @@ public class TaskProgressServiceImpl implements TaskProgressService {
             // 4. 逐个关闭
             for (String id : toClose) {
                 try {
-                    URL closeUrl = new URL("http://127.0.0.1:" + port + "/json/close/" + id);
-                    HttpURLConnection c2 = (HttpURLConnection) closeUrl.openConnection();
-                    c2.setConnectTimeout(1500);
-                    c2.setReadTimeout(1500);
-                    try (InputStream in = c2.getInputStream()) {
-                        in.readAllBytes();
-                    }
+                    httpGet(cdpBaseUrl + ":" + port + "/json/close/" + id, 1500);
                     closed++;
                 } catch (Exception e) {
                     log.warn("关闭标签 {} 失败: {}", id, e.getMessage());
@@ -269,15 +262,8 @@ public class TaskProgressServiceImpl implements TaskProgressService {
 
     private boolean isPortAlive(int port) {
         try {
-            URL url = new URL("http://127.0.0.1:" + port + "/json/version");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setConnectTimeout(1500);
-            conn.setReadTimeout(1500);
-            int code = conn.getResponseCode();
-            try (InputStream in = conn.getInputStream()) {
-                in.readAllBytes();
-            }
-            return code == 200;
+            httpGet(cdpBaseUrl + ":" + port + "/json/version", 1500);
+            return true;
         } catch (Exception e) {
             return false;
         }
@@ -285,17 +271,28 @@ public class TaskProgressServiceImpl implements TaskProgressService {
 
     private int countTabs(int port) {
         try {
-            URL url = new URL("http://127.0.0.1:" + port + "/json");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setConnectTimeout(1500);
-            conn.setReadTimeout(2000);
-            String body;
-            try (InputStream in = conn.getInputStream()) {
-                body = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-            }
+            String body = httpGet(cdpBaseUrl + ":" + port + "/json", 1500, 2000);
             return JSONUtil.parseArray(body).size();
         } catch (Exception e) {
             return 0;
+        }
+    }
+
+    /** HTTP GET，返回响应 body；连接失败或非 2xx 抛 UncheckedIOException */
+    private String httpGet(String url, int timeoutMs) {
+        return httpGet(url, timeoutMs, timeoutMs);
+    }
+
+    private String httpGet(String url, int connectTimeoutMs, int readTimeoutMs) {
+        try {
+            HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+            conn.setConnectTimeout(connectTimeoutMs);
+            conn.setReadTimeout(readTimeoutMs);
+            try (InputStream in = conn.getInputStream()) {
+                return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 
@@ -409,7 +406,7 @@ public class TaskProgressServiceImpl implements TaskProgressService {
                 JSONObject v = map.getJSONObject(k);
                 String status = v != null ? v.getStr("status", "") : "";
                 if ("saved".equals(status)) saved++;
-                else if (status.contains("fail") || status.contains("error") || status.contains("risk")) failed++;
+                else if (TaskStatusUtil.isFailedStatus(status)) failed++;
             }
         }
         int total = map != null ? map.size() : 0;
@@ -444,7 +441,7 @@ public class TaskProgressServiceImpl implements TaskProgressService {
                     JSONObject v = createdObj.getJSONObject(k);
                     String status = v != null ? v.getStr("status", "") : "";
                     if ("saved".equals(status)) saved++;
-                    else if (status.contains("fail") || status.contains("error")) failed++;
+                    else if (TaskStatusUtil.isFailedStatus(status)) failed++;
                 }
             }
         }

@@ -28,6 +28,9 @@ public class SysDictType extends Model<SysDictType> {
 
     private static final long serialVersionUID = 1L;
 
+    public static final Integer STATUS_NORMAL = 0;
+    public static final Integer STATUS_DISABLED = 1;
+
     @Schema(description = "字典主键")
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;

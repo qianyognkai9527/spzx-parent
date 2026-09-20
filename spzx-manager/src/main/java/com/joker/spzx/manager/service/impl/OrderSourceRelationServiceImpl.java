@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.common.exception.ServiceException;
+import com.joker.spzx.common.util.SqlConstants;
 import com.joker.spzx.manager.mapper.OrderSourceRelationMapper;
 import com.joker.spzx.manager.service.OrderSourceRelationService;
 import com.joker.spzx.manager.service.ProductBindRelationService;
@@ -106,7 +107,7 @@ public class OrderSourceRelationServiceImpl extends ServiceImpl<OrderSourceRelat
                 new LambdaQueryWrapper<ProductBindRelation>()
                         .eq(ProductBindRelation::getProductId, platformProductId)
                         .eq(ProductBindRelation::getIsDeleted, 0)
-                        .last("limit 1"));
+                        .last(SqlConstants.LIMIT_1));
         if (bind == null) {
             return result;
         }

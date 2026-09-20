@@ -3,6 +3,7 @@ package com.joker.spzx.manager.service.kw;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.joker.spzx.manager.config.KwProperties;
+import com.joker.spzx.common.util.SqlConstants;
 import com.joker.spzx.manager.mapper.KwProviderMapper;
 import com.joker.spzx.model.entity.kw.KwProvider;
 import lombok.extern.slf4j.Slf4j;
@@ -77,7 +78,7 @@ public class KwProviderService implements ApplicationRunner {
 
     public KwProvider getEntity(String name) {
         return kwProviderMapper.selectOne(new LambdaQueryWrapper<KwProvider>()
-                .eq(KwProvider::getName, name).last("limit 1"));
+                .eq(KwProvider::getName, name).last(SqlConstants.LIMIT_1));
     }
 
     public ProviderDef get(String name) {

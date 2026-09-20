@@ -6,6 +6,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.joker.spzx.common.exception.ServiceException;
+import com.joker.spzx.common.util.SqlConstants;
 import com.joker.spzx.manager.config.WxLoginProperties;
 import com.joker.spzx.manager.mapper.SysLoginLogMapper;
 import com.joker.spzx.manager.mapper.SysQrLoginTicketMapper;
@@ -259,7 +260,7 @@ public class WxLoginServiceImpl implements WxLoginService {
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<SysUser>()
                 .eq(SysUser::getUsername, dto.getUserName())
                 .eq(SysUser::getIsDeleted, 0)
-                .last("limit 1");
+                .last(SqlConstants.LIMIT_1);
         SysUser sysUser = sysUserMapper.selectOne(wrapper);
         if (Objects.isNull(sysUser)) {
             throw new ServiceException(ResultCodeEnum.LOGIN_ERROR);
@@ -351,7 +352,7 @@ public class WxLoginServiceImpl implements WxLoginService {
                 .eq(SysWechatUser::getUserId, currentUser.getId())
                 .eq(SysWechatUser::getBindStatus, 1)
                 .eq(SysWechatUser::getIsDeleted, 0)
-                .last("limit 1");
+                .last(SqlConstants.LIMIT_1);
         SysWechatUser wechatUser = sysWechatUserMapper.selectOne(wrapper);
 
         if (wechatUser != null) {
@@ -445,7 +446,7 @@ public class WxLoginServiceImpl implements WxLoginService {
     private String findTicketByState(String state) {
         LambdaQueryWrapper<SysQrLoginTicket> wrapper = new LambdaQueryWrapper<SysQrLoginTicket>()
                 .eq(SysQrLoginTicket::getState, state)
-                .last("limit 1");
+                .last(SqlConstants.LIMIT_1);
         SysQrLoginTicket ticket = sysQrLoginTicketMapper.selectOne(wrapper);
         return ticket != null ? ticket.getTicket() : null;
     }
@@ -455,7 +456,7 @@ public class WxLoginServiceImpl implements WxLoginService {
                 .eq(SysWechatUser::getAppid, wxLoginProperties.getAppId())
                 .eq(SysWechatUser::getOpenid, openid)
                 .eq(SysWechatUser::getIsDeleted, 0)
-                .last("limit 1");
+                .last(SqlConstants.LIMIT_1);
         return sysWechatUserMapper.selectOne(wrapper);
     }
 

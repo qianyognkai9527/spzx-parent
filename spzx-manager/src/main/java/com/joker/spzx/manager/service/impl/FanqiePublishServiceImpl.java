@@ -5,6 +5,7 @@ import cn.hutool.json.JSONUtil;
 import com.joker.spzx.common.util.ShellUtil;
 import com.joker.spzx.manager.service.FanqiePublishService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -18,10 +19,17 @@ import java.util.Map;
 @Service
 public class FanqiePublishServiceImpl implements FanqiePublishService {
 
-    private static final String PYTHON = "/Users/qyk9527/tb-auto/venv/bin/python";
-    private static final String SCRIPT = "/Users/qyk9527/fanqie-publish/publish_fanqie.py";
-    private static final String STATE_FILE = "/Users/qyk9527/fanqie-publish/fanqie_publish_state.json";
-    private static final String LOG_FILE = "/Users/qyk9527/fanqie-publish/fanqie-publish.log";
+    @Value("${fanqie-publish.python-path:/Users/qyk9527/tb-auto/venv/bin/python}")
+    private String pythonPath;
+
+    @Value("${fanqie-publish.script-path:/Users/qyk9527/fanqie-publish/publish_fanqie.py}")
+    private String scriptPath;
+
+    @Value("${fanqie-publish.state-file:/Users/qyk9527/fanqie-publish/fanqie_publish_state.json}")
+    private String stateFile;
+
+    @Value("${fanqie-publish.log-file:/Users/qyk9527/fanqie-publish/fanqie-publish.log}")
+    private String logFile;
 
     @Override
     public Map<String, Object> start() {
@@ -34,7 +42,7 @@ public class FanqiePublishServiceImpl implements FanqiePublishService {
         }
         try {
             ShellUtil.ShellResult r = ShellUtil.run(
-                    "nohup " + PYTHON + " " + SCRIPT + " >> " + LOG_FILE + " 2>&1 & echo $!", 10_000);
+                    "nohup " + pythonPath + " " + scriptPath + " >> " + logFile + " 2>&1 & echo $!", 10_000);
             String newPid = r.output().trim();
             res.put("ok", true);
             res.put("message", newPid.isEmpty() ? "已启动发布任务" : "已启动发布任务 (PID " + newPid + ")");
@@ -65,7 +73,7 @@ public class FanqiePublishServiceImpl implements FanqiePublishService {
     @Override
     public Map<String, JSONObject> readState() {
         try {
-            String content = Files.readString(Path.of(STATE_FILE), StandardCharsets.UTF_8);
+            String content = Files.readString(Path.of(stateFile), StandardCharsets.UTF_8);
             JSONObject root = JSONUtil.parseObj(content);
             JSONObject chapters = root.getJSONObject("chapters");
             Map<String, JSONObject> result = new HashMap<>();

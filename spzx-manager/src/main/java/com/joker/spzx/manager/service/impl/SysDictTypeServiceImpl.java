@@ -29,7 +29,7 @@ public class SysDictTypeServiceImpl extends ServiceImpl<SysDictTypeMapper, SysDi
     public IPage<SysDictType> getPage(Integer pageNum, Integer pageSize, DictQueryDto dictQueryDto) {
         IPage<SysDictType> page = new Page<>(pageNum, pageSize);
 
-        LambdaQueryWrapper<SysDictType> like = lambdaQuery().getWrapper().eq(SysDictType::getStatus, 0)
+        LambdaQueryWrapper<SysDictType> like = lambdaQuery().getWrapper().eq(SysDictType::getStatus, SysDictType.STATUS_NORMAL)
                 .like(StringUtils.isNotBlank(dictQueryDto.getDictName()), SysDictType::getDictName, dictQueryDto.getDictName())
                 .like(StringUtils.isNotBlank(dictQueryDto.getDictType()), SysDictType::getDictType, dictQueryDto.getDictType());
         page(page, like);
@@ -42,7 +42,7 @@ public class SysDictTypeServiceImpl extends ServiceImpl<SysDictTypeMapper, SysDi
 
         sysDictType.setCreateBy(AuthContextUtil.getUser().getId());
         sysDictType.setCreateTime(LocalDateTime.now());
-        sysDictType.setStatus(0);
+        sysDictType.setStatus(SysDictType.STATUS_NORMAL);
         sysDictType.insert();
 
     }

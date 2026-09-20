@@ -25,7 +25,7 @@ public class SysDictDataServiceImpl extends ServiceImpl<SysDictDataMapper, SysDi
     @Override
     public List<SysDictData> getList(String dictType) {
         LambdaQueryWrapper<SysDictData> eq = lambdaQuery().getWrapper().eq(SysDictData::getDictType, dictType)
-                .eq(SysDictData::getStatus, 1);
+                .eq(SysDictData::getStatus, SysDictData.STATUS_NORMAL);
 
 
         return list(eq);

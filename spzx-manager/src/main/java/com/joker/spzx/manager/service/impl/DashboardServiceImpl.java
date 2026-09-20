@@ -1,13 +1,16 @@
 package com.joker.spzx.manager.service.impl;
 
+import com.joker.spzx.common.util.TaskStatusUtil;
 import com.joker.spzx.manager.mapper.DashboardMapper;
 import com.joker.spzx.manager.service.DashboardService;
 import com.joker.spzx.manager.service.TaskProgressService;
+import com.joker.spzx.model.enums.PlatformTypeEnum;
 import com.joker.spzx.model.vo.dashboard.*;
 import com.joker.spzx.model.vo.taskprogress.TaskItemVo;
 import com.joker.spzx.model.vo.taskprogress.TaskOverviewVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -37,6 +40,18 @@ public class DashboardServiceImpl implements DashboardService {
     @Autowired
     private TaskProgressService taskProgressService;
 
+    @Value("${dashboard.puhuo-progress-path:/Users/qyk9527/tb-auto/progress.json}")
+    private String puhuoProgressPath;
+
+    @Value("${dashboard.meijia-progress-path:/Users/qyk9527/sourcing/output/meijia/progress.json}")
+    private String meijiaProgressPath;
+
+    @Value("${dashboard.douyin-progress-path:/Users/qyk9527/sourcing/douyin_create_progress.json}")
+    private String douyinProgressPath;
+
+    @Value("${dashboard.sourcing-progress-path:/Users/qyk9527/sourcing/sourcing_progress.json}")
+    private String sourcingProgressPath;
+
     @Override
     public DashboardKpiVo getKpiCards() {
         DashboardKpiVo vo = new DashboardKpiVo();
@@ -56,13 +71,7 @@ public class DashboardServiceImpl implements DashboardService {
     public List<PlatformDistVo> getPlatformDistribution() {
         List<PlatformDistVo> list = dashboardMapper.selectPlatformDist();
         for (PlatformDistVo vo : list) {
-            if (vo.getPlatformType() != null && vo.getPlatformType() == 1) {
-                vo.setPlatformName("淘宝");
-            } else if (vo.getPlatformType() != null && vo.getPlatformType() == 2) {
-                vo.setPlatformName("抖音");
-            } else {
-                vo.setPlatformName("未分类");
-            }
+            vo.setPlatformName(PlatformTypeEnum.nameOfOrDefault(vo.getPlatformType(), "未分类"));
         }
         return list;
     }
@@ -119,7 +128,7 @@ public class DashboardServiceImpl implements DashboardService {
         switch (taskKey) {
             case "taobao_puhuo": {
                 Map<String, List<String>> byError = new LinkedHashMap<>();
-                Object failed = readJsonFileField("/Users/qyk9527/tb-auto/progress.json", "failed");
+                Object failed = readJsonFileField(puhuoProgressPath, "failed");
                 boolean hasTitle = false;
                 if (failed instanceof List<?> list) {
                     for (Object o : list) {
@@ -159,15 +168,15 @@ public class DashboardServiceImpl implements DashboardService {
             case "guiruo_douyin":
             case "meijia_douyin": {
                 String path = "meijia_douyin".equals(taskKey)
-                        ? "/Users/qyk9527/sourcing/output/meijia/progress.json"
-                        : "/Users/qyk9527/sourcing/douyin_create_progress.json";
+                        ? meijiaProgressPath
+                        : douyinProgressPath;
                 Map<String, List<String>> byError = new LinkedHashMap<>();
                 Object created = readJsonFileField(path, "created");
                 if (created instanceof Map<?, ?> map) {
                     for (Map.Entry<?, ?> e : map.entrySet()) {
                         if (e.getValue() instanceof Map<?, ?> v) {
                             String status = String.valueOf(v.get("status"));
-                            if (status.contains("fail") || status.contains("error") || status.contains("risk")) {
+                            if (TaskStatusUtil.isFailedStatus(status)) {
                                 String reason = "create_failed".equals(status)
                                         ? "创建草稿失败" : status;
                                 byError.computeIfAbsent(reason, k -> new ArrayList<>())
@@ -180,7 +189,7 @@ public class DashboardServiceImpl implements DashboardService {
                 break;
             }
             case "sourcing_crawl": {
-                Object failedKw = readJsonFileField("/Users/qyk9527/sourcing/sourcing_progress.json", "failed_kw");
+                Object failedKw = readJsonFileField(sourcingProgressPath, "failed_kw");
                 if (failedKw instanceof List<?> list && !list.isEmpty()) {
                     Map<String, Object> g = new LinkedHashMap<>();
                     g.put("reason", "风控/超时未采集的关键词");
