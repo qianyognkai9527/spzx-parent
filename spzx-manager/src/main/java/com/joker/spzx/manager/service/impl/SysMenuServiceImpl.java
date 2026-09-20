@@ -14,6 +14,7 @@ import com.joker.spzx.utils.AuthContextUtil;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.time.LocalDateTime;
@@ -54,6 +55,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
 
     @Override
     @CacheEvict(cacheNames = "menu:tree", allEntries = true)
+    @Transactional(rollbackFor = Exception.class)
     public void saveData(SysMenu sysMenu) {
         sysMenu.setIsDeleted(0);
         sysMenu.setCreateTime(LocalDateTime.now());
@@ -63,11 +65,11 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     }
 
     private void updateSysRoleMenuIsHalf(SysMenu sysMenu) {
-        LambdaQueryWrapper<SysMenu> eq = lambdaQuery().getWrapper().eq(SysMenu::getParentId, sysMenu.getParentId())
+        LambdaQueryWrapper<SysMenu> eq = lambdaQuery().getWrapper().eq(SysMenu::getId, sysMenu.getParentId())
                 .eq(SysMenu::getIsDeleted, 0)
                 .last(" limit 1");
         SysMenu one = this.getOne(eq);
-        if (Objects.isNull(one)) {
+        if (Objects.nonNull(one)) {
             LambdaQueryWrapper<SysRoleMenu> eq1 = new LambdaQueryWrapper<SysRoleMenu>()
                     .eq(SysRoleMenu::getMenuId, one.getId())
                     .eq(SysRoleMenu::getIsDeleted, 0)

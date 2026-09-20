@@ -159,6 +159,7 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void generate(RefundReportGenerateDto refundReportGenerateDto) {
         Long reportRecordId = refundReportGenerateDto.getId();
         MallRefundRecord mallRefundRecord = new MallRefundRecord();
@@ -169,9 +170,6 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
         //开始计算订单
         mallRefundRecord = this.getById(reportRecordId);
         if (Objects.isNull(mallRefundRecord)) {
-            mallRefundRecord.setRemark("报表不存在！");
-            mallRefundRecord.setState(4);
-            mallRefundRecord.updateById();
             throw new ServiceException(500, "订单报表不存在");
         }
         LambdaQueryWrapper<MallRefundRecordDetail> recordDetailLambdaQueryWrapper = new LambdaQueryWrapper<>();

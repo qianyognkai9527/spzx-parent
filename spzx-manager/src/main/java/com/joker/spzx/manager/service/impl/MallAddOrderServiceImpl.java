@@ -11,6 +11,7 @@ import com.joker.spzx.model.vo.mall.BrushPersonStatVo;
 import com.joker.spzx.model.vo.mall.BrushOrderStatVo;
 import com.joker.spzx.utils.AuthContextUtil;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -59,11 +60,15 @@ public class MallAddOrderServiceImpl extends ServiceImpl<MallAddOrderMapper, Mal
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void settleCommission(List<Long> idList) {
+        if (idList == null || idList.isEmpty()) {
+            return;
+        }
         LocalDateTime now = LocalDateTime.now();
-        for (Long id : idList) {
-            MallAddOrder order = getById(id);
-            if (order != null && order.getHireIsPay() != null && order.getHireIsPay() == 0) {
+        List<MallAddOrder> orders = this.listByIds(idList);
+        for (MallAddOrder order : orders) {
+            if (order.getHireIsPay() != null && order.getHireIsPay() == 0) {
                 order.setHireIsPay(1);
                 order.setSettlementTime(now);
                 order.setUpdateBy(AuthContextUtil.getUser().getId());

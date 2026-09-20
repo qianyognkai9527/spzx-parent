@@ -73,6 +73,7 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void updateDataById(Product product) {
 
         Long id = product.getId();

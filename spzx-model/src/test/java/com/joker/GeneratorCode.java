@@ -17,7 +17,8 @@ public class GeneratorCode {
         // 数据库
         String sqlUrl = "jdbc:mysql://117.72.50.100:3306/tj-danger?serverTimezone=UTC&useSSL=false&useUnicode=true&characterEncoding=utf-8";
         String sqlUserName = "root";
-        String sqlPassword = "brysjhhrhl@#1a";
+        // 密码不入仓库：运行前通过环境变量 GEN_DB_PASSWORD 注入
+        String sqlPassword = System.getenv().getOrDefault("GEN_DB_PASSWORD", "CHANGE_ME");
 
         // 需要生成的数据表名,多表用逗号隔开（生成的代码会按此数据表字段进行生成对应文件）
         String tables = "ods_car_alarm";
