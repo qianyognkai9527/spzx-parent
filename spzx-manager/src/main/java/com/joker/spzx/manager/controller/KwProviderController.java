@@ -4,11 +4,14 @@ import cn.hutool.http.HttpRequest;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.joker.spzx.manager.mapper.KwProviderMapper;
+import com.joker.spzx.manager.mapper.KwSelectTaskMapper;
 import com.joker.spzx.manager.service.kw.KwConfigService;
 import com.joker.spzx.manager.service.kw.KwProviderService;
 import com.joker.spzx.model.entity.kw.KwProvider;
+import com.joker.spzx.model.entity.kw.KwSelectTask;
 import com.joker.spzx.model.vo.common.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +27,9 @@ public class KwProviderController {
 
     @Autowired
     private KwProviderMapper kwProviderMapper;
+
+    @Autowired
+    private KwSelectTaskMapper kwSelectTaskMapper;
 
     @Autowired
     private KwProviderService kwProviderService;
@@ -52,11 +58,12 @@ public class KwProviderController {
         if (dto.name() == null || dto.name().isBlank()) {
             return Result.build(null, 204, "name 不能为空");
         }
+        String name = dto.name().trim();
         if (dto.baseUrl() == null || dto.baseUrl().isBlank()) {
             return Result.build(null, 204, "base_url 不能为空");
         }
-        if (kwProviderService.getEntity(dto.name().trim()) != null) {
-            return Result.build(null, 204, "name 已存在: " + dto.name());
+        if (kwProviderService.getEntity(name) != null) {
+            return Result.build(null, 204, "name 已存在: " + name);
         }
         String extraErr = extraBodyError(dto.extraBody());
         if (extraErr != null) {
@@ -74,7 +81,7 @@ public class KwProviderController {
         if (dto.name() == null || dto.name().isBlank()) {
             return Result.build(null, 204, "name 不能为空");
         }
-        KwProvider row = kwProviderService.getEntity(dto.name());
+        KwProvider row = kwProviderService.getEntity(dto.name().trim());
         if (row == null) {
             return Result.build(null, 204, "provider 不存在: " + dto.name());
         }
@@ -111,6 +118,10 @@ public class KwProviderController {
             if (err != null) {
                 return Result.build(null, 204, err);
             }
+            err = inFlightTaskGuard(row.getName());
+            if (err != null) {
+                return Result.build(null, 204, err);
+            }
         }
         row.setStatus(status);
         kwProviderMapper.updateById(row);
@@ -124,6 +135,10 @@ public class KwProviderController {
             return Result.build(null, 204, "provider 不存在");
         }
         String err = mainEngineGuard(row.getName(), "删除");
+        if (err != null) {
+            return Result.build(null, 204, err);
+        }
+        err = inFlightTaskGuard(row.getName());
         if (err != null) {
             return Result.build(null, 204, err);
         }
@@ -144,6 +159,7 @@ public class KwProviderController {
         if (row.getBaseUrl() == null || row.getBaseUrl().isBlank()
                 || row.getApiKey() == null || row.getApiKey().isBlank() || model == null || model.isBlank()) {
             out.put("ok", false);
+            out.put("costMs", 0);
             out.put("error", "base_url / api_key / text或vision模型 未配全，无法测试");
             return Result.build(out);
         }
@@ -189,7 +205,7 @@ public class KwProviderController {
         } catch (Exception e) {
             out.put("ok", false);
             out.put("costMs", System.currentTimeMillis() - start);
-            out.put("error", e.getMessage());
+            out.put("error", e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
         }
         return Result.build(out);
     }
@@ -201,6 +217,17 @@ public class KwProviderController {
         }
         if (name.equals(kwConfigService.getProvider(KwConfigService.KEY_VISION))) {
             return "「" + name + "」是当前视觉主用引擎，请先切换后再" + action;
+        }
+        return null;
+    }
+
+    /** 在途（待跑/识品中/选词中）任务按 name 快照引用 → 返回拒绝消息，否则 null */
+    private String inFlightTaskGuard(String name) {
+        Long cnt = kwSelectTaskMapper.selectCount(new LambdaQueryWrapper<KwSelectTask>()
+                .eq(KwSelectTask::getTextProvider, name)
+                .in(KwSelectTask::getStatus, 0, 1, 2));
+        if (cnt != null && cnt > 0) {
+            return "有 " + cnt + " 个在途选词任务引用「" + name + "」，等任务完成或失败后再停用/删除";
         }
         return null;
     }

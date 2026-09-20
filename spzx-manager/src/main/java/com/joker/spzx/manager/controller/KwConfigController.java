@@ -51,14 +51,14 @@ public class KwConfigController {
     @PutMapping
     public Result<Void> set(@RequestBody SetDto dto) {
         if (dto.textProvider() != null) {
-            String err = validateForSwitch(dto.textProvider());
+            String err = validateForSwitch(dto.textProvider(), "text");
             if (err != null) {
                 return Result.build(null, 204, err);
             }
             kwConfigService.setProvider(KwConfigService.KEY_TEXT, dto.textProvider());
         }
         if (dto.visionProvider() != null) {
-            String err = validateForSwitch(dto.visionProvider());
+            String err = validateForSwitch(dto.visionProvider(), "vision");
             if (err != null) {
                 return Result.build(null, 204, err);
             }
@@ -67,8 +67,8 @@ public class KwConfigController {
         return Result.build(null);
     }
 
-    /** 切换校验：存在 + 启用 + 有 key */
-    private String validateForSwitch(String name) {
+    /** 切换校验：存在 + 启用 + 有 key + kind 对应模型已配 */
+    private String validateForSwitch(String name, String kind) {
         KwProvider row = kwProviderService.getEntity(name);
         if (row == null) {
             return "provider 不存在: " + name;
@@ -78,6 +78,10 @@ public class KwConfigController {
         }
         if (row.getApiKey() == null || row.getApiKey().isBlank()) {
             return "provider 未配置 key: " + name;
+        }
+        String model = "vision".equals(kind) ? row.getVisionModel() : row.getTextModel();
+        if (model == null || model.isBlank()) {
+            return "provider " + name + " 未配置 " + kind + " 模型，请先在 AI引擎配置 页补全";
         }
         return null;
     }
