@@ -6,6 +6,7 @@ import com.joker.spzx.manager.service.TaskProgressService;
 import com.joker.spzx.model.vo.dashboard.*;
 import com.joker.spzx.model.vo.taskprogress.TaskItemVo;
 import com.joker.spzx.model.vo.taskprogress.TaskOverviewVo;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +27,7 @@ import java.util.Set;
  *
  * @author joker
  */
+@Slf4j
 @Service
 public class DashboardServiceImpl implements DashboardService {
 
@@ -105,7 +107,8 @@ public class DashboardServiceImpl implements DashboardService {
                 result.add(m);
             }
         } catch (Exception e) {
-            // 任务进度服务异常时静默, 首页不阻塞
+            // 任务进度服务异常时不阻塞首页, 但需留痕
+            log.warn("读取任务异常数据失败(首页不阻塞): {}", e.toString());
         }
         return result;
     }

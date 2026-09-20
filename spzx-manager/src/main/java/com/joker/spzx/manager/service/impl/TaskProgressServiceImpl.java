@@ -180,7 +180,10 @@ public class TaskProgressServiceImpl implements TaskProgressService {
             HttpURLConnection conn = (HttpURLConnection) jsonUrl.openConnection();
             conn.setConnectTimeout(2000);
             conn.setReadTimeout(3000);
-            String body = new String(conn.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            String body;
+            try (InputStream in = conn.getInputStream()) {
+                body = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            }
             JSONArray targets = JSONUtil.parseArray(body);
 
             // 2. 智能保留: item.upload 仅在铺货(auto_list)运行时保留, 否则属残留一并清理
@@ -217,7 +220,9 @@ public class TaskProgressServiceImpl implements TaskProgressService {
                     HttpURLConnection c2 = (HttpURLConnection) closeUrl.openConnection();
                     c2.setConnectTimeout(1500);
                     c2.setReadTimeout(1500);
-                    c2.getInputStream().close();
+                    try (InputStream in = c2.getInputStream()) {
+                        in.readAllBytes();
+                    }
                     closed++;
                 } catch (Exception e) {
                     log.warn("关闭标签 {} 失败: {}", id, e.getMessage());
@@ -269,7 +274,9 @@ public class TaskProgressServiceImpl implements TaskProgressService {
             conn.setConnectTimeout(1500);
             conn.setReadTimeout(1500);
             int code = conn.getResponseCode();
-            conn.getInputStream().close();
+            try (InputStream in = conn.getInputStream()) {
+                in.readAllBytes();
+            }
             return code == 200;
         } catch (Exception e) {
             return false;
@@ -282,7 +289,10 @@ public class TaskProgressServiceImpl implements TaskProgressService {
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setConnectTimeout(1500);
             conn.setReadTimeout(2000);
-            String body = new String(conn.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            String body;
+            try (InputStream in = conn.getInputStream()) {
+                body = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            }
             return JSONUtil.parseArray(body).size();
         } catch (Exception e) {
             return 0;
@@ -617,6 +627,7 @@ public class TaskProgressServiceImpl implements TaskProgressService {
             String content = Files.readString(Path.of(path), StandardCharsets.UTF_8);
             return JSONUtil.parseObj(content);
         } catch (Exception e) {
+            log.warn("读取 JSON 文件失败: path={}, {}", path, e.toString());
             return null;
         }
     }
@@ -628,6 +639,7 @@ public class TaskProgressServiceImpl implements TaskProgressService {
             while (reader.readLine() != null) count++;
             return count;
         } catch (Exception e) {
+            log.warn("统计 jsonl 行数失败: path={}, {}", path, e.toString());
             return 0;
         }
     }

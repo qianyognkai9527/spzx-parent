@@ -41,6 +41,7 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -196,6 +197,7 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
         response.addHeader("Content-Type", "application/octet-stream");
 // 直接获取输出流
         OutputStream outputStream = response.getOutputStream();
+        List<String> failedFiles = new ArrayList<>();
         try (ZipOutputStream zos = new ZipOutputStream(outputStream)) {
             for (OrderEvaluation eval : evaluations) {
                 // 创建订单目录
@@ -206,12 +208,14 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
                 createCommentFile(zos, orderDir, eval.getComment());
 
                 // 下载媒体文件
-                downloadMediaFiles(zos, orderDir, eval.getFileUrls());
+                failedFiles.addAll(downloadMediaFiles(zos, orderDir, eval.getFileUrls()));
             }
-            zos.close();
-            zos.finish();
+            if (!failedFiles.isEmpty()) {
+                log.warn("评价导出 zip 缺失 {} 个媒体文件: {}", failedFiles.size(), failedFiles);
+            }
         } catch (Exception e) {
-            handleException(response, e, outputStream);
+            // zip 响应头已提交, 无法再改写 JSON 错误体, 只记日志
+            log.error("评价导出 zip 失败", e);
         } finally {
             outputStream.close();
         }
@@ -250,8 +254,9 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
         zos.closeEntry();
     }
 
-    private void downloadMediaFiles(ZipOutputStream zos, String orderDir, List<String> urls) {
-        urls.forEach(url -> {
+    private List<String> downloadMediaFiles(ZipOutputStream zos, String orderDir, List<String> urls) {
+        List<String> failed = new ArrayList<>();
+        for (String url : urls) {
             try {
                 HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
                 conn.setConnectTimeout(30000);
@@ -272,24 +277,14 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
                 zos.closeEntry();
             } catch (Exception e) {
                 log.error("文件下载失败: {}", url, e);
+                failed.add(url);
             }
-        });
+        }
+        return failed;
     }
 
     private String getFileName(String url) {
         String rawName = url.substring(url.lastIndexOf('/') + 1);
         return URLEncoder.encode(rawName, StandardCharsets.UTF_8);
-    }
-
-    private void handleException(HttpServletResponse response, Exception e, OutputStream outputStream) {
-        try {
-            outputStream.close();
-            response.setContentType("application/json");
-            response.setCharacterEncoding("UTF-8");
-            response.setStatus(500);
-            response.getWriter().write("{\"error\":\"" + e.getMessage() + "\"}");
-        } catch (IOException ex) {
-            log.error("异常处理失败", ex);
-        }
     }
 }
