@@ -40,10 +40,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -244,95 +240,6 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
             return tmpOrder;
         }).collect(Collectors.toList());
         this.baseMapper.insert(collect);
-    }
-
-    // 主入口
-    public void createEvaluationArchive(List<OrderEvaluation> evaluations,
-                                        String outputZipPath) throws Exception {
-        Path tempDir = Files.createTempDirectory("orders_");
-
-        // 创建所有订单目录和文件
-        for (OrderEvaluation eval : evaluations) {
-            Path orderDir = createOrderDirectory(tempDir, eval.getOrderId());
-            downloadFiles(eval.getFileUrls(), orderDir);
-            createCommentFile(eval.getComment(), orderDir);
-        }
-
-        // 压缩整个临时目录
-        zipFolder(tempDir, Paths.get(outputZipPath));
-
-        // 清理临时文件（可选）
-        this.deleteDirectory(tempDir);
-    }
-
-    // 创建订单目录
-    private Path createOrderDirectory(Path parentDir, String orderId) throws IOException {
-        Path orderDir = parentDir.resolve(orderId);
-        Files.createDirectories(orderDir);
-        return orderDir;
-    }
-
-    // 下载文件（支持图片/视频）
-    private void downloadFiles(List<String> fileUrls, Path targetDir) {
-        fileUrls.forEach(url -> {
-            try {
-                HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-                conn.setRequestMethod("GET");
-                conn.setConnectTimeout(30000);
-                conn.setReadTimeout(60000);
-                conn.setRequestProperty("User-Agent", "Mozilla/5.0");
-
-                try (InputStream in = conn.getInputStream()) {
-                    String fileName = getFileNameFromUrl(url);
-                    Path outputPath = targetDir.resolve(fileName);
-                    Files.copy(in, outputPath, StandardCopyOption.REPLACE_EXISTING);
-                }
-            } catch (Exception e) {
-                log.error("下载失败: {} | 错误: {}", url, e.getMessage());
-            }
-        });
-    }
-
-    // 创建评语文件
-    private void createCommentFile(String comment, Path orderDir) throws IOException {
-        Path commentFile = orderDir.resolve("评语.txt");
-        Files.writeString(commentFile, comment, StandardCharsets.UTF_8);
-    }
-
-    // 压缩目录（核心方法）
-    private void zipFolder(Path sourceDir, Path zipPath) throws IOException {
-        try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipPath))) {
-            Files.walk(sourceDir)
-                    .filter(path -> !Files.isDirectory(path))
-                    .forEach(path -> {
-                        ZipEntry zipEntry = new ZipEntry(sourceDir.relativize(path).toString());
-                        try {
-                            zos.putNextEntry(zipEntry);
-                            Files.copy(path, zos);
-                            zos.closeEntry();
-                        } catch (IOException e) {
-                            log.error("压缩失败: {}", path);
-                        }
-                    });
-        }
-    }
-
-    // 从URL提取文件名
-    private String getFileNameFromUrl(String fileUrl) {
-        return fileUrl.substring(fileUrl.lastIndexOf('/') + 1);
-    }
-
-    // 递归删除目录
-    private void deleteDirectory(Path directory) throws IOException {
-        Files.walk(directory)
-                .sorted((a, b) -> -a.compareTo(b))
-                .forEach(path -> {
-                    try {
-                        Files.deleteIfExists(path);
-                    } catch (IOException e) {
-                        log.error("删除失败: {}", path);
-                    }
-                });
     }
 
     private void createCommentFile(ZipOutputStream zos, String orderDir, String comment)

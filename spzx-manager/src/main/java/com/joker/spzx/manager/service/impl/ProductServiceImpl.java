@@ -11,7 +11,6 @@ import com.joker.spzx.model.dto.product.ProductDto;
 import com.joker.spzx.model.entity.oper.MallProductFactory;
 import com.joker.spzx.model.entity.product.Product;
 import com.joker.spzx.model.entity.product.ProductDetails;
-import com.joker.spzx.model.entity.product.ProductSku;
 import com.joker.spzx.model.vo.product.ProductPageVo;
 import com.joker.spzx.utils.AuthContextUtil;
 import jakarta.annotation.Resource;
@@ -107,11 +106,6 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         product.setId(id);
         product.setIsDeleted(1);
         this.baseMapper.updateById(product);
-
-        LambdaUpdateWrapper<ProductSku> set = new LambdaUpdateWrapper<ProductSku>()
-                .eq(ProductSku::getProductId, id)
-                .set(ProductSku::getIsDeleted, 1);
-//        productSkuMapper.update(null, set);
 
         LambdaUpdateWrapper<ProductDetails> set1 = new LambdaUpdateWrapper<ProductDetails>()
                 .eq(ProductDetails::getProductId, id)
