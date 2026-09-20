@@ -22,6 +22,9 @@ public class KwAiClient {
     @Autowired
     private KwConfigService kwConfigService;
 
+    @Autowired
+    private KwProviderService kwProviderService;
+
     /** 文本补全（选词/标题） */
     public String text(String providerName, String prompt) {
         JSONArray messages = new JSONArray();
@@ -43,14 +46,8 @@ public class KwAiClient {
     }
 
     private String call(String providerName, String kind, JSONArray messages) {
-        KwProperties.Provider p = props.getProviders().get(providerName);
-        if (p == null || p.getBaseUrl() == null || p.getApiKey() == null || p.getApiKey().isBlank()) {
-            throw new RuntimeException("AI provider 未配置: " + providerName);
-        }
-        String model = "vision".equals(kind) ? p.getVisionModel() : p.getTextModel();
-        if (model == null || model.isBlank()) {
-            throw new RuntimeException("provider " + providerName + " 未配置 " + kind + " 模型");
-        }
+        KwProviderService.ProviderDef p = kwProviderService.requireActive(providerName, kind);
+        String model = p.modelFor(kind);
         RuntimeException last = null;
         for (int attempt = 1; attempt <= 2; attempt++) {
             try {
@@ -59,13 +56,13 @@ public class KwAiClient {
                 body.set("messages", messages);
                 body.set("temperature", 0.3);
                 // reasoning 模型（如 glm-5.3-flash）会先产出思考内容，max_tokens 必须给足；默认 4096，可在 provider 配置 max-tokens 覆盖
-                body.set("max_tokens", p.getMaxTokens() != null ? p.getMaxTokens() : 4096);
+                body.set("max_tokens", p.maxTokens() != null ? p.maxTokens() : 4096);
                 // provider 可注入额外请求参数（如 thinking.type=disabled 关闭深度思考，避免推理耗尽 max_tokens）
-                if (p.getExtraBody() != null) {
-                    p.getExtraBody().forEach(body::set);
+                if (p.extraBody() != null) {
+                    p.extraBody().forEach(body::set);
                 }
-                String resp = HttpRequest.post(p.getBaseUrl() + "/chat/completions")
-                        .header("Authorization", "Bearer " + p.getApiKey())
+                String resp = HttpRequest.post(p.baseUrl() + "/chat/completions")
+                        .header("Authorization", "Bearer " + p.apiKey())
                         .header("Content-Type", "application/json")
                         .body(body.toString())
                         .timeout(props.getTimeoutMs())

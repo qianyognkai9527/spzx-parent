@@ -12,6 +12,7 @@ import java.util.Map;
 @ConfigurationProperties(prefix = "kw")
 public class KwProperties {
 
+    /** providers 仅用于首次播种 kw_provider 表（表空时）；运行时配置读 DB，改 yml 此节不再生效 */
     private Map<String, Provider> providers = new LinkedHashMap<>();
     private int topN = 2000;
     private int batchSize = 100;
