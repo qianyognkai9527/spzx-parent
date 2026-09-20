@@ -3,6 +3,7 @@ package com.joker.spzx.manager.service.impl;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
+import com.joker.spzx.common.util.ShellUtil;
 import com.joker.spzx.manager.service.TaskProgressService;
 import com.joker.spzx.model.vo.taskprogress.ChromeStatusVo;
 import com.joker.spzx.model.vo.taskprogress.ProcessStatusVo;
@@ -13,7 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -294,12 +295,9 @@ public class TaskProgressServiceImpl implements TaskProgressService {
         long cpu = 0;
         int count = 0;
         try {
-            ProcessBuilder pb = new ProcessBuilder("sh", "-c",
-                    "ps -Ao rss=,pcpu=,command | grep 'remote-debugging-port=" + port + "' | grep -v grep");
-            pb.redirectErrorStream(true);
-            Process p = pb.start();
-            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            p.waitFor();
+            ShellUtil.ShellResult r = ShellUtil.run(
+                    "ps -Ao rss=,pcpu=,command | grep 'remote-debugging-port=" + port + "' | grep -v grep", 5_000);
+            String out = r.output();
             for (String line : out.split("\n")) {
                 if (line.trim().isEmpty()) continue;
                 String[] parts = line.trim().split("\\s+", 3);
@@ -473,13 +471,11 @@ public class TaskProgressServiceImpl implements TaskProgressService {
         // 用 DB 查询, 通过 JdbcTemplate 或 Mapper
         // 简化: 直接查 mysql
         try {
-            ProcessBuilder pb = new ProcessBuilder("sh", "-c",
+            ShellUtil.ShellResult r = ShellUtil.run(
                     "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                            "\"SELECT CONCAT(quality_grade, ':', COUNT(*)) FROM source_factory WHERE is_deleted=0 GROUP BY quality_grade ORDER BY quality_grade DESC\" 2>/dev/null");
-            pb.redirectErrorStream(true);
-            Process p = pb.start();
-            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            p.waitFor();
+                            "\"SELECT CONCAT(quality_grade, ':', COUNT(*)) FROM source_factory WHERE is_deleted=0 GROUP BY quality_grade ORDER BY quality_grade DESC\" 2>/dev/null",
+                    10_000);
+            String out = r.output();
             int total = 0;
             StringBuilder sb = new StringBuilder();
             for (String line : out.trim().split("\n")) {
@@ -504,15 +500,13 @@ public class TaskProgressServiceImpl implements TaskProgressService {
 
     private void fillDbFreight(TaskItemVo item, JSONObject cfg) {
         try {
-            ProcessBuilder pb = new ProcessBuilder("sh", "-c",
+            ShellUtil.ShellResult r = ShellUtil.run(
                     "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
                             "\"SELECT COUNT(*) FROM source_product WHERE freight_cost IS NULL OR freight_cost=0;\" 2>/dev/null && " +
                             "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                            "\"SELECT COUNT(*) FROM source_product WHERE freight_cost > 0;\" 2>/dev/null");
-            pb.redirectErrorStream(true);
-            Process p = pb.start();
-            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            p.waitFor();
+                            "\"SELECT COUNT(*) FROM source_product WHERE freight_cost > 0;\" 2>/dev/null",
+                    10_000);
+            String out = r.output();
             String[] lines = out.trim().split("\n");
             int pending = lines.length > 0 ? Integer.parseInt(lines[0].trim()) : 0;
             int done = lines.length > 1 ? Integer.parseInt(lines[1].trim()) : 0;
@@ -529,20 +523,18 @@ public class TaskProgressServiceImpl implements TaskProgressService {
 
     private void fillDbNovel(TaskItemVo item) {
         try {
-            ProcessBuilder pb = new ProcessBuilder("sh", "-c",
+            ShellUtil.ShellResult r = ShellUtil.run(
                     "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
                             "\"SELECT total_chapters FROM novel WHERE id=1 AND is_deleted=0;\" 2>/dev/null && " +
                             "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
                             "\"SELECT COUNT(*) FROM novel_chapter WHERE novel_id=1 AND is_deleted=0;\" 2>/dev/null && " +
                             "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                            "\"SELECT COUNT(*) FROM novel_chapter WHERE novel_id=1 AND is_deleted=0 AND status=2;\" 2>/dev/null");
-            pb.redirectErrorStream(true);
-            Process p = pb.start();
-            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            p.waitFor();
-            if (p.exitValue() != 0) {
-                throw new RuntimeException("mysql 查询失败, exit=" + p.exitValue());
+                            "\"SELECT COUNT(*) FROM novel_chapter WHERE novel_id=1 AND is_deleted=0 AND status=2;\" 2>/dev/null",
+                    10_000);
+            if (r.exitCode() != 0) {
+                throw new RuntimeException("mysql 查询失败, exit=" + r.exitCode());
             }
+            String out = r.output();
             String[] lines = out.trim().split("\n");
             int total = lines.length > 0 ? Integer.parseInt(lines[0].trim()) : 0;
             int written = lines.length > 1 ? Integer.parseInt(lines[1].trim()) : 0;
@@ -590,20 +582,18 @@ public class TaskProgressServiceImpl implements TaskProgressService {
 
     private void fillDbInventoryAlert(TaskItemVo item) {
         try {
-            ProcessBuilder pb = new ProcessBuilder("sh", "-c",
+            ShellUtil.ShellResult r = ShellUtil.run(
                     "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
                             "\"SELECT COUNT(*) FROM source_sku WHERE status=1 AND is_deleted=0;\" 2>/dev/null && " +
                             "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
                             "\"SELECT COUNT(*) FROM sync_alert WHERE status=0;\" 2>/dev/null && " +
                             "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                            "\"SELECT COUNT(*) FROM sku_bind_relation WHERE status=1 AND is_deleted=0;\" 2>/dev/null");
-            pb.redirectErrorStream(true);
-            Process p = pb.start();
-            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            p.waitFor();
-            if (p.exitValue() != 0) {
-                throw new RuntimeException("mysql 查询失败, exit=" + p.exitValue());
+                            "\"SELECT COUNT(*) FROM sku_bind_relation WHERE status=1 AND is_deleted=0;\" 2>/dev/null",
+                    10_000);
+            if (r.exitCode() != 0) {
+                throw new RuntimeException("mysql 查询失败, exit=" + r.exitCode());
             }
+            String out = r.output();
             String[] lines = out.trim().split("\n");
             int activeSku = lines.length > 0 ? Integer.parseInt(lines[0].trim()) : 0;
             int unreadAlerts = lines.length > 1 ? Integer.parseInt(lines[1].trim()) : 0;
@@ -644,16 +634,11 @@ public class TaskProgressServiceImpl implements TaskProgressService {
 
     private String readLogTail(String logPath, int lines) {
         if (logPath == null) return "";
-        try {
-            ProcessBuilder pb = new ProcessBuilder("sh", "-c", "tail -" + lines + " " + logPath + " 2>/dev/null | cut -c1-120");
-            pb.redirectErrorStream(true);
-            Process p = pb.start();
-            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            p.waitFor();
-            return out.trim();
-        } catch (Exception e) {
-            return "";
+        ShellUtil.ShellResult r = ShellUtil.run("tail -" + lines + " " + logPath + " 2>/dev/null | cut -c1-120", 5_000);
+        if (r.timedOut() || r.exitCode() != 0) {
+            log.warn("读取日志尾部失败: path={}, exit={}, timedOut={}", logPath, r.exitCode(), r.timedOut());
         }
+        return r.output().trim();
     }
 
     /** 脚本是否正在运行 (单次 ps 检查) */
@@ -666,12 +651,8 @@ public class TaskProgressServiceImpl implements TaskProgressService {
     private Map<String, String> processSnapshot() {
         Map<String, String> result = new HashMap<>();
         try {
-            ProcessBuilder pb = new ProcessBuilder("sh", "-c",
-                    "ps -Ao pid=,command=");
-            pb.redirectErrorStream(true);
-            Process p = pb.start();
-            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            p.waitFor();
+            ShellUtil.ShellResult r = ShellUtil.run("ps -Ao pid=,command=", 5_000);
+            String out = r.output();
             for (String line : out.split("\n")) {
                 if (line.trim().isEmpty()) continue;
                 String pid = line.trim().split("\\s+", 2)[0];

@@ -2,12 +2,11 @@ package com.joker.spzx.manager.service.impl;
 
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
+import com.joker.spzx.common.util.ShellUtil;
 import com.joker.spzx.manager.service.FanqiePublishService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -34,13 +33,9 @@ public class FanqiePublishServiceImpl implements FanqiePublishService {
             return res;
         }
         try {
-            ProcessBuilder pb = new ProcessBuilder("sh", "-c",
-                    "nohup " + PYTHON + " " + SCRIPT + " >> " + LOG_FILE + " 2>&1 & echo $!");
-            pb.redirectErrorStream(true);
-            Process p = pb.start();
-            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            p.waitFor();
-            String newPid = out.trim();
+            ShellUtil.ShellResult r = ShellUtil.run(
+                    "nohup " + PYTHON + " " + SCRIPT + " >> " + LOG_FILE + " 2>&1 & echo $!", 10_000);
+            String newPid = r.output().trim();
             res.put("ok", true);
             res.put("message", newPid.isEmpty() ? "已启动发布任务" : "已启动发布任务 (PID " + newPid + ")");
         } catch (Exception e) {
@@ -55,12 +50,8 @@ public class FanqiePublishServiceImpl implements FanqiePublishService {
     public Map<String, Object> stop() {
         Map<String, Object> res = new HashMap<>();
         try {
-            ProcessBuilder pb = new ProcessBuilder("sh", "-c", "pkill -f 'publish_fanqie.py' && echo killed || echo none");
-            pb.redirectErrorStream(true);
-            Process p = pb.start();
-            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            p.waitFor();
-            boolean killed = out.trim().contains("killed");
+            ShellUtil.ShellResult r = ShellUtil.run("pkill -f 'publish_fanqie.py' && echo killed || echo none", 10_000);
+            boolean killed = r.output().trim().contains("killed");
             res.put("ok", killed);
             res.put("message", killed ? "已停止发布任务" : "未发现运行中的发布任务");
         } catch (Exception e) {
@@ -91,16 +82,14 @@ public class FanqiePublishServiceImpl implements FanqiePublishService {
     }
 
     private String checkRunning() {
-        try {
-            ProcessBuilder pb = new ProcessBuilder("sh", "-c",
-                    "ps aux | grep 'publish_fanqie.py' | grep -v grep | head -1 | awk '{print $2}'");
-            pb.redirectErrorStream(true);
-            Process p = pb.start();
-            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            p.waitFor();
-            return out.trim().isEmpty() ? null : out.trim();
-        } catch (Exception e) {
+        ShellUtil.ShellResult r = ShellUtil.run(
+                "ps aux | grep 'publish_fanqie.py' | grep -v grep | head -1 | awk '{print $2}'", 5_000);
+        if (r.timedOut() || r.exitCode() != 0) {
+            log.error("检查番茄发布进程失败: exit={}, timedOut={}, output={}",
+                    r.exitCode(), r.timedOut(), r.output().trim());
             return null;
         }
+        String out = r.output().trim();
+        return out.isEmpty() ? null : out;
     }
 }

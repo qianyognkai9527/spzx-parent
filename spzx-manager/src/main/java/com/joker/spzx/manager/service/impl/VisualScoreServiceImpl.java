@@ -3,6 +3,7 @@ package com.joker.spzx.manager.service.impl;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.joker.spzx.common.exception.ServiceException;
+import com.joker.spzx.common.util.ShellUtil;
 import com.joker.spzx.manager.mapper.VisualScoreMapper;
 import com.joker.spzx.manager.service.VisualScoreService;
 import com.joker.spzx.model.dto.mall.GenerateVariantDto;
@@ -19,14 +20,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -155,35 +152,19 @@ public class VisualScoreServiceImpl implements VisualScoreService {
         cmd.add(pythonBin);
         cmd.add(script);
         for (String a : args) cmd.add(a);
-        try {
-            ProcessBuilder pb = new ProcessBuilder(cmd);
-            pb.redirectErrorStream(true);
-            Process process = pb.start();
-
-            StringBuilder output = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    output.append(line).append("\n");
-                }
-            }
-
-            boolean finished = process.waitFor(SCRIPT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            if (!finished) {
-                process.destroyForcibly();
-                throw new ServiceException(500, "脚本执行超时(" + SCRIPT_TIMEOUT_SECONDS + "s): " + script);
-            }
-            if (process.exitValue() != 0) {
-                log.error("视觉评分脚本执行失败: script={}, output={}", script, output.toString().trim());
-                throw new ServiceException(500, "脚本执行失败");
-            }
-            return output.toString();
-        } catch (ServiceException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("视觉评分脚本执行异常: script={}", script, e);
+        ShellUtil.ShellResult result = ShellUtil.run(cmd, SCRIPT_TIMEOUT_SECONDS * 1000);
+        if (result.timedOut()) {
+            throw new ServiceException(500, "脚本执行超时(" + SCRIPT_TIMEOUT_SECONDS + "s): " + script);
+        }
+        if (result.exitCode() < 0) {
+            log.error("视觉评分脚本执行异常: script={}, output={}", script, result.output().trim());
             throw new ServiceException(500, "脚本执行异常");
         }
+        String output = result.output();
+        if (result.exitCode() != 0) {
+            log.error("视觉评分脚本执行失败: script={}, output={}", script, output.trim());
+            throw new ServiceException(500, "脚本执行失败");
+        }
+        return output;
     }
 }
