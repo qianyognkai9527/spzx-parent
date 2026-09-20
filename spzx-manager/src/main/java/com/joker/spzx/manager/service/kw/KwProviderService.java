@@ -5,9 +5,10 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.joker.spzx.manager.config.KwProperties;
 import com.joker.spzx.manager.mapper.KwProviderMapper;
 import com.joker.spzx.model.entity.kw.KwProvider;
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,7 +16,7 @@ import java.util.Map;
 
 @Slf4j
 @Service
-public class KwProviderService {
+public class KwProviderService implements ApplicationRunner {
 
     @Autowired
     private KwProviderMapper kwProviderMapper;
@@ -37,8 +38,13 @@ public class KwProviderService {
         }
     }
 
-    /** 启动播种：表空且 yml kw.providers 非空 → 按 yml 现值插入；表不存在仅 warn 跳过不阻塞启动 */
-    @PostConstruct
+    /** 启动播种：SpringApplication.callRunners 强制实例化 runner，不受 lazy-initialization 影响 */
+    @Override
+    public void run(ApplicationArguments args) {
+        seed();
+    }
+
+    /** 表空且 yml kw.providers 非空 → 按 yml 现值插入；表不存在仅 warn 跳过不阻塞启动 */
     public void seed() {
         try {
             Long count = kwProviderMapper.selectCount(null);
