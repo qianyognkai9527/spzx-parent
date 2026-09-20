@@ -48,7 +48,6 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
     public void saveData(Product product) {
         Long id = AuthContextUtil.getUser().getId();
         product.setIsDeleted(0);
-        product.setCreateTime(LocalDateTime.now());
         product.setCreateBy(id);
         this.baseMapper.insert(product);
 
@@ -83,7 +82,6 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         Boolean isUpdateFactoryId = productFactoryId != null && !productFactoryId.equals(productFactoryIdDb);
 
         product.setUpdateBy(AuthContextUtil.getUser().getId());
-        product.setUpdateTime(LocalDateTime.now());
         this.baseMapper.updateById(product);
         if (isUpdateFactoryId && productFactoryIdDb != null && productFactoryId != null) {
             MallProductFactory mallProductFactory = mallProductFactoryMapper.selectById(productFactoryIdDb);

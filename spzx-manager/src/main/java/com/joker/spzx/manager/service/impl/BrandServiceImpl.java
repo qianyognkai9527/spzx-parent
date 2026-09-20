@@ -1,8 +1,9 @@
 package com.joker.spzx.manager.service.impl;
 
+import com.joker.spzx.manager.util.PageQueryUtil;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.manager.mapper.BrandMapper;
 import com.joker.spzx.manager.service.BrandService;
@@ -25,13 +26,11 @@ public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements
 
     @Override
     public IPage<Brand> findByPage(Integer pageNum, Integer limit, Integer platformType) {
-        IPage<Brand> page = new Page<>(pageNum, limit);
         LambdaQueryWrapper<Brand> wrapper = new LambdaQueryWrapper<Brand>()
                 .eq(Brand::getPlatformType, platformType)
                 .eq(Brand::getIsDeleted, 0)
                 .orderByDesc(Brand::getCreateTime);
-        page(page, wrapper);
-        return page;
+        return PageQueryUtil.page(this, pageNum, limit, wrapper);
     }
 
     @Override

@@ -1,5 +1,7 @@
 package com.joker.spzx.manager.service.impl;
 
+import com.joker.spzx.manager.util.PageQueryUtil;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -33,7 +35,7 @@ public class ProfitAnalysisRecordServiceImpl
         wrapper.eq(ProfitAnalysisRecord::getProductId, productId)
                 .eq(ProfitAnalysisRecord::getIsDeleted, 0)
                 .orderByDesc(ProfitAnalysisRecord::getCreateTime);
-        return page(new Page<>(pageNum, pageSize), wrapper);
+        return PageQueryUtil.page(this, pageNum, pageSize, wrapper);
     }
 
     @Override

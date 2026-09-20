@@ -27,31 +27,8 @@ public class SourceFactoryServiceImpl extends ServiceImpl<SourceFactoryMapper, S
     @Override
     public IPage<SourceFactory> pageList(SourceFactoryPageParam pageParam) {
         IPage<SourceFactory> page = pageParam.getPage();
-        LambdaQueryWrapper<SourceFactory> wrapper = lambdaQuery().getWrapper()
-                .eq(pageParam.getPlatformType() != null, SourceFactory::getPlatformType, pageParam.getPlatformType())
-                .like(StringUtils.isNotBlank(pageParam.getFactoryName()), SourceFactory::getFactoryName, pageParam.getFactoryName())
-                .eq(StringUtils.isNotBlank(pageParam.getCategoryName()), SourceFactory::getCategoryName, pageParam.getCategoryName())
-                .eq(StringUtils.isNotBlank(pageParam.getQualityGrade()), SourceFactory::getQualityGrade, pageParam.getQualityGrade())
-                .eq(SourceFactory::getIsDeleted, 0);
-        // 排序(默认按平均回头率降序)
-        String sortField = pageParam.getSortField();
-        String sortOrder = pageParam.getSortOrder();
-        String secondary;
-        if (sortField == null || "avgRepurchaseRate".equals(sortField)) {
-            secondary = "avg_repurchase_rate";
-        } else if ("trustYears".equals(sortField)) {
-            secondary = "trust_years";
-        } else if ("productCount".equals(sortField)) {
-            secondary = "product_count";
-        } else if ("totalSales".equals(sortField)) {
-            secondary = "total_sales";
-        } else {
-            secondary = "avg_repurchase_rate";
-        }
-        String dir = "asc".equalsIgnoreCase(sortOrder) ? "ASC" : "DESC";
-        // 优质等级优先(A>B>NULL), 再按指定字段
-        wrapper.last("ORDER BY CASE WHEN quality_grade='A' THEN 1 WHEN quality_grade='B' THEN 2 ELSE 3 END ASC, "
-                + secondary + " " + dir);
+        LambdaQueryWrapper<SourceFactory> wrapper = buildWrapper(pageParam);
+        wrapper.last(buildOrderSuffix(pageParam));
         page(page, wrapper);
         return page;
     }
@@ -85,12 +62,21 @@ public class SourceFactoryServiceImpl extends ServiceImpl<SourceFactoryMapper, S
 
     @Override
     public List<SourceFactory> exportList(SourceFactoryPageParam pageParam) {
-        LambdaQueryWrapper<SourceFactory> wrapper = lambdaQuery().getWrapper()
+        LambdaQueryWrapper<SourceFactory> wrapper = buildWrapper(pageParam);
+        wrapper.last(buildOrderSuffix(pageParam));
+        return list(wrapper);
+    }
+
+    private LambdaQueryWrapper<SourceFactory> buildWrapper(SourceFactoryPageParam pageParam) {
+        return lambdaQuery().getWrapper()
                 .eq(pageParam.getPlatformType() != null, SourceFactory::getPlatformType, pageParam.getPlatformType())
                 .like(StringUtils.isNotBlank(pageParam.getFactoryName()), SourceFactory::getFactoryName, pageParam.getFactoryName())
                 .eq(StringUtils.isNotBlank(pageParam.getCategoryName()), SourceFactory::getCategoryName, pageParam.getCategoryName())
                 .eq(StringUtils.isNotBlank(pageParam.getQualityGrade()), SourceFactory::getQualityGrade, pageParam.getQualityGrade())
                 .eq(SourceFactory::getIsDeleted, 0);
+    }
+
+    private String buildOrderSuffix(SourceFactoryPageParam pageParam) {
         String sortField = pageParam.getSortField();
         String sortOrder = pageParam.getSortOrder();
         String secondary;
@@ -106,9 +92,8 @@ public class SourceFactoryServiceImpl extends ServiceImpl<SourceFactoryMapper, S
             secondary = "avg_repurchase_rate";
         }
         String dir = "asc".equalsIgnoreCase(sortOrder) ? "ASC" : "DESC";
-        wrapper.last("ORDER BY CASE WHEN quality_grade='A' THEN 1 WHEN quality_grade='B' THEN 2 ELSE 3 END ASC, "
-                + secondary + " " + dir);
-        return list(wrapper);
+        return "ORDER BY CASE WHEN quality_grade='A' THEN 1 WHEN quality_grade='B' THEN 2 ELSE 3 END ASC, "
+                + secondary + " " + dir;
     }
 
     @Override

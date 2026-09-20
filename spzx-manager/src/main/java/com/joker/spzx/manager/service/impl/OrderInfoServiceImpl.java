@@ -1,8 +1,9 @@
 package com.joker.spzx.manager.service.impl;
 
+import com.joker.spzx.manager.util.PageQueryUtil;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.manager.mapper.OrderInfoMapper;
 import com.joker.spzx.manager.mapper.OrderStatisticsMapper;
@@ -58,13 +59,12 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
 
     @Override
     public IPage<OrderInfo> findByPage(Integer pageNum, Integer pageSize, Integer platformType, Integer orderStatus, String orderNo) {
-        Page<OrderInfo> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<OrderInfo> wrapper = new LambdaQueryWrapper<OrderInfo>()
                 .eq(platformType != null, OrderInfo::getPlatformType, platformType)
                 .eq(orderStatus != null, OrderInfo::getOrderStatus, orderStatus)
                 .like(StringUtils.hasText(orderNo), OrderInfo::getOrderNo, orderNo)
                 .eq(OrderInfo::getIsDeleted, 0)
                 .orderByDesc(OrderInfo::getCreateTime);
-        return this.page(page, wrapper);
+        return PageQueryUtil.page(this, pageNum, pageSize, wrapper);
     }
 }

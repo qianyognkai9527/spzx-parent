@@ -18,7 +18,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 
@@ -59,7 +58,6 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     @Transactional(rollbackFor = Exception.class)
     public void saveData(SysMenu sysMenu) {
         sysMenu.setIsDeleted(0);
-        sysMenu.setCreateTime(LocalDateTime.now());
         sysMenu.insert();
 
         updateSysRoleMenuIsHalf(sysMenu);
@@ -85,7 +83,6 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     @Override
     @CacheEvict(cacheNames = "menu:tree", allEntries = true)
     public void updateData(SysMenu sysMenu) {
-        sysMenu.setUpdateTime(LocalDateTime.now());
         sysMenu.updateById();
     }
 

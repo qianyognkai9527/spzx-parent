@@ -1,8 +1,9 @@
 package com.joker.spzx.manager.service.impl;
 
+import com.joker.spzx.manager.util.PageQueryUtil;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.manager.mapper.ProductSpecMapper;
 import com.joker.spzx.manager.service.ProductSpecService;
@@ -10,8 +11,6 @@ import com.joker.spzx.model.entity.product.ProductSpec;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -31,16 +30,13 @@ public class ProductSpecServiceImpl extends ServiceImpl<ProductSpecMapper, Produ
                 .eq(ProductSpec::getPlatformType, platformType)
                 .eq(ProductSpec::getIsDeleted, 0)
                 .orderByDesc(ProductSpec::getCreateTime);
-        IPage<ProductSpec> page = new Page<>(pageNum, limit);
-        list(page, queryWrapper);
-        return page;
+        return PageQueryUtil.page(this, pageNum, limit, queryWrapper);
     }
 
     @Override
     @CacheEvict(cacheNames = "productSpec:all", allEntries = true)
     public void saveData(ProductSpec productSpec) {
         productSpec.setIsDeleted(0);
-        productSpec.setCreateTime(LocalDateTime.now());
         productSpec.insert();
     }
 
@@ -56,7 +52,6 @@ public class ProductSpecServiceImpl extends ServiceImpl<ProductSpecMapper, Produ
     @Override
     @CacheEvict(cacheNames = "productSpec:all", allEntries = true)
     public void updateData(ProductSpec productSpec) {
-        productSpec.setUpdateTime(LocalDateTime.now());
         productSpec.updateById();
     }
 

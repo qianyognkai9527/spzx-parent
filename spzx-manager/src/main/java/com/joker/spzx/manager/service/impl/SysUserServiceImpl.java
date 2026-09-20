@@ -1,12 +1,13 @@
 package com.joker.spzx.manager.service.impl;
 
+import com.joker.spzx.manager.util.PageQueryUtil;
+
 import cn.hutool.captcha.CaptchaUtil;
 import cn.hutool.captcha.CircleCaptcha;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.common.exception.ServiceException;
 import com.joker.spzx.common.util.SqlConstants;
@@ -28,7 +29,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.DigestUtils;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -113,11 +113,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     @Override
     public IPage<SysUser> findByPage(SysUserDto sysUserDto, Integer pageNum, Integer pageSize) {
-        IPage<SysUser> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<SysUser> eq = lambdaQuery().getWrapper()
                 .like(StringUtils.isNotBlank(sysUserDto.getKeyword()), SysUser::getName, sysUserDto.getKeyword())
                 .eq(SysUser::getIsDeleted, 0);
-        return this.page(page, eq);
+        return PageQueryUtil.page(this, pageNum, pageSize, eq);
     }
 
     @Override
@@ -127,7 +126,6 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         sysUser.setPassword(s);
 
         sysUser.setIsDeleted(0);
-        sysUser.setCreateTime(LocalDateTime.now());
         this.save(sysUser);
     }
 
@@ -143,7 +141,6 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     @Override
     public void updateSysUser(SysUser sysUser) {
-        sysUser.setUpdateTime(LocalDateTime.now());
         this.updateById(sysUser);
     }
 
@@ -152,7 +149,6 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         SysUser sysUser = new SysUser();
         sysUser.setId(id);
         sysUser.setIsDeleted(1);
-        sysUser.setUpdateTime(LocalDateTime.now());
         this.updateById(sysUser);
     }
 

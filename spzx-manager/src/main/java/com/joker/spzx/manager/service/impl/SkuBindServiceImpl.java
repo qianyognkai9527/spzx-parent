@@ -37,14 +37,7 @@ public class SkuBindServiceImpl extends ServiceImpl<SkuBindRelationMapper, SkuBi
         sql.append("LEFT JOIN platform_product pp ON pp.id = ps.platform_product_id ");
         sql.append("LEFT JOIN source_product sp ON sp.id = ss.source_product_id ");
         sql.append("WHERE r.is_deleted = 0 ");
-        if (platformType != null) {
-            sql.append("AND ps.platform_type = ? ");
-            params.add(platformType);
-        }
-        if (status != null) {
-            sql.append("AND r.status = ? ");
-            params.add(status);
-        }
+        appendWhere(sql, params, platformType, status);
         sql.append("ORDER BY r.update_time DESC ");
         sql.append("LIMIT ?, ?");
         int offset = (pageNum - 1) * pageSize;
@@ -60,6 +53,12 @@ public class SkuBindServiceImpl extends ServiceImpl<SkuBindRelationMapper, SkuBi
         sql.append("SELECT COUNT(*) FROM sku_bind_relation r ");
         sql.append("LEFT JOIN platform_sku ps ON ps.id = r.platform_sku_id ");
         sql.append("WHERE r.is_deleted = 0 ");
+        appendWhere(sql, params, platformType, status);
+        Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, params.toArray());
+        return count != null ? count : 0L;
+    }
+
+    private void appendWhere(StringBuilder sql, List<Object> params, Integer platformType, Integer status) {
         if (platformType != null) {
             sql.append("AND ps.platform_type = ? ");
             params.add(platformType);
@@ -68,8 +67,6 @@ public class SkuBindServiceImpl extends ServiceImpl<SkuBindRelationMapper, SkuBi
             sql.append("AND r.status = ? ");
             params.add(status);
         }
-        Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, params.toArray());
-        return count != null ? count : 0L;
     }
 
     @Override

@@ -1,8 +1,6 @@
 package com.joker.spzx.manager.controller;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.joker.spzx.manager.service.SyncAlertService;
 import com.joker.spzx.model.entity.inventory.SyncAlert;
 import com.joker.spzx.model.vo.common.Result;
@@ -23,35 +21,23 @@ public class SyncAlertController {
     public Result<IPage<SyncAlert>> list(@RequestParam(defaultValue = "1") Integer pageNum,
                                          @RequestParam(defaultValue = "10") Integer pageSize,
                                          @RequestParam(required = false) Integer status) {
-        Page<SyncAlert> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<SyncAlert> wrapper = new LambdaQueryWrapper<SyncAlert>()
-                .eq(status != null, SyncAlert::getStatus, status)
-                .orderByDesc(SyncAlert::getCreateTime);
-        return Result.build(syncAlertService.page(page, wrapper));
+        return Result.build(syncAlertService.findByPage(pageNum, pageSize, status));
     }
 
     @PutMapping("/read/{id}")
     public Result<String> read(@PathVariable Long id) {
-        syncAlertService.lambdaUpdate()
-                .eq(SyncAlert::getId, id)
-                .set(SyncAlert::getStatus, SyncAlert.STATUS_READ)
-                .update();
+        syncAlertService.markRead(id);
         return Result.build(null);
     }
 
     @PutMapping("/readAll")
     public Result<String> readAll() {
-        syncAlertService.lambdaUpdate()
-                .eq(SyncAlert::getStatus, SyncAlert.STATUS_UNREAD)
-                .set(SyncAlert::getStatus, SyncAlert.STATUS_READ)
-                .update();
+        syncAlertService.markAllRead();
         return Result.build(null);
     }
 
     @GetMapping("/count")
     public Result<Long> count() {
-        return Result.build(syncAlertService.lambdaQuery()
-                .eq(SyncAlert::getStatus, SyncAlert.STATUS_UNREAD)
-                .count());
+        return Result.build(syncAlertService.unreadCount());
     }
 }

@@ -419,66 +419,27 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
         vo.setTotalPayAmount(totalPayAmount);
         vo.setProfitAmount(profitAmount);
 
-        // 总订单数卡片
-        ReportStatCardVo totalCard = new ReportStatCardVo();
-        totalCard.setCardType(CARD_TYPE_TOTAL);
-        totalCard.setCardTitle("总订单数");
-        totalCard.setCount(totalCount);
-        totalCard.setAmount(totalPayAmount);
-        totalCard.setColor("#409eff");
-        totalCard.setIcon("Document");
-        cards.add(totalCard);
-
-        // 补单单量卡片
-        ReportStatCardVo brushCard = new ReportStatCardVo();
-        brushCard.setCardType(CARD_TYPE_BRUSH);
-        brushCard.setCardTitle("补单单量");
-        brushCard.setCount(brushCount);
-        brushCard.setAmount(brushMoney);
-        brushCard.setColor("#e6a23c");
-        brushCard.setIcon("Warning");
-        cards.add(brushCard);
-
-        // 真实订单卡片
-        ReportStatCardVo realCard = new ReportStatCardVo();
-        realCard.setCardType(CARD_TYPE_REAL);
-        realCard.setCardTitle("真实订单");
-        realCard.setCount(successCount);
-        realCard.setAmount(successMoney);
-        realCard.setColor("#67c23a");
-        realCard.setIcon("CircleCheck");
-        cards.add(realCard);
-
-        // 退款订单卡片
-        ReportStatCardVo refundCard = new ReportStatCardVo();
-        refundCard.setCardType(CARD_TYPE_REFUND);
-        refundCard.setCardTitle("退款订单");
-        refundCard.setCount(refundCount);
-        refundCard.setAmount(refundMoney);
-        refundCard.setColor("#f56c6c");
-        refundCard.setIcon("CircleClose");
-        cards.add(refundCard);
-
-        // 待定订单卡片
-        ReportStatCardVo pendingCard = new ReportStatCardVo();
-        pendingCard.setCardType(CARD_TYPE_PENDING);
-        pendingCard.setCardTitle("待定订单");
-        pendingCard.setCount(pendingCount);
-        pendingCard.setColor("#909399");
-        pendingCard.setIcon("Question");
-        cards.add(pendingCard);
-
-        // 未知订单卡片
-        ReportStatCardVo unknownCard = new ReportStatCardVo();
-        unknownCard.setCardType(CARD_TYPE_UNKNOWN);
-        unknownCard.setCardTitle("未知订单");
-        unknownCard.setCount(unknownCount);
-        unknownCard.setColor("#9c27b0");
-        unknownCard.setIcon("Question");
-        cards.add(unknownCard);
+        // 统计卡片（顺序：总订单数/补单单量/真实订单/退款订单/待定订单/未知订单）
+        cards.add(buildCard(CARD_TYPE_TOTAL, "总订单数", totalCount, totalPayAmount, "#409eff", "Document"));
+        cards.add(buildCard(CARD_TYPE_BRUSH, "补单单量", brushCount, brushMoney, "#e6a23c", "Warning"));
+        cards.add(buildCard(CARD_TYPE_REAL, "真实订单", successCount, successMoney, "#67c23a", "CircleCheck"));
+        cards.add(buildCard(CARD_TYPE_REFUND, "退款订单", refundCount, refundMoney, "#f56c6c", "CircleClose"));
+        cards.add(buildCard(CARD_TYPE_PENDING, "待定订单", pendingCount, null, "#909399", "Question"));
+        cards.add(buildCard(CARD_TYPE_UNKNOWN, "未知订单", unknownCount, null, "#9c27b0", "Question"));
 
         vo.setStatCards(cards);
         return vo;
+    }
+
+    private ReportStatCardVo buildCard(String cardType, String cardTitle, Integer count, BigDecimal amount, String color, String icon) {
+        ReportStatCardVo card = new ReportStatCardVo();
+        card.setCardType(cardType);
+        card.setCardTitle(cardTitle);
+        card.setCount(count);
+        card.setAmount(amount);
+        card.setColor(color);
+        card.setIcon(icon);
+        return card;
     }
 
     @Override

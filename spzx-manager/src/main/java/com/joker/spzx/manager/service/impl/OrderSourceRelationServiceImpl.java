@@ -1,8 +1,9 @@
 package com.joker.spzx.manager.service.impl;
 
+import com.joker.spzx.manager.util.PageQueryUtil;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.common.exception.ServiceException;
 import com.joker.spzx.common.util.SqlConstants;
@@ -46,7 +47,7 @@ public class OrderSourceRelationServiceImpl extends ServiceImpl<OrderSourceRelat
                 .eq(queryDto.getSourceProductId() != null, OrderSourceRelation::getSourceProductId, queryDto.getSourceProductId())
                 .eq(queryDto.getOrderStatus() != null, OrderSourceRelation::getOrderStatus, queryDto.getOrderStatus())
                 .orderByDesc(OrderSourceRelation::getCreateTime);
-        return page(new Page<>(pageNum, pageSize), wrapper);
+        return PageQueryUtil.page(this, pageNum, pageSize, wrapper);
     }
 
     @Override

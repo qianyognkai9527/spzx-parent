@@ -1,8 +1,9 @@
 package com.joker.spzx.manager.service.impl;
 
+import com.joker.spzx.manager.util.PageQueryUtil;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.manager.mapper.MallProductMapper;
 import com.joker.spzx.manager.service.MallProductService;
@@ -29,14 +30,13 @@ public class MallProductServiceImpl extends ServiceImpl<MallProductMapper, MallP
 
     @Override
     public IPage<MallProduct> pageList(Integer pageNum, Integer pageSize, Integer platformType, String keyword, String createTimeBegin, String createTimeEnd) {
-        IPage<MallProduct> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<MallProduct> wrapper = new LambdaQueryWrapper<MallProduct>()
                 .eq(MallProduct::getPlatformType, platformType)
                 .like(StringUtils.isNotBlank(keyword), MallProduct::getTitle, keyword)
                 .ge(StringUtils.isNotBlank(createTimeBegin), MallProduct::getCreateTime, createTimeBegin)
                 .le(StringUtils.isNotBlank(createTimeEnd), MallProduct::getCreateTime, createTimeEnd)
                 .orderByDesc(MallProduct::getCreateTime);
-        return baseMapper.selectPage(page, wrapper);
+        return PageQueryUtil.page(this.baseMapper, pageNum, pageSize, wrapper);
     }
 
     @Override

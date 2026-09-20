@@ -1,8 +1,9 @@
 package com.joker.spzx.manager.service.impl;
 
+import com.joker.spzx.manager.util.PageQueryUtil;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.manager.mapper.MallProductTitleMapper;
 import com.joker.spzx.manager.service.MallProductTitleService;
@@ -26,9 +27,7 @@ public class MallProductTitleServiceImpl extends ServiceImpl<MallProductTitleMap
 
     @Override
     public IPage<MallProductTitle> pageList(Integer pageNum, Integer pageSize) {
-        IPage<MallProductTitle> page = new Page<>(pageNum, pageSize);
-        page(page);
-        return page;
+        return PageQueryUtil.page(this, pageNum, pageSize, null);
     }
 
     @Override

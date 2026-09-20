@@ -1,7 +1,5 @@
 package com.joker.spzx.manager.controller;
 
-import cn.hutool.json.JSONObject;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.joker.spzx.manager.service.FanqiePublishService;
 import com.joker.spzx.manager.service.NovelChapterService;
@@ -13,7 +11,6 @@ import com.joker.spzx.model.vo.common.ResultCodeEnum;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -65,26 +62,7 @@ public class NovelController {
             @RequestParam(required = false) Long novelId,
             @RequestParam(required = false) String title,
             @RequestParam(required = false) Integer status) {
-        Page<NovelChapter> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<NovelChapter> wrapper = new LambdaQueryWrapper<NovelChapter>()
-                .eq(novelId != null, NovelChapter::getNovelId, novelId)
-                .like(StringUtils.hasText(title), NovelChapter::getTitle, title)
-                .eq(status != null, NovelChapter::getStatus, status)
-                .eq(NovelChapter::getIsDeleted, 0)
-                .orderByAsc(NovelChapter::getChapterNum);
-        Page<NovelChapter> result = novelChapterService.page(page, wrapper);
-        Map<String, JSONObject> fanqieState = fanqiePublishService.readState();
-        if (!fanqieState.isEmpty()) {
-            for (NovelChapter c : result.getRecords()) {
-                JSONObject st = fanqieState.get(String.valueOf(c.getChapterNum()));
-                if (st != null) {
-                    c.setFanqieSchedule(st.getStr("schedule"));
-                    c.setFanqieStatus(st.getStr("status"));
-                    c.setFanqieError(st.getStr("error"));
-                }
-            }
-        }
-        return Result.build(result);
+        return Result.build(novelChapterService.findByPage(pageNum, pageSize, novelId, title, status));
     }
 
     @Operation(summary = "章节详情(含正文)")

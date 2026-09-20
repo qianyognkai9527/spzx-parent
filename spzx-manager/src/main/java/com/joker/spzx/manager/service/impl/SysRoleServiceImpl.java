@@ -1,8 +1,9 @@
 package com.joker.spzx.manager.service.impl;
 
+import com.joker.spzx.manager.util.PageQueryUtil;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.common.collect.Maps;
 import com.joker.spzx.manager.mapper.SysRoleMapper;
@@ -15,7 +16,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -37,23 +37,19 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
 
     @Override
     public IPage<SysRole> findByPage(SysRoleDto sysRoleDto, Integer pageNum, Integer pageSize) {
-        IPage<SysRole> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<SysRole> eq = lambdaQuery().getWrapper().like(StringUtils.isNotBlank(sysRoleDto.getRoleName()), SysRole::getRoleName, sysRoleDto.getRoleName())
                 .eq(SysRole::getIsDeleted, 0);
-        this.page(page, eq);
-        return page;
+        return PageQueryUtil.page(this, pageNum, pageSize, eq);
     }
 
     @Override
     public void saveSysRole(SysRole sysRole) {
         sysRole.setIsDeleted(0);
-        sysRole.setCreateTime(LocalDateTime.now());
         this.save(sysRole);
     }
 
     @Override
     public void updateSysRole(SysRole sysRole) {
-        sysRole.setUpdateTime(LocalDateTime.now());
         this.updateById(sysRole);
     }
 
@@ -62,7 +58,6 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
         SysRole sysRole = new SysRole() {{
             setId(id);
             setIsDeleted(1);
-            setUpdateTime(LocalDateTime.now());
         }};
         this.updateById(sysRole);
     }

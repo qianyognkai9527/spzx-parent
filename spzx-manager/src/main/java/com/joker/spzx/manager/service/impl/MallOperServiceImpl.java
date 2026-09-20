@@ -1,8 +1,9 @@
 package com.joker.spzx.manager.service.impl;
 
+import com.joker.spzx.manager.util.PageQueryUtil;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.manager.mapper.MallOperMapper;
 import com.joker.spzx.manager.service.MallOperService;
@@ -28,7 +29,6 @@ public class MallOperServiceImpl extends ServiceImpl<MallOperMapper, MallOper> i
 
     @Override
     public IPage<MallOper> getPage(Integer pageNum, Integer pageSize, BrushPersonDto brushPersonDto) {
-        IPage<MallOper> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<MallOper> wrapper = lambdaQuery().getWrapper()
                 .eq(MallOper::getType, brushPersonDto.getType());
         // 关键字搜索(简称或微信昵称)
@@ -48,8 +48,7 @@ public class MallOperServiceImpl extends ServiceImpl<MallOperMapper, MallOper> i
         if (brushPersonDto.getPlatformType() != null && brushPersonDto.getType() != null && brushPersonDto.getType() == 2) {
             wrapper.eq(MallOper::getPlatformType, brushPersonDto.getPlatformType());
         }
-        page(page, wrapper);
-        return page;
+        return PageQueryUtil.page(this, pageNum, pageSize, wrapper);
     }
 
     @Override

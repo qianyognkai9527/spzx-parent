@@ -1,8 +1,9 @@
 package com.joker.spzx.manager.service.impl;
 
+import com.joker.spzx.manager.util.PageQueryUtil;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.manager.mapper.SysDictTypeMapper;
 import com.joker.spzx.manager.service.SysDictTypeService;
@@ -27,14 +28,10 @@ public class SysDictTypeServiceImpl extends ServiceImpl<SysDictTypeMapper, SysDi
 
     @Override
     public IPage<SysDictType> getPage(Integer pageNum, Integer pageSize, DictQueryDto dictQueryDto) {
-        IPage<SysDictType> page = new Page<>(pageNum, pageSize);
-
         LambdaQueryWrapper<SysDictType> like = lambdaQuery().getWrapper().eq(SysDictType::getStatus, SysDictType.STATUS_NORMAL)
                 .like(StringUtils.isNotBlank(dictQueryDto.getDictName()), SysDictType::getDictName, dictQueryDto.getDictName())
                 .like(StringUtils.isNotBlank(dictQueryDto.getDictType()), SysDictType::getDictType, dictQueryDto.getDictType());
-        page(page, like);
-
-        return page;
+        return PageQueryUtil.page(this, pageNum, pageSize, like);
     }
 
     @Override

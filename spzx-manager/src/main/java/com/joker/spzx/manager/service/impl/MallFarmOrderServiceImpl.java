@@ -1,13 +1,14 @@
 package com.joker.spzx.manager.service.impl;
 
+import com.joker.spzx.manager.util.PageQueryUtil;
+
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.common.exception.ServiceException;
-import com.joker.spzx.manager.excel.SecondOrderExcelBo;
+import com.joker.spzx.manager.excel.OrderSimpleExcelBo;
 import com.joker.spzx.manager.mapper.MallFarmOrderMapper;
 import com.joker.spzx.manager.mapper.MallOrderResourceMapper;
 import com.joker.spzx.manager.mapper.MallProductPicVideoMapper;
@@ -74,15 +75,11 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
 
     @Override
     public IPage<MallFarmOrder> findByPage(FarmOrderPageDto farmOrderPageDto) {
-
-
-        IPage<MallFarmOrder> page = new Page<>(farmOrderPageDto.getPageNum(), farmOrderPageDto.getPageSize());
         LambdaQueryWrapper<MallFarmOrder> eq = lambdaQuery().getWrapper()
                 .eq(farmOrderPageDto.getPlatformType() != null, MallFarmOrder::getPlatformType, farmOrderPageDto.getPlatformType())
                 .eq(MallFarmOrder::getProductId, farmOrderPageDto.getProductId())
                 .eq(Objects.nonNull(farmOrderPageDto.getStatus()), MallFarmOrder::getStatus, farmOrderPageDto.getStatus());
-        page(page, eq);
-        return page;
+        return PageQueryUtil.page(this, farmOrderPageDto.getPageNum(), farmOrderPageDto.getPageSize(), eq);
     }
 
     @Override
@@ -226,13 +223,13 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void importOrderData(MultipartFile file, Map<String, Object> bodyMap) {
-        ExcelResult<SecondOrderExcelBo> excelResult = ExcelUtil.importExcel(file.getInputStream(), SecondOrderExcelBo.class, new DefaultExcelListener<>(true));
+        ExcelResult<OrderSimpleExcelBo> excelResult = ExcelUtil.importExcel(file.getInputStream(), OrderSimpleExcelBo.class, new DefaultExcelListener<>(true));
         if (!excelResult.isSuccess()) {
             List<String> errorList = excelResult.getErrorList();
             throw new ServiceException(202, "数据存在异常：" + errorList);
         }
         MallFarmOrder mallFarmOrder = JSONUtil.toBean(JSONUtil.toJsonStr(bodyMap), MallFarmOrder.class);
-        List<SecondOrderExcelBo> list = excelResult.getList();
+        List<OrderSimpleExcelBo> list = excelResult.getList();
         Long loginUserId = AuthContextUtil.getUser().getId();
         List<MallFarmOrder> collect = list.stream().map(bo -> {
             MallFarmOrder tmpOrder = new MallFarmOrder();
