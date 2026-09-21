@@ -45,13 +45,13 @@ public class LoginAuthInterceptor implements HandlerInterceptor {
             log.warn("用户未登录，缺少token");
             return false;
         }
-        String sysUserStr = redisTemplate.opsForValue().get("user:login:" + token);
+        String sysUserStr = redisTemplate.opsForValue().get(Constant.USER_LOGIN_REDIS_PREFIX + token);
         if (StringUtils.isBlank(sysUserStr)) {
             responseNoLoginInfo(response);
             log.warn("用户未登录，token无效");
             return false;
         }
-        redisTemplate.expire("user:login:" + token, 7, TimeUnit.DAYS);
+        redisTemplate.expire(Constant.USER_LOGIN_REDIS_PREFIX + token, 7, TimeUnit.DAYS);
 
         SysUser sysUser = JSONObject.parseObject(sysUserStr, SysUser.class);
         AuthContextUtil.setUser(sysUser);

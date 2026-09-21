@@ -23,6 +23,7 @@ import com.joker.spzx.model.vo.system.WxLoginBindInfoVo;
 import com.joker.spzx.model.vo.system.WxLoginCreateVo;
 import com.joker.spzx.model.vo.system.WxLoginStatusVo;
 import com.joker.spzx.utils.AuthContextUtil;
+import com.joker.spzx.utils.Constant;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,7 +44,6 @@ import java.util.concurrent.TimeUnit;
 public class WxLoginServiceImpl implements WxLoginService {
 
     private static final String QR_REDIS_PREFIX = "qr:login:";
-    private static final String USER_LOGIN_REDIS_PREFIX = "user:login:";
 
     @Autowired
     private WxLoginProperties wxLoginProperties;
@@ -209,7 +209,7 @@ public class WxLoginServiceImpl implements WxLoginService {
             }
 
             String token = UUID.randomUUID().toString().replace("-", "");
-            redisTemplate.opsForValue().set(USER_LOGIN_REDIS_PREFIX + token,
+            redisTemplate.opsForValue().set(Constant.USER_LOGIN_REDIS_PREFIX + token,
                     JSONObject.toJSONString(sysUser), 365, TimeUnit.DAYS);
 
             qrData.put("status", 2);
@@ -304,7 +304,7 @@ public class WxLoginServiceImpl implements WxLoginService {
         }
 
         String token = UUID.randomUUID().toString().replace("-", "");
-        redisTemplate.opsForValue().set(USER_LOGIN_REDIS_PREFIX + token,
+        redisTemplate.opsForValue().set(Constant.USER_LOGIN_REDIS_PREFIX + token,
                 JSONObject.toJSONString(sysUser), 365, TimeUnit.DAYS);
 
         qrData.put("status", 2);
@@ -415,7 +415,7 @@ public class WxLoginServiceImpl implements WxLoginService {
             SysUser sysUser = sysUserMapper.selectById(wechatUser.getUserId());
             if (sysUser != null && sysUser.getIsDeleted() == 0) {
                 String token = UUID.randomUUID().toString().replace("-", "");
-                redisTemplate.opsForValue().set(USER_LOGIN_REDIS_PREFIX + token,
+                redisTemplate.opsForValue().set(Constant.USER_LOGIN_REDIS_PREFIX + token,
                         JSONObject.toJSONString(sysUser), 365, TimeUnit.DAYS);
                 qrData.put("status", 2);
                 qrData.put("token", token);

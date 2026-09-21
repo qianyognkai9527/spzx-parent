@@ -8,6 +8,8 @@ public class Constant {
 
     private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 
+    public static final String USER_LOGIN_REDIS_PREFIX = "user:login:";
+
     public static final List<String> whiteList = List.of(
             "/admin/system/index/login",
             "/admin/system/index/genVarifyCode",

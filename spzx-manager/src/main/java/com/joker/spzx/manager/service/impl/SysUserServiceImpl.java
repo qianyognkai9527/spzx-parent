@@ -22,6 +22,7 @@ import com.joker.spzx.model.entity.system.SysUser;
 import com.joker.spzx.model.vo.common.ResultCodeEnum;
 import com.joker.spzx.model.vo.system.LoginVo;
 import com.joker.spzx.model.vo.system.ValidateCodeVo;
+import com.joker.spzx.utils.Constant;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -58,13 +59,13 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
         //校验验证码是否正确
         String codeKey = loginDto.getCodeKey();
-        String s1 = redisTemplate.opsForValue().get("user:login:validatecode:" + codeKey);
+        String s1 = redisTemplate.opsForValue().get(Constant.USER_LOGIN_REDIS_PREFIX + "validatecode:" + codeKey);
         if (!StringUtils.equalsIgnoreCase(loginDto.getCaptcha(), s1)) {
             throw new ServiceException(ResultCodeEnum.VALIDATECODE_ERROR);
         }
         // 验证通过删除redis中的验证码
 
-        redisTemplate.delete("user:login:validatecode:" + codeKey);
+        redisTemplate.delete(Constant.USER_LOGIN_REDIS_PREFIX + "validatecode:" + codeKey);
 
         LambdaQueryWrapper<SysUser> eq = lambdaQuery().getWrapper().eq(SysUser::getUsername, loginDto.getUserName())
                 .eq(SysUser::getIsDeleted, 0)
@@ -78,7 +79,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new ServiceException(ResultCodeEnum.LOGIN_ERROR);
         }
         String replace = UUID.randomUUID().toString().replace("-", "");
-        redisTemplate.opsForValue().set("user:login:" + replace, JSONObject.toJSONString(one), 7, TimeUnit.DAYS);
+        redisTemplate.opsForValue().set(Constant.USER_LOGIN_REDIS_PREFIX + replace, JSONObject.toJSONString(one), 7, TimeUnit.DAYS);
         LoginVo loginVo = new LoginVo();
         loginVo.setToken(replace);
         return loginVo;
@@ -93,7 +94,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
         String key = UUID.randomUUID().toString().replace("-", "");
         // 将验证码存储到Redis中
-        redisTemplate.opsForValue().set("user:login:validatecode:" + key, code, 5, TimeUnit.MINUTES);
+        redisTemplate.opsForValue().set(Constant.USER_LOGIN_REDIS_PREFIX + "validatecode:" + key, code, 5, TimeUnit.MINUTES);
         ValidateCodeVo validateCodeVo = new ValidateCodeVo();
         validateCodeVo.setCodeKey(key);
         validateCodeVo.setCodeValue("data:image/png;base64," + imageBase64);
@@ -102,13 +103,13 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     @Override
     public SysUser getUserInfo(String token) {
-        String userJson = redisTemplate.opsForValue().get("user:login:" + token);
+        String userJson = redisTemplate.opsForValue().get(Constant.USER_LOGIN_REDIS_PREFIX + token);
         return JSON.parseObject(userJson, SysUser.class);
     }
 
     @Override
     public void logout(String token) {
-        redisTemplate.delete("user:login:" + token);
+        redisTemplate.delete(Constant.USER_LOGIN_REDIS_PREFIX + token);
     }
 
     @Override
