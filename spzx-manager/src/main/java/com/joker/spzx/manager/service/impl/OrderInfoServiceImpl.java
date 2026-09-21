@@ -63,7 +63,6 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
                 .eq(platformType != null, OrderInfo::getPlatformType, platformType)
                 .eq(orderStatus != null, OrderInfo::getOrderStatus, orderStatus)
                 .like(StringUtils.hasText(orderNo), OrderInfo::getOrderNo, orderNo)
-                .eq(OrderInfo::getIsDeleted, 0)
                 .orderByDesc(OrderInfo::getCreateTime);
         return PageQueryUtil.page(this, pageNum, pageSize, wrapper);
     }

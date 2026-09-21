@@ -39,7 +39,7 @@ public class OrderSourceRelationServiceImpl extends ServiceImpl<OrderSourceRelat
     @Override
     public IPage<OrderSourceRelation> findByPage(Integer pageNum, Integer pageSize, OrderSourceRelation queryDto) {
         LambdaQueryWrapper<OrderSourceRelation> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(OrderSourceRelation::getIsDeleted, 0)
+        wrapper
                 .eq(queryDto.getPlatformType() != null, OrderSourceRelation::getPlatformType, queryDto.getPlatformType())
                 .eq(StringUtils.hasText(queryDto.getOrderNo()), OrderSourceRelation::getOrderNo, queryDto.getOrderNo())
                 .eq(StringUtils.hasText(queryDto.getSourceOrderNo()), OrderSourceRelation::getSourceOrderNo, queryDto.getSourceOrderNo())
@@ -53,8 +53,7 @@ public class OrderSourceRelationServiceImpl extends ServiceImpl<OrderSourceRelat
     @Override
     public OrderSourceRelation getById(Long id) {
         LambdaQueryWrapper<OrderSourceRelation> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(OrderSourceRelation::getId, id)
-                .eq(OrderSourceRelation::getIsDeleted, 0);
+        wrapper.eq(OrderSourceRelation::getId, id);
         return getOne(wrapper);
     }
 
@@ -75,10 +74,7 @@ public class OrderSourceRelationServiceImpl extends ServiceImpl<OrderSourceRelat
 
     @Override
     public void deleteById(Long id) {
-        OrderSourceRelation orderSourceRelation = new OrderSourceRelation();
-        orderSourceRelation.setId(id);
-        orderSourceRelation.setIsDeleted(1);
-        updateById(orderSourceRelation);
+        this.removeById(id);
     }
 
     /**
@@ -86,7 +82,7 @@ public class OrderSourceRelationServiceImpl extends ServiceImpl<OrderSourceRelat
      */
     private void checkDuplicate(OrderSourceRelation entity, Long excludeId) {
         LambdaQueryWrapper<OrderSourceRelation> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(OrderSourceRelation::getIsDeleted, 0)
+        wrapper
                 .eq(OrderSourceRelation::getPlatformType, entity.getPlatformType())
                 .eq(OrderSourceRelation::getOrderNo, entity.getOrderNo())
                 .eq(OrderSourceRelation::getSourceOrderNo, entity.getSourceOrderNo())

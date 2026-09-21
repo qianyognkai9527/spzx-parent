@@ -32,7 +32,7 @@ public class ProductBindRelationServiceImpl extends ServiceImpl<ProductBindRelat
     @Override
     public List<Product> findUnBindSourceProduct(ProductBindQueryDto keyword) {
         LambdaQueryWrapper<Product> productQueryWrapper = new LambdaQueryWrapper<>();
-        productQueryWrapper.eq(Product::getIsDeleted, 0)
+        productQueryWrapper
                 .like(StringUtils.isNotBlank(keyword.getSourceProductName()), Product::getSourceProductName, keyword);
         productQueryWrapper.orderByDesc(Product::getCreateTime);
         return productMapper.selectList(productQueryWrapper);
@@ -61,8 +61,7 @@ public class ProductBindRelationServiceImpl extends ServiceImpl<ProductBindRelat
                 .map(ProductBindRelation::getSourceProductid)
                 .collect(java.util.stream.Collectors.toList());
         LambdaQueryWrapper<Product> productWrapper = new LambdaQueryWrapper<>();
-        productWrapper.in(Product::getId, sourceProductIds)
-                .eq(Product::getIsDeleted, 0);
+        productWrapper.in(Product::getId, sourceProductIds);
         return productMapper.selectList(productWrapper);
     }
 }

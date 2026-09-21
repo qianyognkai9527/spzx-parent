@@ -259,7 +259,6 @@ public class WxLoginServiceImpl implements WxLoginService {
 
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<SysUser>()
                 .eq(SysUser::getUsername, dto.getUserName())
-                .eq(SysUser::getIsDeleted, 0)
                 .last(SqlConstants.LIMIT_1);
         SysUser sysUser = sysUserMapper.selectOne(wrapper);
         if (Objects.isNull(sysUser)) {
@@ -332,7 +331,6 @@ public class WxLoginServiceImpl implements WxLoginService {
         LambdaUpdateWrapper<SysWechatUser> wrapper = new LambdaUpdateWrapper<SysWechatUser>()
                 .eq(SysWechatUser::getUserId, currentUser.getId())
                 .eq(SysWechatUser::getBindStatus, 1)
-                .eq(SysWechatUser::getIsDeleted, 0)
                 .set(SysWechatUser::getBindStatus, 0)
                 .set(SysWechatUser::getUpdateTime, LocalDateTime.now());
         sysWechatUserMapper.update(null, wrapper);
@@ -351,7 +349,6 @@ public class WxLoginServiceImpl implements WxLoginService {
         LambdaQueryWrapper<SysWechatUser> wrapper = new LambdaQueryWrapper<SysWechatUser>()
                 .eq(SysWechatUser::getUserId, currentUser.getId())
                 .eq(SysWechatUser::getBindStatus, 1)
-                .eq(SysWechatUser::getIsDeleted, 0)
                 .last(SqlConstants.LIMIT_1);
         SysWechatUser wechatUser = sysWechatUserMapper.selectOne(wrapper);
 
@@ -455,7 +452,6 @@ public class WxLoginServiceImpl implements WxLoginService {
         LambdaQueryWrapper<SysWechatUser> wrapper = new LambdaQueryWrapper<SysWechatUser>()
                 .eq(SysWechatUser::getAppid, wxLoginProperties.getAppId())
                 .eq(SysWechatUser::getOpenid, openid)
-                .eq(SysWechatUser::getIsDeleted, 0)
                 .last(SqlConstants.LIMIT_1);
         return sysWechatUserMapper.selectOne(wrapper);
     }

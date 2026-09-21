@@ -30,8 +30,7 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> i
     public List<Category> findByParentId(Long parentId, Integer platformType) {
         LambdaQueryWrapper<Category> wrapper = new LambdaQueryWrapper<Category>()
                 .eq(Category::getPlatformType, platformType)
-                .eq(Category::getParentId, parentId)
-                .eq(Category::getIsDeleted, 0);
+                .eq(Category::getParentId, parentId);
         List<Category> list = list(wrapper);
         if (CollectionUtils.isEmpty(list)) {
             return list;

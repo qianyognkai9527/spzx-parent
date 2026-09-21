@@ -28,7 +28,6 @@ public class ProductSpecServiceImpl extends ServiceImpl<ProductSpecMapper, Produ
     public IPage<ProductSpec> findByPage(Integer pageNum, Integer limit, Integer platformType) {
         LambdaQueryWrapper<ProductSpec> queryWrapper = new LambdaQueryWrapper<ProductSpec>()
                 .eq(ProductSpec::getPlatformType, platformType)
-                .eq(ProductSpec::getIsDeleted, 0)
                 .orderByDesc(ProductSpec::getCreateTime);
         return PageQueryUtil.page(this, pageNum, limit, queryWrapper);
     }
@@ -43,10 +42,7 @@ public class ProductSpecServiceImpl extends ServiceImpl<ProductSpecMapper, Produ
     @Override
     @CacheEvict(cacheNames = "productSpec:all", allEntries = true)
     public void deleteById(Long id) {
-        ProductSpec productSpec = new ProductSpec();
-        productSpec.setId(id);
-        productSpec.setIsDeleted(1);
-        productSpec.updateById();
+        this.removeById(id);
     }
 
     @Override
@@ -59,8 +55,7 @@ public class ProductSpecServiceImpl extends ServiceImpl<ProductSpecMapper, Produ
     @Cacheable(cacheNames = "productSpec:all", key = "#platformType", unless = "#result == null || #result.isEmpty()")
     public List<ProductSpec> findAll(Integer platformType) {
         LambdaQueryWrapper<ProductSpec> wrapper = new LambdaQueryWrapper<ProductSpec>()
-                .eq(ProductSpec::getPlatformType, platformType)
-                .eq(ProductSpec::getIsDeleted, 0);
+                .eq(ProductSpec::getPlatformType, platformType);
         return list(wrapper);
     }
 }

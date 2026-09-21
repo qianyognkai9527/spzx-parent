@@ -84,7 +84,6 @@ public class SkuBindServiceImpl extends ServiceImpl<SkuBindRelationMapper, SkuBi
     public boolean confirm(Long id) {
         return update(new LambdaUpdateWrapper<SkuBindRelation>()
                 .eq(SkuBindRelation::getId, id)
-                .eq(SkuBindRelation::getIsDeleted, 0)
                 .set(SkuBindRelation::getStatus, 1)
                 .set(SkuBindRelation::getConfirmTime, new Date()));
     }
@@ -93,7 +92,6 @@ public class SkuBindServiceImpl extends ServiceImpl<SkuBindRelationMapper, SkuBi
     public boolean mismatch(Long id) {
         return update(new LambdaUpdateWrapper<SkuBindRelation>()
                 .eq(SkuBindRelation::getId, id)
-                .eq(SkuBindRelation::getIsDeleted, 0)
                 .set(SkuBindRelation::getStatus, 2));
     }
 
@@ -101,7 +99,6 @@ public class SkuBindServiceImpl extends ServiceImpl<SkuBindRelationMapper, SkuBi
     public boolean rebind(Long id, Long sourceSkuId) {
         return update(new LambdaUpdateWrapper<SkuBindRelation>()
                 .eq(SkuBindRelation::getId, id)
-                .eq(SkuBindRelation::getIsDeleted, 0)
                 .set(SkuBindRelation::getSourceSkuId, sourceSkuId)
                 .set(SkuBindRelation::getStatus, 1)
                 .set(SkuBindRelation::getMatchType, "manual"));

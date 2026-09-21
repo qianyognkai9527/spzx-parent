@@ -33,7 +33,6 @@ public class ProfitAnalysisRecordServiceImpl
     public Page<ProfitAnalysisRecord> pageByProduct(Long productId, Integer pageNum, Integer pageSize) {
         LambdaQueryWrapper<ProfitAnalysisRecord> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ProfitAnalysisRecord::getProductId, productId)
-                .eq(ProfitAnalysisRecord::getIsDeleted, 0)
                 .orderByDesc(ProfitAnalysisRecord::getCreateTime);
         return PageQueryUtil.page(this, pageNum, pageSize, wrapper);
     }
@@ -42,7 +41,6 @@ public class ProfitAnalysisRecordServiceImpl
     public List<ProfitAnalysisRecord> listByProduct(Long productId) {
         LambdaQueryWrapper<ProfitAnalysisRecord> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ProfitAnalysisRecord::getProductId, productId)
-                .eq(ProfitAnalysisRecord::getIsDeleted, 0)
                 .orderByDesc(ProfitAnalysisRecord::getCreateTime);
         return list(wrapper);
     }
@@ -69,14 +67,12 @@ public class ProfitAnalysisRecordServiceImpl
         LambdaQueryWrapper<FeeBenchmark> w = new LambdaQueryWrapper<>();
         w.eq(FeeBenchmark::getPlatformType, platformType)
                 .eq(category != null && !category.isEmpty(), FeeBenchmark::getCategoryName, category)
-                .eq(FeeBenchmark::getIsDeleted, 0)
                 .last(SqlConstants.LIMIT_1);
         FeeBenchmark hit = feeBenchmarkMapper.selectOne(w);
         if (hit != null) return hit;
         // 兜底：同平台任意类目
         w = new LambdaQueryWrapper<>();
         w.eq(FeeBenchmark::getPlatformType, platformType)
-                .eq(FeeBenchmark::getIsDeleted, 0)
                 .last(SqlConstants.LIMIT_1);
         return feeBenchmarkMapper.selectOne(w);
     }

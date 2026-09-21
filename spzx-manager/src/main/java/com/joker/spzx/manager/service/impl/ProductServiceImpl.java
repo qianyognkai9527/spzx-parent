@@ -1,6 +1,6 @@
 package com.joker.spzx.manager.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.manager.mapper.MallProductFactoryMapper;
@@ -101,15 +101,11 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteData(Long id) {
-        Product product = new Product();
-        product.setId(id);
-        product.setIsDeleted(1);
-        this.baseMapper.updateById(product);
+        this.removeById(id);
 
-        LambdaUpdateWrapper<ProductDetails> set1 = new LambdaUpdateWrapper<ProductDetails>()
-                .eq(ProductDetails::getProductId, id)
-                .set(ProductDetails::getIsDeleted, 1);
-        productDetailsMapper.update(null, set1);
+        LambdaQueryWrapper<ProductDetails> detailsWrapper = new LambdaQueryWrapper<ProductDetails>()
+                .eq(ProductDetails::getProductId, id);
+        productDetailsMapper.delete(detailsWrapper);
 
     }
 

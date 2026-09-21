@@ -68,7 +68,6 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         redisTemplate.delete(Constant.USER_LOGIN_REDIS_PREFIX + "validatecode:" + codeKey);
 
         LambdaQueryWrapper<SysUser> eq = lambdaQuery().getWrapper().eq(SysUser::getUsername, loginDto.getUserName())
-                .eq(SysUser::getIsDeleted, 0)
                 .last(SqlConstants.LIMIT_1);
         SysUser one = this.getOne(eq);
         if (Objects.isNull(one)) {
@@ -115,8 +114,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     @Override
     public IPage<SysUser> findByPage(SysUserDto sysUserDto, Integer pageNum, Integer pageSize) {
         LambdaQueryWrapper<SysUser> eq = lambdaQuery().getWrapper()
-                .like(StringUtils.isNotBlank(sysUserDto.getKeyword()), SysUser::getName, sysUserDto.getKeyword())
-                .eq(SysUser::getIsDeleted, 0);
+                .like(StringUtils.isNotBlank(sysUserDto.getKeyword()), SysUser::getName, sysUserDto.getKeyword());
         return PageQueryUtil.page(this, pageNum, pageSize, eq);
     }
 
@@ -132,7 +130,6 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     private void verifyUserName(String username) {
         LambdaQueryWrapper<SysUser> last = lambdaQuery().getWrapper().eq(SysUser::getUsername, username)
-                .eq(SysUser::getIsDeleted, 0)
                 .last(SqlConstants.LIMIT_1);
         SysUser one = this.getOne(last);
         if (Objects.nonNull(one)) {
@@ -147,10 +144,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     @Override
     public void deleteSysUser(Long id) {
-        SysUser sysUser = new SysUser();
-        sysUser.setId(id);
-        sysUser.setIsDeleted(1);
-        this.updateById(sysUser);
+        this.removeById(id);
     }
 
     @Override

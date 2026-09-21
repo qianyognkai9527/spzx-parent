@@ -42,7 +42,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     @Override
     @Cacheable(cacheNames = "menu:tree", key = "'tree'", unless = "#result == null || #result.isEmpty()")
     public List<SysMenu> getTreeNodes() {
-        LambdaQueryWrapper<SysMenu> eq = lambdaQuery().getWrapper().eq(SysMenu::getIsDeleted, 0)
+        LambdaQueryWrapper<SysMenu> eq = lambdaQuery().getWrapper()
                 .eq(SysMenu::getStatus, 1)
                 .orderByAsc(SysMenu::getSortValue);
         List<SysMenu> list = list(eq);
@@ -65,7 +65,6 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
 
     private void updateSysRoleMenuIsHalf(SysMenu sysMenu) {
         LambdaQueryWrapper<SysMenu> eq = lambdaQuery().getWrapper().eq(SysMenu::getId, sysMenu.getParentId())
-                .eq(SysMenu::getIsDeleted, 0)
                 .last(SqlConstants.LIMIT_1);
         SysMenu one = this.getOne(eq);
         if (Objects.nonNull(one)) {
@@ -89,11 +88,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     @Override
     @CacheEvict(cacheNames = "menu:tree", allEntries = true)
     public void deleteData(Long id) {
-        SysMenu sysMenu = new SysMenu() {{
-            setId(id);
-            setIsDeleted(1);
-        }};
-        sysMenu.updateById();
+        this.removeById(id);
     }
 
     @Override

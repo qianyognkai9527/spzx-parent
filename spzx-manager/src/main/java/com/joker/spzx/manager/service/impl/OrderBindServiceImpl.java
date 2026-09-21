@@ -19,7 +19,6 @@ public class OrderBindServiceImpl extends ServiceImpl<OrderBindMapper, OrderBind
                 .like(StringUtils.hasText(localOrderNo), OrderBind::getLocalOrderNo, localOrderNo)
                 .like(StringUtils.hasText(sourceOrderNo), OrderBind::getSourceOrderNo, sourceOrderNo)
                 .eq(bindStatus != null, OrderBind::getBindStatus, bindStatus)
-                .eq(OrderBind::getIsDeleted, 0)
                 .orderByDesc(OrderBind::getCreateTime);
         return PageQueryUtil.page(this, pageNum, pageSize, wrapper);
     }

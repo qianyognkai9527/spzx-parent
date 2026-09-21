@@ -28,7 +28,6 @@ public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements
     public IPage<Brand> findByPage(Integer pageNum, Integer limit, Integer platformType) {
         LambdaQueryWrapper<Brand> wrapper = new LambdaQueryWrapper<Brand>()
                 .eq(Brand::getPlatformType, platformType)
-                .eq(Brand::getIsDeleted, 0)
                 .orderByDesc(Brand::getCreateTime);
         return PageQueryUtil.page(this, pageNum, limit, wrapper);
     }
@@ -37,8 +36,7 @@ public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements
     @Cacheable(cacheNames = "brand:all", key = "#platformType", unless = "#result == null || #result.isEmpty()")
     public List<Brand> findAll(Integer platformType) {
         LambdaQueryWrapper<Brand> wrapper = new LambdaQueryWrapper<Brand>()
-                .eq(Brand::getPlatformType, platformType)
-                .eq(Brand::getIsDeleted, 0);
+                .eq(Brand::getPlatformType, platformType);
         return list(wrapper);
     }
 }

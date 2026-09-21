@@ -27,7 +27,6 @@ public class NovelChapterServiceImpl extends ServiceImpl<NovelChapterMapper, Nov
                 .eq(novelId != null, NovelChapter::getNovelId, novelId)
                 .like(StringUtils.hasText(title), NovelChapter::getTitle, title)
                 .eq(status != null, NovelChapter::getStatus, status)
-                .eq(NovelChapter::getIsDeleted, 0)
                 .orderByAsc(NovelChapter::getChapterNum);
         Page<NovelChapter> result = PageQueryUtil.page(this, pageNum, pageSize, wrapper);
         Map<String, JSONObject> fanqieState = fanqiePublishService.readState();

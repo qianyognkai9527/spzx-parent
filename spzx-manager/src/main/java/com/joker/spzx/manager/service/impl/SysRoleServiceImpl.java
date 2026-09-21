@@ -37,8 +37,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
 
     @Override
     public IPage<SysRole> findByPage(SysRoleDto sysRoleDto, Integer pageNum, Integer pageSize) {
-        LambdaQueryWrapper<SysRole> eq = lambdaQuery().getWrapper().like(StringUtils.isNotBlank(sysRoleDto.getRoleName()), SysRole::getRoleName, sysRoleDto.getRoleName())
-                .eq(SysRole::getIsDeleted, 0);
+        LambdaQueryWrapper<SysRole> eq = lambdaQuery().getWrapper().like(StringUtils.isNotBlank(sysRoleDto.getRoleName()), SysRole::getRoleName, sysRoleDto.getRoleName());
         return PageQueryUtil.page(this, pageNum, pageSize, eq);
     }
 
@@ -55,17 +54,13 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
 
     @Override
     public void deleteSysRole(Long id) {
-        SysRole sysRole = new SysRole() {{
-            setId(id);
-            setIsDeleted(1);
-        }};
-        this.updateById(sysRole);
+        this.removeById(id);
     }
 
     @Override
     public Map<String, Object> getList(Long sysRoleDto) {
         Map<String, Object> map = Maps.newHashMap();
-        LambdaQueryWrapper<SysRole> eq = lambdaQuery().getWrapper().eq(SysRole::getIsDeleted, 0);
+        LambdaQueryWrapper<SysRole> eq = new LambdaQueryWrapper<>();
         List<SysRole> list = list(eq);
         map.put("allRolesList", list);
         LambdaQueryWrapper<SysRoleUser> lambdaQueryWrapper = new LambdaQueryWrapper<SysRoleUser>().eq(SysRoleUser::getUserId, sysRoleDto);
