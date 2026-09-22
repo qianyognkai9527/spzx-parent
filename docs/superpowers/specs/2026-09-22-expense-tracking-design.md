@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS expense_order_tag (
 | GET | `/tag/all` | 返回全部标签（含停用，前端下拉只取 status=1 的） |
 | POST/PUT/DELETE | `/tag`、`/tag/{id}` | 标签 CRUD（删除校验：有订单引用时拒绝或提示，默认拒绝） |
 | GET | `/stats/daily?days=30` | `[{date, amount}]`，首页+统计页柱状图 |
-| GET | `/stats/summary?days=30` | `{today, last7, last30, monthTotal}` 卡片 |
+| GET | `/stats/summary?days=30` | 卡片数据：`{today, last7, last30, monthTotal, count30, dailyAvg30, maxDay:{date, amount, topTitle, topTag}, monthMoM:{current, prev, pct}, weekWoW:{current, prev, pct}, lastImportDate}` |
 | GET | `/stats/byTag?days=30` / `/stats/byChannel?days=30` / `/stats/monthly?year=2026` | 统计图数据 |
 
 CSV 解析器独立类 `AlipayBillCsvParser`（manager 模块 service/expense 下），便于单测。
@@ -107,7 +107,10 @@ CSV 解析器独立类 `AlipayBillCsvParser`（manager 模块 service/expense �
 - `src/router/modules/expense.js`：父组 path `/expense`（name `expense`，Layout，icon），3 个子页（lazy import）：
   - `views/expense/order/index.vue` — name `expenseOrder`，path `/expenseOrder`：筛选栏（日期范围/渠道/标签/关键词）+ 表格（金额、渠道、标签 el-tag 多个、来源、日期、说明）+ 分页 + 「导入支付宝账单」上传对话框（导入后展示各项计数明细）+「手工录入」对话框
   - `views/expense/tag/index.vue` — name `expenseTag`，path `/expenseTag`：标签 CRUD（名称/颜色/排序/启停）
-  - `views/expense/stats/index.vue` — name `expenseStats`，path `/expenseStats`：4 张汇总卡片 + 按标签饼图 + 按渠道柱图 + 月度趋势折线（echarts）+ 「口径与使用说明」文字块
+  - `views/expense/stats/index.vue` — name `expenseStats`，path `/expenseStats`：
+    - 汇总卡片区（grid 自适应两行）：今日支出 / 近7天 / 近30天 / 本月累计 / **单日最高**（金额+日期+当天主要去向 topTag/topTitle）/ **日均支出**（近30天合计÷30）/ **月环比**（本月 vs 上月同期，涨跌带↑↓红绿色，附上月金额）/ **周环比**（本周 vs 上周同期）/ **近30天笔数** / **最近导入日期**（取 source=1 的 max(expense_date)；距今 >7 天黄色提醒「该导账单了」）
+    - 图表区：按标签饼图 + 按渠道柱图 + 月度趋势折线（echarts），时间范围可切 7/30/90 天
+    - 「口径与使用说明」文字块
 - `src/api/expense.js`：照 `api/kw.js` 模式（request util、`/admin/expense` 前缀、分页走 URL path）
 - 首页 `views/home/index.vue`：新增「近 30 天消费」柱状图卡片，复用现有 echarts 初始化/resize 模式，数据调 `stats/daily?days=30`
 - 菜单播种（expense_init.sql）：顶级目录行 `对账管理`（parent_id=0，component=`expense`，照 `mall`/`order` 模式）+ 3 个子菜单行（component=路由 name）+ `sys_role_menu` 授 role 9；全部幂等
@@ -119,6 +122,8 @@ CSV 解析器独立类 `AlipayBillCsvParser`（manager 模块 service/expense �
 3. 手工录入仅记录非支付宝渠道消费，与支付宝账单互补不重叠
 4. 标签多对多：按标签统计时一笔多标签消费同时计入多个标签，故各标签之和可能大于总支出
 5. 渠道口径：支付宝账单里的消费实际发生在各平台，统一记为「支付宝」渠道；手工录入的才标注具体渠道
+6. 环比口径：月环比 = 本月 1 日至今 vs 上月 1 日至同日号（对齐同期，避免「本月没过完」造成的偏差）；周环比 = 本周一至今 vs 上周同一星期几
+7. 最近导入日期 = 已导入账单（source=1）的最新交易日期（expense_date），不是导入操作时间；距今 >7 天黄色提示补导
 
 ## 7. 错误处理
 
