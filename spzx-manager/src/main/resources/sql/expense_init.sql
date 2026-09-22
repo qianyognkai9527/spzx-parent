@@ -69,3 +69,21 @@ INSERT INTO sys_role_menu (role_id, menu_id)
 SELECT 9, m.id FROM sys_menu m
 WHERE m.id IN (69, 70, 71, 72)
   AND NOT EXISTS (SELECT 1 FROM sys_role_menu rm WHERE rm.role_id = 9 AND rm.menu_id = m.id);
+
+-- ============ 消费分组（2026-09-22）============
+-- 设计文档: docs/superpowers/specs/2026-09-22-expense-group-design.md
+
+CREATE TABLE IF NOT EXISTS expense_group (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  group_name VARCHAR(50) NOT NULL COMMENT '分组名',
+  remark VARCHAR(200) COMMENT '备注',
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) COMMENT '消费分组';
+
+CREATE TABLE IF NOT EXISTS expense_group_order (
+  group_id BIGINT NOT NULL,
+  order_id BIGINT NOT NULL,
+  PRIMARY KEY (group_id, order_id),
+  KEY idx_egorder_order (order_id)
+) COMMENT '分组-订单关联（多对多，复合主键天然幂等）';
