@@ -23,15 +23,14 @@ CREATE TABLE IF NOT EXISTS expense_group (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='消费分组';
 
 CREATE TABLE IF NOT EXISTS expense_group_order (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
   group_id BIGINT NOT NULL,
   order_id BIGINT NOT NULL,
-  UNIQUE KEY uk_group_order (group_id, order_id),
+  PRIMARY KEY (group_id, order_id),
   KEY idx_egorder_order (order_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='分组-订单关联';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='分组-订单关联（多对多，复合主键天然幂等）';
 ```
 
-- 逻辑外键，不做物理 FK；`uk_group_order` 保证重复加入幂等
+- 逻辑外键，不做物理 FK；复合主键与 `expense_order_tag` 同构，天然保证重复加入幂等
 - 删组 → 只删 `expense_group_order` 关联行，**不动订单**；删订单 → 级联删关联行（与 expense_order_tag 同处理）
 
 ## 后端（spzx-parent，完全仿照 ExpenseTag 模式）
@@ -45,12 +44,12 @@ CREATE TABLE IF NOT EXISTS expense_group_order (
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET | `/admin/expense/group/all` | 全量分组列表（含统计字段，按 create_time desc） |
-| POST | `/admin/expense/group` | 新建；groupName 必填非空、≤50 字，否则 204 报错 |
+| POST | `/admin/expense/group` | 新建；groupName 必填非空、≤50 字，否则 204 报错；body 可带 `orderIds` 建组同时加入（建组+加入一步完成） |
 | PUT | `/admin/expense/group/{id}` | 重命名/改备注（传什么改什么） |
 | DELETE | `/admin/expense/group/{id}` | 删组 + 清关联（二次确认由前端做） |
 | POST | `/admin/expense/group/{id}/orders` | body `{orderIds:[]}`；过滤不存在的订单 id，幂等加入（唯一键冲突忽略） |
 | DELETE | `/admin/expense/group/{id}/orders/{orderId}` | 单笔移出 |
-| GET | `/admin/expense/group/{id}/orders?page=&limit=` | 组内订单分页（列同账单记录：日期/金额/渠道/标题/来源/备注） |
+| GET | `/admin/expense/group/{id}/orders/{pageNum}/{pageSize}` | 组内订单分页（路径参数风格，与订单列表 `/list/{pageNum}/{pageSize}` 一致；列同账单记录：日期/金额/渠道/标题/来源/备注/标签） |
 
 - 订单删除（`ExpenseOrderController` DELETE）处补删 `expense_group_order` where order_id=?
 
