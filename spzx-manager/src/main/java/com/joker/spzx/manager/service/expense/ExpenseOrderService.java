@@ -3,9 +3,11 @@ package com.joker.spzx.manager.service.expense;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.joker.spzx.manager.mapper.ExpenseGroupOrderMapper;
 import com.joker.spzx.manager.mapper.ExpenseOrderMapper;
 import com.joker.spzx.manager.mapper.ExpenseOrderTagMapper;
 import com.joker.spzx.manager.mapper.ExpenseTagMapper;
+import com.joker.spzx.model.entity.expense.ExpenseGroupOrder;
 import com.joker.spzx.model.entity.expense.ExpenseOrder;
 import com.joker.spzx.model.entity.expense.ExpenseOrderTag;
 import com.joker.spzx.model.entity.expense.ExpenseTag;
@@ -38,6 +40,9 @@ public class ExpenseOrderService extends ServiceImpl<ExpenseOrderMapper, Expense
 
     @Autowired
     private ExpenseTagMapper expenseTagMapper;
+
+    @Autowired
+    private ExpenseGroupOrderMapper expenseGroupOrderMapper;
 
     private final AlipayBillCsvParser parser = new AlipayBillCsvParser();
 
@@ -83,6 +88,22 @@ public class ExpenseOrderService extends ServiceImpl<ExpenseOrderMapper, Expense
         return out;
     }
 
+    /** 按订单 id 集合分页（分组明细用），排序与列表页一致 */
+    public Page<ExpenseOrderVo> pageByIds(long pageNum, long pageSize, List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return new Page<>(pageNum, pageSize);
+        }
+        LambdaQueryWrapper<ExpenseOrder> qw = new LambdaQueryWrapper<ExpenseOrder>()
+                .in(ExpenseOrder::getId, ids)
+                .orderByDesc(ExpenseOrder::getExpenseDate)
+                .orderByDesc(ExpenseOrder::getTxnTime)
+                .orderByDesc(ExpenseOrder::getId);
+        Page<ExpenseOrder> page = expenseOrderMapper.selectPage(new Page<>(pageNum, pageSize), qw);
+        Page<ExpenseOrderVo> out = new Page<>(page.getCurrent(), page.getSize(), page.getTotal());
+        out.setRecords(assembleVos(page.getRecords()));
+        return out;
+    }
+
     @Transactional
     public Long createManual(OrderDto dto) {
         ExpenseOrder row = new ExpenseOrder();
@@ -112,6 +133,8 @@ public class ExpenseOrderService extends ServiceImpl<ExpenseOrderMapper, Expense
         expenseOrderMapper.deleteById(id);
         expenseOrderTagMapper.delete(new LambdaQueryWrapper<ExpenseOrderTag>()
                 .eq(ExpenseOrderTag::getOrderId, id));
+        expenseGroupOrderMapper.delete(new LambdaQueryWrapper<ExpenseGroupOrder>()
+                .eq(ExpenseGroupOrder::getOrderId, id));
     }
 
     @Transactional
@@ -122,6 +145,8 @@ public class ExpenseOrderService extends ServiceImpl<ExpenseOrderMapper, Expense
         int n = expenseOrderMapper.deleteByIds(ids);
         expenseOrderTagMapper.delete(new LambdaQueryWrapper<ExpenseOrderTag>()
                 .in(ExpenseOrderTag::getOrderId, ids));
+        expenseGroupOrderMapper.delete(new LambdaQueryWrapper<ExpenseGroupOrder>()
+                .in(ExpenseGroupOrder::getOrderId, ids));
         return n;
     }
 
