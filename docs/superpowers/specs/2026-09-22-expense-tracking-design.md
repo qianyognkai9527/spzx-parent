@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS expense_order (
   channel VARCHAR(32) NOT NULL DEFAULT '其他' COMMENT '渠道：支付宝/淘宝/京东/拼多多/抖音商城/美团/其他',
   source TINYINT NOT NULL COMMENT '来源：1支付宝导入 2手工录入',
   title VARCHAR(255) COMMENT '商品说明/内容',
-  counterparty VARCHAR(128) COMMENT '交易对方（导入用）',
+  counterparty VARCHAR(128) COMMENT '交易分类（导入=支付宝交易分类，如餐饮美食/日用百货）',
   alipay_trade_no VARCHAR(64) DEFAULT NULL COMMENT '支付宝交易订单号（去重键，手工为NULL）',
   remark VARCHAR(255),
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -93,8 +93,8 @@ CREATE TABLE IF NOT EXISTS expense_order_tag (
 | POST | `/order` | 手工新增（channel/amount/expenseDate/tagIds/remark/txn_time 可空） |
 | PUT | `/order/{id}` | 编辑（含 tagIds 全量覆盖） |
 | DELETE | `/order/{id}` | 单删 |
-| POST | `/order/batchDelete` | 批删 |
-| GET | `/tag/all` | 全量启用标签（下拉数据源） |
+| POST | `/order/batchDelete` | 批删，body `{ids: []}` |
+| GET | `/tag/all` | 返回全部标签（含停用，前端下拉只取 status=1 的） |
 | POST/PUT/DELETE | `/tag`、`/tag/{id}` | 标签 CRUD（删除校验：有订单引用时拒绝或提示，默认拒绝） |
 | GET | `/stats/daily?days=30` | `[{date, amount}]`，首页+统计页柱状图 |
 | GET | `/stats/summary?days=30` | `{today, last7, last30, monthTotal}` 卡片 |
