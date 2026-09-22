@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS expense_order (
   source TINYINT NOT NULL COMMENT '来源：1支付宝导入 2手工录入',
   title VARCHAR(255) COMMENT '商品说明/内容',
   counterparty VARCHAR(128) COMMENT '交易分类（导入=支付宝交易分类，如餐饮美食/日用百货）',
-  alipay_trade_no VARCHAR(64) DEFAULT NULL COMMENT '支付宝交易订单号（去重键，手工为NULL）',
+  alipay_trade_no VARCHAR(128) DEFAULT NULL COMMENT '支付宝交易订单号（去重键，手工为NULL；实测最长75字符）',
   remark VARCHAR(255),
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -75,12 +75,13 @@ CREATE TABLE IF NOT EXISTS expense_order_tag (
 2. 逐行找 `col0=='交易时间'` 的行定位表头，按列名取索引（不依赖固定列序）
 3. 只导入 `收/支 == '支出'` 的行；`收入`/`不计收支` → skippedNonExpense
 4. `交易状态 == '交易关闭'` 的支出行跳过 → skippedClosed（交易未完成，非真实花费；样例中 13 笔）
-5. 金额全部为正（实测 0 笔负数），直接入库
-6. `交易订单号` strip 后作 `alipay_trade_no`，DB 唯一键兜底去重 → skippedDuplicate
-7. `expense_date` = 交易时间日期部分；channel='支付宝'，source=1；title=商品说明；counterparty=交易分类（比对方账号更有用，实测如 餐饮美食/日用百货/转账红包）
-8. 导入接口为幂等：同一文件重复导入安全
+5. 金额 = 0 的支出行跳过 → skippedZero（样例中 11 笔）
+6. 金额全部为正（实测 0 笔负数），直接入库
+7. `交易订单号` strip 后作 `alipay_trade_no`，DB 唯一键兜底去重 → skippedDuplicate
+8. `expense_date` = 交易时间日期部分；channel='支付宝'，source=1；title=商品说明；counterparty=交易分类（比对方账号更有用，实测如 餐饮美食/日用百货/转账红包）
+9. 导入接口为幂等：同一文件重复导入安全
 
-预期（样例实测核对）：total 2805 → imported ≈1919，skippedNonExpense 873（收入421+不计收支452），skippedClosed 13。
+预期（样例实测核对）：total 2805 → imported 1908，skippedNonExpense 873（收入421+不计收支452），skippedClosed 13，skippedZero 11。
 
 ## 4. 后端（spzx-parent，URL 前缀 `/admin/expense`）
 
