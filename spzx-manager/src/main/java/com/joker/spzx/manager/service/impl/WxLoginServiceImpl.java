@@ -63,6 +63,11 @@ public class WxLoginServiceImpl implements WxLoginService {
     @Autowired
     private SysUserMapper sysUserMapper;
 
+    /** 自注入代理：@Async 方法必须经 Spring 代理调用才生效，同类 this 调用会退化为同步 */
+    @Autowired
+    @org.springframework.context.annotation.Lazy
+    private WxLoginServiceImpl self;
+
     @Override
     public WxLoginCreateVo createQrLogin(String clientIp) {
         String ticket = UUID.randomUUID().toString().replace("-", "");
@@ -80,7 +85,7 @@ public class WxLoginServiceImpl implements WxLoginService {
                 TimeUnit.SECONDS
         );
 
-        saveTicketAsync(ticket, state, clientIp);
+        self.saveTicketAsync(ticket, state, clientIp);
 
         String wxAuthUrl;
         if (Boolean.TRUE.equals(wxLoginProperties.getMockMode())) {
@@ -219,8 +224,8 @@ public class WxLoginServiceImpl implements WxLoginService {
                     wxLoginProperties.getQrTtlSeconds(), TimeUnit.SECONDS);
 
             updateWechatLoginInfo(wechatUser.getId(), wxUserInfo);
-            saveLoginLogAsync(sysUser.getId(), sysUser.getUsername(), 2, 1, openid, null, null);
-            updateTicketStatusAsync(ticket, 2, sysUser.getId(), openid);
+            self.saveLoginLogAsync(sysUser.getId(), sysUser.getUsername(), 2, 1, openid, null, null);
+            self.updateTicketStatusAsync(ticket, 2, sysUser.getId(), openid);
         } else {
             qrData.put("status", 5);
             qrData.put("openid", openid);
@@ -228,8 +233,8 @@ public class WxLoginServiceImpl implements WxLoginService {
             qrData.put("wxUserInfo", wxUserInfo);
             redisTemplate.opsForValue().set(qrKey, qrData.toJSONString(),
                     wxLoginProperties.getQrTtlSeconds(), TimeUnit.SECONDS);
-            updateTicketStatusAsync(ticket, 5, null, openid);
-            saveLoginLogAsync(null, wxUserInfo.getString("nickname"), 2, 0, openid, "本地账号未绑定", null);
+            self.updateTicketStatusAsync(ticket, 5, null, openid);
+            self.saveLoginLogAsync(null, wxUserInfo.getString("nickname"), 2, 0, openid, "本地账号未绑定", null);
         }
 
         return html;
@@ -316,8 +321,8 @@ public class WxLoginServiceImpl implements WxLoginService {
         vo.setMessage("绑定并登录成功");
         vo.setToken(token);
 
-        updateTicketStatusAsync(dto.getTicket(), 2, sysUser.getId(), openid);
-        saveLoginLogAsync(sysUser.getId(), sysUser.getUsername(), 2, 1, openid, null, clientIp);
+        self.updateTicketStatusAsync(dto.getTicket(), 2, sysUser.getId(), openid);
+        self.saveLoginLogAsync(sysUser.getId(), sysUser.getUsername(), 2, 1, openid, null, clientIp);
         return vo;
     }
 
@@ -384,7 +389,7 @@ public class WxLoginServiceImpl implements WxLoginService {
             qrData.put("status", 1);
             redisTemplate.opsForValue().set(key, qrData.toJSONString(),
                     wxLoginProperties.getQrTtlSeconds(), TimeUnit.SECONDS);
-            updateTicketStatusAsync(ticket, 1, null, null);
+            self.updateTicketStatusAsync(ticket, 1, null, null);
         }
     }
 
@@ -420,8 +425,8 @@ public class WxLoginServiceImpl implements WxLoginService {
                 redisTemplate.opsForValue().set(key, qrData.toJSONString(),
                         wxLoginProperties.getQrTtlSeconds(), TimeUnit.SECONDS);
                 updateWechatLoginInfo(wechatUser.getId(), null);
-                saveLoginLogAsync(sysUser.getId(), sysUser.getUsername(), 2, 1, mockOpenid, null, null);
-                updateTicketStatusAsync(ticket, 2, sysUser.getId(), mockOpenid);
+                self.saveLoginLogAsync(sysUser.getId(), sysUser.getUsername(), 2, 1, mockOpenid, null, null);
+                self.updateTicketStatusAsync(ticket, 2, sysUser.getId(), mockOpenid);
                 return;
             }
         }
@@ -436,8 +441,8 @@ public class WxLoginServiceImpl implements WxLoginService {
         qrData.put("wxUserInfo", mockWxUserInfo);
         redisTemplate.opsForValue().set(key, qrData.toJSONString(),
                 wxLoginProperties.getQrTtlSeconds(), TimeUnit.SECONDS);
-        updateTicketStatusAsync(ticket, 5, null, mockOpenid);
-        saveLoginLogAsync(null, "微信用户(Mock)", 2, 0, mockOpenid, "本地账号未绑定", null);
+        self.updateTicketStatusAsync(ticket, 5, null, mockOpenid);
+        self.saveLoginLogAsync(null, "微信用户(Mock)", 2, 0, mockOpenid, "本地账号未绑定", null);
     }
 
     private String findTicketByState(String state) {

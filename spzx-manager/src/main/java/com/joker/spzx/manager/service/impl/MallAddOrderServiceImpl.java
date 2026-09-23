@@ -66,16 +66,14 @@ public class MallAddOrderServiceImpl extends ServiceImpl<MallAddOrderMapper, Mal
             return;
         }
         LocalDateTime now = LocalDateTime.now();
-        List<MallAddOrder> orders = this.listByIds(idList);
-        for (MallAddOrder order : orders) {
-            if (order.getHireIsPay() != null && order.getHireIsPay() == 0) {
-                order.setHireIsPay(1);
-                order.setSettlementTime(now);
-                order.setUpdateBy(AuthContextUtil.getUser().getId());
-                order.setUpdateTime(now);
-                updateById(order);
-            }
-        }
+        // 单条条件 UPDATE 完成结算：消除循环读写与"读-改-写"竞态
+        this.update(new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<MallAddOrder>()
+                .set(MallAddOrder::getHireIsPay, 1)
+                .set(MallAddOrder::getSettlementTime, now)
+                .set(MallAddOrder::getUpdateBy, AuthContextUtil.getUser().getId())
+                .set(MallAddOrder::getUpdateTime, now)
+                .in(MallAddOrder::getId, idList)
+                .eq(MallAddOrder::getHireIsPay, 0));
     }
 
     @Override

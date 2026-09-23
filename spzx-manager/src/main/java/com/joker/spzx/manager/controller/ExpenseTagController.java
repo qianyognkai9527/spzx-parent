@@ -42,6 +42,7 @@ public class ExpenseTagController {
             return Result.build(null, 204, err);
         }
         tag.setName(tag.getName().trim());
+        tag.setId(null);
         if (tag.getStatus() == null) {
             tag.setStatus(1);
         }
@@ -81,6 +82,14 @@ public class ExpenseTagController {
     /** 被订单引用的标签拒绝删除（历史关联保留） */
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
+        if (expenseTagService.getById(id) == null) {
+            return Result.build(null, 204, "标签不存在");
+        }
+        Long used = expenseOrderTagMapper.selectCount(new LambdaQueryWrapper<ExpenseOrderTag>()
+                .eq(ExpenseOrderTag::getTagId, id));
+        if (used != null && used > 0) {
+            return Result.build(null, 204, "该标签已被 " + used + " 笔账单引用，无法删除；可先在编辑中停用");
+        }
         if (!expenseTagService.removeById(id)) {
             return Result.build(null, 204, "标签不存在");
         }

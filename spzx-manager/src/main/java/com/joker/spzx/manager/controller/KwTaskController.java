@@ -3,6 +3,7 @@ package com.joker.spzx.manager.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.joker.spzx.manager.util.PageQueryUtil;
 import com.joker.spzx.manager.service.kw.KwExportService;
 import com.joker.spzx.manager.service.kw.KwTaskService;
 import com.joker.spzx.model.entity.kw.KwSelectTask;
@@ -55,7 +56,7 @@ public class KwTaskController {
         if (status != null) {
             qw.eq(KwSelectTask::getStatus, status);
         }
-        Page<KwSelectTask> page = kwTaskService.getTaskMapper().selectPage(new Page<>(pageNum, pageSize), qw);
+        Page<KwSelectTask> page = kwTaskService.getTaskMapper().selectPage(PageQueryUtil.of(pageNum, pageSize), qw);
         // 一次性 IN 查询补商品编码/标题（原始实体无商品列，前端列空白）
         Map<Long, Map<String, Object>> products = new HashMap<>();
         Set<Long> productIds = page.getRecords().stream()

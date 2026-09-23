@@ -76,9 +76,17 @@ public class ProductController {
     @Operation(summary = "导出货源商品CSV")
     @GetMapping("/export")
     public void export(ProductDto productDto, HttpServletResponse response) {
-        productDto.setPageNum(1);
-        productDto.setPageSize(100000);
-        List<ProductPageVo> list = productService.findByPage(productDto).getRecords();
+        // 分页插件 maxLimit=500 会静默截断超大 pageSize，导出改为 500/页循环拉全量
+        productDto.setPageSize(500);
+        List<ProductPageVo> list = new java.util.ArrayList<>();
+        for (int pageNum = 1; ; pageNum++) {
+            productDto.setPageNum(pageNum);
+            List<ProductPageVo> records = productService.findByPage(productDto).getRecords();
+            list.addAll(records);
+            if (records.size() < 500) {
+                break;
+            }
+        }
         try {
             PrintWriter writer = CsvExportUtil.writeCsvHeaders(response, "货源商品");
             writer.println("商品标题,厂商,商品ID,类目,平台,等级,供应商,货源价格,运费,销量,回头率%,诚信通年限,抓取时间");

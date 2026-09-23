@@ -2,6 +2,7 @@ package com.joker.spzx.manager.service.impl;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.joker.spzx.manager.util.PageQueryUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.manager.mapper.CategoryBrandMapper;
 import com.joker.spzx.manager.service.CategoryBrandService;
@@ -25,7 +26,7 @@ public class CategoryBrandServiceImpl extends ServiceImpl<CategoryBrandMapper, C
 
     @Override
     public IPage<CategoryBrand> findByPage(Integer page, Integer limit, CategoryBrandDto categoryBrandDto) {
-        IPage<CategoryBrand> pageInfo = new Page<>(page, limit);
+        IPage<CategoryBrand> pageInfo = PageQueryUtil.of(page, limit);
         this.baseMapper.findByPage(pageInfo, categoryBrandDto);
 
         return pageInfo;

@@ -2,6 +2,7 @@ package com.joker.spzx.manager.service.impl;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.joker.spzx.manager.util.PageQueryUtil;
 import com.joker.spzx.common.exception.ServiceException;
 import com.joker.spzx.common.util.ShellUtil;
 import com.joker.spzx.manager.mapper.VisualScoreMapper;
@@ -48,7 +49,7 @@ public class VisualScoreServiceImpl implements VisualScoreService {
     @Override
     public IPage<VisualScoreVo> pageListPlatform(Integer pageNum, Integer pageSize, Integer platformType,
                                                   String keyword, Integer scoreMin, Integer scoreMax) {
-        Page<VisualScoreVo> page = new Page<>(pageNum, pageSize);
+        Page<VisualScoreVo> page = PageQueryUtil.of(pageNum, pageSize);
         IPage<VisualScoreVo> result = visualScoreMapper.pageListPlatform(page, platformType, keyword, scoreMin, scoreMax);
         List<VisualScoreVo> records = result.getRecords();
         if (!records.isEmpty()) {
@@ -70,7 +71,7 @@ public class VisualScoreServiceImpl implements VisualScoreService {
     @Override
     public IPage<VisualScoreSourceVo> pageListSource(Integer pageNum, Integer pageSize,
                                                       String keyword, Integer scoreMin, Integer scoreMax) {
-        Page<VisualScoreSourceVo> page = new Page<>(pageNum, pageSize);
+        Page<VisualScoreSourceVo> page = PageQueryUtil.of(pageNum, pageSize);
         IPage<VisualScoreSourceVo> result = visualScoreMapper.pageListSource(page, keyword, scoreMin, scoreMax);
         result.getRecords().forEach(vo -> vo.setGrade(GradeUtil.toGrade(vo.getVisualScore())));
         return result;

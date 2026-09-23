@@ -102,7 +102,12 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
     public void allocateResources(OderAllocationVo oderAllocationVo) {
         Long orderId = oderAllocationVo.getOrderId();
         MallFarmOrder order = mallFarmOrderMapper.selectById(orderId);
+        if (order == null) {
+            throw new ServiceException(202, "订单不存在: " + orderId);
+        }
         Long productId = order.getProductId();
+        List<Long> resourceIds = oderAllocationVo.getResourceIds() == null
+                ? List.of() : oderAllocationVo.getResourceIds();
 
         LambdaQueryWrapper<MallOrderResource> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(MallOrderResource::getOrderId, oderAllocationVo.getOrderId());
@@ -110,7 +115,10 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
         if (count > 0) {
             mallOrderResourceMapper.delete(lambdaQueryWrapper);
         }
-        List<Long> resourceIds = oderAllocationVo.getResourceIds();
+        if (resourceIds.isEmpty()) {
+            markAllocated(orderId, oderAllocationVo.getComment());
+            return;
+        }
         List<MallOrderResource> collect = resourceIds.stream().map(resourceId -> {
             return new MallOrderResource() {{
                 setOrderId(orderId);
@@ -124,8 +132,11 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
                 .set(MallProductPicVideo::getState, 1);
         mallProductPicVideoMapper.update(lambdaUpdateWrapper);
 
-        String comment = oderAllocationVo.getComment();
+        markAllocated(orderId, oderAllocationVo.getComment());
 
+    }
+
+    private void markAllocated(Long orderId, String comment) {
         MallFarmOrder mallFarmOrder = new MallFarmOrder();
         mallFarmOrder.setId(orderId);
         mallFarmOrder.setCommentStatus(2);//已分配买家秀
@@ -136,12 +147,14 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
         mallFarmOrder.setUpdateTime(LocalDateTime.now());
         mallFarmOrder.setUpdateBy(AuthContextUtil.getUser().getId());
         mallFarmOrder.updateById();
-
     }
 
     @SneakyThrows
     @Override
     public void gennerShowBuy(List<Long> orderIdList, HttpServletResponse response) {
+        if (CollectionUtils.isEmpty(orderIdList)) {
+            throw new ServiceException(202, "请先勾选要导出的订单");
+        }
         // 批量查询优化：将 N+1 查询改为 3 次批量查询
         // 1. 批量获取所有农场订单
         List<MallFarmOrder> farmOrders = this.listByIds(orderIdList);
@@ -169,8 +182,13 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
 
         // 内存组装结果
         final Map<Long, String> finalFileUrlMap = fileUrlMap;
-        List<OrderEvaluation> evaluations = orderIdList.stream().map(oderId -> {
+        List<OrderEvaluation> evaluations = new ArrayList<>();
+        for (Long oderId : orderIdList) {
             MallFarmOrder mallFarmOrder = farmOrderMap.get(oderId);
+            if (mallFarmOrder == null) {
+                log.warn("评价导出跳过不存在/已删除的订单 id={}", oderId);
+                continue;
+            }
             OrderEvaluation orderEvaluation = new OrderEvaluation();
             orderEvaluation.setOrderId(mallFarmOrder.getTbOrderCode());
             orderEvaluation.setComment(mallFarmOrder.getComment());
@@ -182,8 +200,11 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
                         .collect(Collectors.toList());
                 orderEvaluation.setFileUrls(fileUrls);
             }
-            return orderEvaluation;
-        }).collect(Collectors.toList());
+            evaluations.add(orderEvaluation);
+        }
+        if (evaluations.isEmpty()) {
+            throw new ServiceException(202, "勾选的订单均不存在或已删除");
+        }
         //本地下载
 //        this.createEvaluationArchive(evaluations,"");
 
@@ -247,31 +268,32 @@ public class MallFarmOrderServiceImpl extends ServiceImpl<MallFarmOrderMapper, M
             throws IOException {
         ZipEntry entry = new ZipEntry(orderDir + "评语.txt");
         zos.putNextEntry(entry);
-        zos.write(comment.getBytes(StandardCharsets.UTF_8));
+        zos.write((comment == null ? "" : comment).getBytes(StandardCharsets.UTF_8));
         zos.closeEntry();
     }
 
     private List<String> downloadMediaFiles(ZipOutputStream zos, String orderDir, List<String> urls) {
         List<String> failed = new ArrayList<>();
+        if (urls == null) {
+            return failed;
+        }
         for (String url : urls) {
+            // 先取到流再开 entry，避免下载失败在 zip 里留下截断的半成品条目
             try {
                 HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
                 conn.setConnectTimeout(30000);
                 conn.setReadTimeout(60000);
                 conn.setRequestProperty("User-Agent", "Mozilla/5.0");
-
-                String fileName = getFileName(url);
-                ZipEntry entry = new ZipEntry(orderDir + fileName);
-                zos.putNextEntry(entry);
-
                 try (InputStream in = conn.getInputStream()) {
+                    String fileName = getFileName(url);
+                    zos.putNextEntry(new ZipEntry(orderDir + fileName));
                     byte[] buffer = new byte[8192];
                     int bytesRead;
                     while ((bytesRead = in.read(buffer)) != -1) {
                         zos.write(buffer, 0, bytesRead);
                     }
+                    zos.closeEntry();
                 }
-                zos.closeEntry();
             } catch (Exception e) {
                 log.error("文件下载失败: {}", url, e);
                 failed.add(url);

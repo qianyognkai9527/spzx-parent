@@ -36,8 +36,14 @@ public class ExpenseOrderController {
                                              @RequestParam(required = false) String channel,
                                              @RequestParam(required = false) Long tagId,
                                              @RequestParam(required = false) String keyword) {
-        LocalDate begin = parseDate(expenseDateBegin);
-        LocalDate end = parseDate(expenseDateEnd);
+        LocalDate begin;
+        LocalDate end;
+        try {
+            begin = parseDate(expenseDateBegin);
+            end = parseDate(expenseDateEnd);
+        } catch (java.time.format.DateTimeParseException e) {
+            return Result.build(null, 204, "日期格式应为 yyyy-MM-dd");
+        }
         Page<ExpenseOrderVo> page = expenseOrderService.page(pageNum, pageSize, begin, end, channel, tagId, keyword);
         return Result.build(page);
     }

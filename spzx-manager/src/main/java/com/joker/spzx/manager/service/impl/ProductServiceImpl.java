@@ -1,6 +1,7 @@
 package com.joker.spzx.manager.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.manager.mapper.MallProductFactoryMapper;
@@ -53,14 +54,20 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
 
         Long productFactoryId = product.getProductFactoryId();
         if (productFactoryId != null) {
-            MallProductFactory mallProductFactory = mallProductFactoryMapper.selectById(productFactoryId);
-            if (mallProductFactory != null) {
-                mallProductFactory.setDeployCount(mallProductFactory.getDeployCount() + 1);
-                mallProductFactory.setUpdateBy(id);
-                mallProductFactory.setUpdateTime(LocalDateTime.now());
-                mallProductFactoryMapper.updateById(mallProductFactory);
-            }
+            adjustDeployCount(productFactoryId, 1, id);
         }
+    }
+
+    /** 原子增减铺货计数，避免并发下的丢失更新（delta 仅代码内常量字面量） */
+    private void adjustDeployCount(Long factoryId, int delta, Long userId) {
+        if (factoryId == null) {
+            return;
+        }
+        mallProductFactoryMapper.update(null, new LambdaUpdateWrapper<MallProductFactory>()
+                .setSql("deploy_count = GREATEST(COALESCE(deploy_count, 0) + (" + delta + "), 0)")
+                .set(MallProductFactory::getUpdateBy, userId)
+                .set(MallProductFactory::getUpdateTime, LocalDateTime.now())
+                .eq(MallProductFactory::getId, factoryId));
     }
 
     @Override
@@ -84,16 +91,9 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         product.setUpdateBy(AuthContextUtil.getUser().getId());
         this.baseMapper.updateById(product);
         if (isUpdateFactoryId && productFactoryIdDb != null && productFactoryId != null) {
-            MallProductFactory mallProductFactory = mallProductFactoryMapper.selectById(productFactoryIdDb);
-            if (mallProductFactory != null) {
-                mallProductFactory.setDeployCount(mallProductFactory.getDeployCount() - 1);
-                mallProductFactoryMapper.updateById(mallProductFactory);
-            }
-            mallProductFactory = mallProductFactoryMapper.selectById(productFactoryId);
-            if (mallProductFactory != null) {
-                mallProductFactory.setDeployCount(mallProductFactory.getDeployCount() + 1);
-                mallProductFactoryMapper.updateById(mallProductFactory);
-            }
+            Long uid = AuthContextUtil.getUser().getId();
+            adjustDeployCount(productFactoryIdDb, -1, uid);
+            adjustDeployCount(productFactoryId, 1, uid);
         }
 
     }

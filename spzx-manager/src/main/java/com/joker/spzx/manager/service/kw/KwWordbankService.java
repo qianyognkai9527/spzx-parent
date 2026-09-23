@@ -3,6 +3,7 @@ package com.joker.spzx.manager.service.kw;
 import com.alibaba.excel.EasyExcel;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.joker.spzx.manager.util.PageQueryUtil;
 import com.joker.spzx.manager.config.KwProperties;
 import com.joker.spzx.manager.mapper.KwWordbankBatchMapper;
 import com.joker.spzx.manager.mapper.KwWordbankItemMapper;
@@ -32,6 +33,9 @@ public class KwWordbankService {
 
     @Autowired
     private KwProperties props;
+
+    @Autowired
+    private org.springframework.transaction.support.TransactionTemplate transactionTemplate;
 
     /**
      * 上传生意参谋导出 Excel（可多文件合并），解析→去重→过滤→打分→入库。
@@ -84,19 +88,23 @@ public class KwWordbankService {
         }
         items.sort((a, b) -> b.getScore().compareTo(a.getScore()));
 
-        // 入库
+        // 入库：解析/打分在事务外，仅写库段原子化；分批多值插入
         KwWordbankBatch batch = new KwWordbankBatch();
         batch.setName(name);
         batch.setPlatformType(platformType == null ? 1 : platformType);
         batch.setFileNames(String.join(",", fileNames));
         batch.setWordCount(items.size());
-        batchMapper.insert(batch);
-        for (KwWordbankItem it : items) {
-            it.setBatchId(batch.getId());
-            itemMapper.insert(it);
-        }
-        log.info("词表批次入库: id={}, name={}, words={}", batch.getId(), name, items.size());
-        return batch.getId();
+        Long batchId = transactionTemplate.execute(s -> {
+            batchMapper.insert(batch);
+            for (int from = 0; from < items.size(); from += 500) {
+                List<KwWordbankItem> part = items.subList(from, Math.min(items.size(), from + 500));
+                part.forEach(it -> it.setBatchId(batch.getId()));
+                itemMapper.insert(part);
+            }
+            return batch.getId();
+        });
+        log.info("词表批次入库: id={}, name={}, words={}", batchId, name, items.size());
+        return batchId;
     }
 
     /** EasyExcel 无模型读：所有行均进监听器（headRowNumber(0)），由监听器扫描表头行 */
@@ -116,7 +124,7 @@ public class KwWordbankService {
     }
 
     public IPage<KwWordbankItem> itemPage(Long batchId, long pageNum, long pageSize) {
-        return itemMapper.selectPage(new Page<>(pageNum, pageSize),
+        return itemMapper.selectPage(PageQueryUtil.of(pageNum, pageSize),
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<KwWordbankItem>()
                         .eq(KwWordbankItem::getBatchId, batchId)
                         .orderByDesc(KwWordbankItem::getScore));

@@ -152,9 +152,12 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
         lambdaQueryWrapper.eq(MallRefundRecordDetail::getRecordId, id)
                 .last(SqlConstants.LIMIT_1);
         MallRefundRecordDetail mallRefundRecordDetail = mallRefundRecordDetailMapper.selectOne(lambdaQueryWrapper);
+        MallRefundRecord mallRefundRecord = this.getById(id);
+        if (Objects.isNull(mallRefundRecordDetail) || Objects.isNull(mallRefundRecord)) {
+            throw new ServiceException(500, "报表不存在或尚未生成完成");
+        }
         RefundReportVo refundReportVo = new RefundReportVo();
         BeanUtils.copyProperties(mallRefundRecordDetail, refundReportVo);
-        MallRefundRecord mallRefundRecord = this.getById(id);
         BeanUtils.copyProperties(mallRefundRecord, refundReportVo);
         return refundReportVo;
     }
@@ -193,9 +196,12 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
 
         String orderDataCode = mallRefundRecord.getOrderDataCode();
         LambdaQueryWrapper<MallRefundOrder> lambdaQueryWrapper = new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(MallRefundOrder::getCode, orderDataCode);
+        lambdaQueryWrapper.eq(MallRefundOrder::getCode, orderDataCode)
+                .select(MallRefundOrder::getOrderId, MallRefundOrder::getOrderStatus,
+                        MallRefundOrder::getPayMoney, MallRefundOrder::getRefundMoney);
         List<MallRefundOrder> list = this.mallRefundOrderMapper.selectList(lambdaQueryWrapper);
-        Map<String, MallRefundOrder> collect = list.stream().collect(Collectors.toMap(MallRefundOrder::getOrderId, v -> v));
+        Map<String, MallRefundOrder> collect = list.stream()
+                .collect(Collectors.toMap(MallRefundOrder::getOrderId, v -> v, (a, b) -> a));
 
         AtomicReference<BigDecimal> totalMoney = new AtomicReference<>(BigDecimal.ZERO);
         AtomicReference<List<String>> allOrderList = new AtomicReference<>(Lists.newArrayList());
@@ -204,13 +210,13 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
             BigDecimal orderPayMoneyStr = BigDecimal.ZERO;
             switch (orderStatus) {
                 case ORDER_STATUS_SUCCESS:
-                    orderPayMoneyStr = mallRefundOrder.getPayMoney();
+                    orderPayMoneyStr = nvl(mallRefundOrder.getPayMoney());
                     break;
                 case ORDER_STATUS_CLOSED:
-                    orderPayMoneyStr = mallRefundOrder.getRefundMoney();
+                    orderPayMoneyStr = nvl(mallRefundOrder.getRefundMoney());
                     break;
                 case ORDER_STATUS_SHIPPED_WAIT:
-                    orderPayMoneyStr = mallRefundOrder.getPayMoney();
+                    orderPayMoneyStr = nvl(mallRefundOrder.getPayMoney());
                     break;
                 default:
                     orderPayMoneyStr = BigDecimal.ZERO;
@@ -230,7 +236,8 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
 
         LambdaQueryWrapper<MallAddOrder> mallAddOrderQueryWrapper = new LambdaQueryWrapper<>();
         mallAddOrderQueryWrapper.ge(MallAddOrder::getOrderTime, createTime)
-                .le(MallAddOrder::getOrderTime, endTime);
+                .le(MallAddOrder::getOrderTime, endTime)
+                .select(MallAddOrder::getTbOrderId, MallAddOrder::getSeedMoney);
         List<MallAddOrder> mallAddOrderList = mallAddOrderMapper.selectList(mallAddOrderQueryWrapper);
         Integer brushCount = mallAddOrderList.size();
         mallRefundRecordDetail.setBrushCount(brushCount);
@@ -238,7 +245,8 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
         AtomicReference<BigDecimal> brushTotalMoneyRef = new AtomicReference<>(BigDecimal.ZERO);
         AtomicReference<List<String>> brushOrderListRef = new AtomicReference<>(Lists.newArrayList());
         mallAddOrderList.stream().forEach(mallAddOrder -> {
-            brushTotalMoneyRef.set(brushTotalMoneyRef.get().add(new BigDecimal(mallAddOrder.getSeedMoney().toString())));
+            Double seed = mallAddOrder.getSeedMoney();
+            brushTotalMoneyRef.set(brushTotalMoneyRef.get().add(seed == null ? BigDecimal.ZERO : BigDecimal.valueOf(seed)));
             brushOrderListRef.get().add(mallAddOrder.getTbOrderId());
         });
         log.debug("刷单订单数：{}", brushOrderListRef.get().size());
@@ -263,6 +271,7 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
         AtomicReference<List<String>> successOrderListRef = new AtomicReference<>(Lists.newArrayList());
         effectOrderList.stream().forEach(mallRefundOrder -> {
             BigDecimal refundMoney = mallRefundOrder.getRefundMoney();
+            BigDecimal payMoney = mallRefundOrder.getPayMoney() != null ? mallRefundOrder.getPayMoney() : BigDecimal.ZERO;
             String orderId = mallRefundOrder.getOrderId();
             String orderStatus = mallRefundOrder.getOrderStatus();
             if (refundMoney.compareTo(BigDecimal.ZERO) > 0) {
@@ -272,11 +281,11 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
             } else if (refundMoney.compareTo(BigDecimal.ZERO) == 0 && orderStatus.equals(ORDER_STATUS_SUCCESS)) {
                 //无退款金额
                 successOrderListRef.get().add(orderId);
-                successRefundMoneyRef.set(successRefundMoneyRef.get().add(refundMoney));
+                successRefundMoneyRef.set(successRefundMoneyRef.get().add(payMoney));
             }
             if (refundMoney.compareTo(BigDecimal.ZERO) == 0 && orderStatus.equals(ORDER_STATUS_SHIPPED_WAIT)) {
                 pendingOrderListRef.get().add(orderId);
-                pendingRefundMoneyRef.set(pendingRefundMoneyRef.get().add(refundMoney));
+                pendingRefundMoneyRef.set(pendingRefundMoneyRef.get().add(payMoney));
             }
 
         });
@@ -293,40 +302,42 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
 
         mallRefundRecordDetail.setPendingCount(pendingOrderListRef.get().size());
         mallRefundRecordDetail.setPendingMoney(pendingRefundMoneyRef.get());
-        //成交金额
-        double successMoney = totalOrderList.stream().map(orderId -> {
-            MallRefundOrder mallRefundOrder = collect.get(orderId);
-            return mallRefundOrder;
-        }).collect(Collectors.toList()).stream().mapToDouble(mallRefundOrder -> {
-            return mallRefundOrder.getPayMoney().doubleValue();
-        }).sum();
-
-        //当前退款率
+        //当前退款率（空数据时率置 0，避免除零导致报表卡死在生成中）
         BigDecimal currentTotalOrder = new BigDecimal(successOrderListRef.get().size() + refundOrderList.size() + "");
-        BigDecimal currentRefundRate = new BigDecimal(refundOrderList.size() + "").divide(currentTotalOrder, 4, RoundingMode.HALF_UP);
-        mallRefundRecordDetail.setCurrentRefundRate(currentRefundRate);
+        BigDecimal refundCount = new BigDecimal(refundOrderList.size() + "");
+        mallRefundRecordDetail.setCurrentRefundRate(safeRate(refundCount, currentTotalOrder));
         //乐观退款率
         BigDecimal optimistTotalOrder = currentTotalOrder.add(new BigDecimal(pendingOrderListRef.get().size() + ""));
-        BigDecimal optimistRefundRate = new BigDecimal(refundOrderList.size() + "").divide(optimistTotalOrder, 4, RoundingMode.HALF_UP);
-        mallRefundRecordDetail.setOptimistRefundRate(optimistRefundRate);
+        mallRefundRecordDetail.setOptimistRefundRate(safeRate(refundCount, optimistTotalOrder));
         //悲观退款率
-        BigDecimal pessimistTotalOrder = new BigDecimal(refundOrderList.size() + "").add(new BigDecimal(pendingOrderListRef.get().size() + ""));
-        BigDecimal pessimistRefundRate = pessimistTotalOrder.divide(optimistTotalOrder, 4, RoundingMode.HALF_UP);
-        mallRefundRecordDetail.setPessimistRefundRate(pessimistRefundRate);
+        BigDecimal pessimistTotalOrder = refundCount.add(new BigDecimal(pendingOrderListRef.get().size() + ""));
+        mallRefundRecordDetail.setPessimistRefundRate(safeRate(pessimistTotalOrder, optimistTotalOrder));
         totalOrderList.removeAll(refundOrderList);
         log.debug("排除刷单、退款单后的成交订单数量：{}", totalOrderList.size());
 
         BigDecimal subtract = totalMoney.get().subtract(brushTotalMoneyRef.get())
                 .subtract(multiply).subtract(totalRefundMoneyRef.get())
-                .subtract(mallRefundRecord.getCrowdPromotion())
-                .subtract(mallRefundRecord.getSitePromotion())
-                .subtract(mallRefundRecord.getKeywordPromotion())
-                .subtract(mallRefundRecord.getSmartPromotion());
+                .subtract(nvl(mallRefundRecord.getCrowdPromotion()))
+                .subtract(nvl(mallRefundRecord.getSitePromotion()))
+                .subtract(nvl(mallRefundRecord.getKeywordPromotion()))
+                .subtract(nvl(mallRefundRecord.getSmartPromotion()));
         mallRefundRecordDetail.setProfitAmount(subtract);
         mallRefundRecordDetail.setRecordId(mallRefundRecord.getId());
         mallRefundRecordDetail.insertOrUpdate();
         mallRefundRecord.setState(3);
         mallRefundRecord.updateById();
+    }
+
+    /** 比率计算：分母为 0 时返回 0 而非抛除零异常 */
+    private static BigDecimal safeRate(BigDecimal numerator, BigDecimal denominator) {
+        if (denominator == null || denominator.signum() == 0) {
+            return BigDecimal.ZERO;
+        }
+        return numerator.divide(denominator, 4, RoundingMode.HALF_UP);
+    }
+
+    private static BigDecimal nvl(BigDecimal v) {
+        return v == null ? BigDecimal.ZERO : v;
     }
 
     @Override

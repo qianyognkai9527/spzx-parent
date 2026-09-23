@@ -3,6 +3,7 @@ package com.joker.spzx.manager.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.joker.spzx.model.entity.expense.ExpenseOrder;
 import com.joker.spzx.model.vo.expense.DailyAmountVo;
+import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -51,7 +52,15 @@ public interface ExpenseOrderMapper extends BaseMapper<ExpenseOrder> {
     List<Map<String, Object>> sumByChannelSince(@Param("begin") LocalDate begin);
 
     @Select("SELECT DATE_FORMAT(expense_date, '%Y-%m') AS name, SUM(amount) AS amount " +
-            "FROM expense_order WHERE YEAR(expense_date) = #{year} " +
+            "FROM expense_order WHERE expense_date >= #{begin} AND expense_date < #{end} " +
             "GROUP BY DATE_FORMAT(expense_date, '%Y-%m') ORDER BY name")
-    List<Map<String, Object>> sumMonthly(@Param("year") Integer year);
+    List<Map<String, Object>> sumMonthly(@Param("begin") LocalDate begin, @Param("end") LocalDate end);
+
+    /** 批量导入：uk_trade_no 冲突静默跳过，返回实际插入行数（单语句即原子，无需包事务） */
+    @Insert("<script>INSERT IGNORE INTO expense_order " +
+            "(expense_date, txn_time, amount, channel, source, title, counterparty, alipay_trade_no, remark) VALUES " +
+            "<foreach collection='rows' item='r' separator=','>" +
+            "(#{r.expenseDate},#{r.txnTime},#{r.amount},#{r.channel},#{r.source},#{r.title},#{r.counterparty},#{r.alipayTradeNo},#{r.remark})" +
+            "</foreach></script>")
+    int insertIgnoreBatch(@Param("rows") List<ExpenseOrder> rows);
 }

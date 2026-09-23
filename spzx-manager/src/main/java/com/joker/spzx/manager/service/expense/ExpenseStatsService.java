@@ -90,8 +90,9 @@ public class ExpenseStatsService {
     }
 
     public List<Map<String, Object>> monthly(Integer year) {
-        int y = year == null ? LocalDate.now().getYear() : year;
-        List<Map<String, Object>> list = expenseOrderMapper.sumMonthly(y);
+        int y = year == null || year < 1970 || year > 2100 ? LocalDate.now().getYear() : year;
+        List<Map<String, Object>> list = expenseOrderMapper.sumMonthly(
+                LocalDate.of(y, 1, 1), LocalDate.of(y + 1, 1, 1));
         return list == null ? List.of() : list;
     }
 

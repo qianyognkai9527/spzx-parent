@@ -40,9 +40,10 @@ public class SkuBindServiceImpl extends ServiceImpl<SkuBindRelationMapper, SkuBi
         appendWhere(sql, params, platformType, status);
         sql.append("ORDER BY r.update_time DESC ");
         sql.append("LIMIT ?, ?");
-        int offset = (pageNum - 1) * pageSize;
+        int size = Math.min(Math.max(pageSize, 1), 500);
+        int offset = (Math.max(pageNum, 1) - 1) * size;
         params.add(offset);
-        params.add(pageSize);
+        params.add(size);
         return jdbcTemplate.queryForList(sql.toString(), params.toArray());
     }
 

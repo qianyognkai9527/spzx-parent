@@ -80,7 +80,16 @@ public class KwTaskService {
     }
 
     private void submit(Long taskId) {
-        POOL.execute(() -> run(taskId));
+        try {
+            POOL.execute(() -> run(taskId));
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            // 队列满：任务已落库，标记失败避免留下永久 PENDING 的孤儿任务
+            taskMapper.update(null, new LambdaUpdateWrapper<KwSelectTask>()
+                    .set(KwSelectTask::getStatus, ST_FAIL)
+                    .set(KwSelectTask::getErrorMsg, "任务队列已满，请稍后重试")
+                    .eq(KwSelectTask::getId, taskId));
+            throw new RuntimeException("任务队列已满，请稍后重试");
+        }
     }
 
     private void run(Long taskId) {
@@ -342,22 +351,55 @@ public class KwTaskService {
     }
 
     public void pickWords(Long taskId, List<Long> wordIds) {
-        for (Long id : wordIds) {
-            KwTaskWord w = wordMapper.selectById(id);
-            if (w != null && w.getTaskId().equals(taskId)) {
-                w.setPicked(w.getPicked() != null && w.getPicked() == 1 ? 0 : 1);
-                wordMapper.updateById(w);
+        if (wordIds == null || wordIds.isEmpty()) {
+            return;
+        }
+        List<Long> toPick = new ArrayList<>();
+        List<Long> toUnpick = new ArrayList<>();
+        splitByPicked(wordMapper.selectBatchIds(wordIds), taskId, toPick, toUnpick, KwTaskWord::getId);
+        applyPicked(toPick, toUnpick,
+                ids -> wordMapper.update(null, new LambdaUpdateWrapper<KwTaskWord>()
+                        .set(KwTaskWord::getPicked, 1).in(KwTaskWord::getId, ids)),
+                ids -> wordMapper.update(null, new LambdaUpdateWrapper<KwTaskWord>()
+                        .set(KwTaskWord::getPicked, 0).in(KwTaskWord::getId, ids)));
+    }
+
+    public void pickTitles(Long taskId, List<Long> titleIds) {
+        if (titleIds == null || titleIds.isEmpty()) {
+            return;
+        }
+        List<Long> toPick = new ArrayList<>();
+        List<Long> toUnpick = new ArrayList<>();
+        splitByPicked(titleMapper.selectBatchIds(titleIds), taskId, toPick, toUnpick, KwTitleSuggestion::getId);
+        applyPicked(toPick, toUnpick,
+                ids -> titleMapper.update(null, new LambdaUpdateWrapper<KwTitleSuggestion>()
+                        .set(KwTitleSuggestion::getPicked, 1).in(KwTitleSuggestion::getId, ids)),
+                ids -> titleMapper.update(null, new LambdaUpdateWrapper<KwTitleSuggestion>()
+                        .set(KwTitleSuggestion::getPicked, 0).in(KwTitleSuggestion::getId, ids)));
+    }
+
+    private static <T> void splitByPicked(List<T> rows, Long taskId,
+                                           List<Long> toPick, List<Long> toUnpick,
+                                           java.util.function.Function<T, Long> idGetter) {
+        for (T row : rows) {
+            if (row instanceof KwTaskWord w) {
+                if (!Objects.equals(w.getTaskId(), taskId)) continue;
+                (w.getPicked() == null || w.getPicked() != 1 ? toPick : toUnpick).add(idGetter.apply(row));
+            } else if (row instanceof KwTitleSuggestion t) {
+                if (!Objects.equals(t.getTaskId(), taskId)) continue;
+                (t.getPicked() == null || t.getPicked() != 1 ? toPick : toUnpick).add(idGetter.apply(row));
             }
         }
     }
 
-    public void pickTitles(Long taskId, List<Long> titleIds) {
-        for (Long id : titleIds) {
-            KwTitleSuggestion t = titleMapper.selectById(id);
-            if (t != null && t.getTaskId().equals(taskId)) {
-                t.setPicked(t.getPicked() != null && t.getPicked() == 1 ? 0 : 1);
-                titleMapper.updateById(t);
-            }
+    private static void applyPicked(List<Long> toPick, List<Long> toUnpick,
+                                     java.util.function.Consumer<List<Long>> pick,
+                                     java.util.function.Consumer<List<Long>> unpick) {
+        if (!toPick.isEmpty()) {
+            pick.accept(toPick);
+        }
+        if (!toUnpick.isEmpty()) {
+            unpick.accept(toUnpick);
         }
     }
 

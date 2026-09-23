@@ -25,6 +25,9 @@ public class AlipayBillCsvParser {
 
     private static final DateTimeFormatter TXN_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    /** 与 expense_order.amount DECIMAL(12,2) 对齐，超限行报错跳过而非回滚整个导入 */
+    private static final BigDecimal AMOUNT_MAX = new BigDecimal("9999999999.99");
+
     /** 必需列名 → 缺失即报错 */
     private static final String[] REQUIRED_COLUMNS = {
             "交易时间", "收/支", "金额", "交易状态", "交易订单号"
@@ -49,23 +52,25 @@ public class AlipayBillCsvParser {
         public final List<ParsedRow> rows = new ArrayList<>();
     }
 
-    /** 解析入口。先按 gb18030 解码，失败回退 utf-8。 */
+    /** 解析入口。BOM→utf-8；先严格试 utf-8，失败回退 gb18030（新 String(bytes,"gb18030") 对畸形字节只替换不抛异常，不能作为探测手段） */
     public ParseResult parse(byte[] bytes) {
-        String text;
-        try {
-            text = new String(bytes, "gb18030");
-        } catch (Exception e) {
-            try {
-                text = new String(bytes, "utf-8");
-            } catch (Exception e2) {
-                throw new IllegalArgumentException("文件编码无法识别（尝试 gb18030/utf-8 均失败）");
-            }
-        }
-        if (text.startsWith("\uFEFF")) {
-            text = text.substring(1);
-        }
+        String text = decode(bytes);
         List<List<String>> records = splitRecords(text);
         return parseRecords(records);
+    }
+
+    static String decode(byte[] bytes) {
+        if (bytes.length >= 3 && (bytes[0] & 0xFF) == 0xEF && (bytes[1] & 0xFF) == 0xBB && (bytes[2] & 0xFF) == 0xBF) {
+            return new String(bytes, 3, bytes.length - 3, java.nio.charset.StandardCharsets.UTF_8);
+        }
+        try {
+            return java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+                    .decode(java.nio.ByteBuffer.wrap(bytes)).toString();
+        } catch (java.nio.charset.CharacterCodingException e) {
+            return new String(bytes, java.nio.charset.Charset.forName("gb18030"));
+        }
     }
 
     public ParseResult parseRecords(List<List<String>> records) {
@@ -114,7 +119,7 @@ public class AlipayBillCsvParser {
             }
 
             ParsedRow row = new ParsedRow();
-            String amtStr = cell(rec, col.get("金额"));
+            String amtStr = cell(rec, col.get("金额")).replace(",", "");
             try {
                 row.amount = new BigDecimal(amtStr);
             } catch (NumberFormatException e) {
@@ -123,6 +128,10 @@ public class AlipayBillCsvParser {
             }
             if (row.amount.signum() <= 0) {
                 result.skippedZero++;
+                continue;
+            }
+            if (row.amount.compareTo(AMOUNT_MAX) > 0) {
+                result.errors.add("第" + (i + 1) + "行：金额超出可导入上限 " + AMOUNT_MAX.toPlainString() + "：" + amtStr);
                 continue;
             }
 

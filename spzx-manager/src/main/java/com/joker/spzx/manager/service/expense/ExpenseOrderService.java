@@ -2,6 +2,7 @@ package com.joker.spzx.manager.service.expense;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.joker.spzx.manager.util.PageQueryUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.joker.spzx.manager.mapper.ExpenseGroupOrderMapper;
 import com.joker.spzx.manager.mapper.ExpenseOrderMapper;
@@ -14,7 +15,6 @@ import com.joker.spzx.model.entity.expense.ExpenseTag;
 import com.joker.spzx.model.vo.expense.ExpenseOrderVo;
 import com.joker.spzx.model.vo.expense.ImportResultVo;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -72,33 +72,27 @@ public class ExpenseOrderService extends ServiceImpl<ExpenseOrderMapper, Expense
                     .or().like(ExpenseOrder::getRemark, kw));
         }
         if (tagId != null) {
-            List<Long> ids = orderIdsByTag(tagId);
-            if (ids.isEmpty()) {
-                return new Page<>(pageNum, pageSize);
-            }
-            qw.in(ExpenseOrder::getId, ids);
+            // EXISTS 半连接替代"先查全部关联 id 再 IN"，标签命中数千时不再拼巨型 IN
+            qw.apply("EXISTS (SELECT 1 FROM expense_order_tag ot WHERE ot.order_id = expense_order.id AND ot.tag_id = {0})", tagId);
         }
         qw.orderByDesc(ExpenseOrder::getExpenseDate)
                 .orderByDesc(ExpenseOrder::getTxnTime)
                 .orderByDesc(ExpenseOrder::getId);
 
-        Page<ExpenseOrder> page = expenseOrderMapper.selectPage(new Page<>(pageNum, pageSize), qw);
+        Page<ExpenseOrder> page = expenseOrderMapper.selectPage(PageQueryUtil.of(pageNum, pageSize), qw);
         Page<ExpenseOrderVo> out = new Page<>(page.getCurrent(), page.getSize(), page.getTotal());
         out.setRecords(assembleVos(page.getRecords()));
         return out;
     }
 
-    /** 按订单 id 集合分页（分组明细用），排序与列表页一致 */
-    public Page<ExpenseOrderVo> pageByIds(long pageNum, long pageSize, List<Long> ids) {
-        if (ids == null || ids.isEmpty()) {
-            return new Page<>(pageNum, pageSize);
-        }
+    /** 分组明细分页（EXISTS 半连接），排序与列表页一致 */
+    public Page<ExpenseOrderVo> pageByGroup(long pageNum, long pageSize, Long groupId) {
         LambdaQueryWrapper<ExpenseOrder> qw = new LambdaQueryWrapper<ExpenseOrder>()
-                .in(ExpenseOrder::getId, ids)
+                .apply("EXISTS (SELECT 1 FROM expense_group_order eg WHERE eg.order_id = expense_order.id AND eg.group_id = {0})", groupId)
                 .orderByDesc(ExpenseOrder::getExpenseDate)
                 .orderByDesc(ExpenseOrder::getTxnTime)
                 .orderByDesc(ExpenseOrder::getId);
-        Page<ExpenseOrder> page = expenseOrderMapper.selectPage(new Page<>(pageNum, pageSize), qw);
+        Page<ExpenseOrder> page = expenseOrderMapper.selectPage(PageQueryUtil.of(pageNum, pageSize), qw);
         Page<ExpenseOrderVo> out = new Page<>(page.getCurrent(), page.getSize(), page.getTotal());
         out.setRecords(assembleVos(page.getRecords()));
         return out;
@@ -150,8 +144,8 @@ public class ExpenseOrderService extends ServiceImpl<ExpenseOrderMapper, Expense
         return n;
     }
 
-    /** 支付宝 CSV 导入：口径过滤在解析器；交易号 DB 唯一键去重（预查 + 异常兜底），幂等 */
-    @Transactional
+    /** 支付宝 CSV 导入：口径过滤在解析器；交易号 DB 唯一键去重（预查 + INSERT IGNORE 兜底），幂等。
+     *  解析在事务外；写入按 500 行/批的多值语句，避免长事务与逐行往返 */
     public ImportResultVo importAlipayCsv(MultipartFile file) {
         byte[] bytes;
         try {
@@ -181,6 +175,7 @@ public class ExpenseOrderService extends ServiceImpl<ExpenseOrderMapper, Expense
             }
         }
 
+        List<ExpenseOrder> buffer = new ArrayList<>();
         for (AlipayBillCsvParser.ParsedRow r : pr.rows) {
             if (existing.contains(r.tradeNo)) {
                 out.setSkippedDuplicate(out.getSkippedDuplicate() + 1);
@@ -195,22 +190,23 @@ public class ExpenseOrderService extends ServiceImpl<ExpenseOrderMapper, Expense
             row.setTitle(r.title);
             row.setCounterparty(r.counterparty);
             row.setAlipayTradeNo(r.tradeNo);
-            try {
-                expenseOrderMapper.insert(row);
-                out.setImported(out.getImported() + 1);
-            } catch (DuplicateKeyException e) {
-                // 并发或预查遗漏：唯一键兜底
-                out.setSkippedDuplicate(out.getSkippedDuplicate() + 1);
+            buffer.add(row);
+            if (buffer.size() >= 500) {
+                flushImportBatch(buffer, out);
             }
         }
+        flushImportBatch(buffer, out);
         return out;
     }
 
-    private List<Long> orderIdsByTag(Long tagId) {
-        List<ExpenseOrderTag> links = expenseOrderTagMapper.selectList(new LambdaQueryWrapper<ExpenseOrderTag>()
-                .eq(ExpenseOrderTag::getTagId, tagId)
-                .select(ExpenseOrderTag::getOrderId));
-        return links.stream().map(ExpenseOrderTag::getOrderId).toList();
+    private void flushImportBatch(List<ExpenseOrder> buffer, ImportResultVo out) {
+        if (buffer.isEmpty()) {
+            return;
+        }
+        int affected = expenseOrderMapper.insertIgnoreBatch(new ArrayList<>(buffer));
+        out.setImported(out.getImported() + affected);
+        out.setSkippedDuplicate(out.getSkippedDuplicate() + (buffer.size() - affected));
+        buffer.clear();
     }
 
     private List<ExpenseOrderVo> assembleVos(List<ExpenseOrder> rows) {

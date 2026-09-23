@@ -12,7 +12,6 @@ import com.joker.spzx.model.entity.expense.ExpenseOrder;
 import com.joker.spzx.model.vo.expense.ExpenseGroupVo;
 import com.joker.spzx.model.vo.expense.ExpenseOrderVo;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -80,19 +79,16 @@ public class ExpenseGroupService extends ServiceImpl<ExpenseGroupMapper, Expense
     @Transactional
     public int addOrders(Long groupId, List<Long> orderIds) {
         List<Long> valid = validOrderIds(orderIds);
-        int added = 0;
-        for (Long oid : valid) {
+        if (valid.isEmpty()) {
+            return 0;
+        }
+        List<ExpenseGroupOrder> links = valid.stream().map(oid -> {
             ExpenseGroupOrder link = new ExpenseGroupOrder();
             link.setGroupId(groupId);
             link.setOrderId(oid);
-            try {
-                expenseGroupOrderMapper.insert(link);
-                added++;
-            } catch (DuplicateKeyException e) {
-                // 已在同组，幂等忽略
-            }
-        }
-        return added;
+            return link;
+        }).toList();
+        return expenseGroupOrderMapper.insertIgnoreBatch(links);
     }
 
     @Transactional
@@ -103,11 +99,7 @@ public class ExpenseGroupService extends ServiceImpl<ExpenseGroupMapper, Expense
     }
 
     public Page<ExpenseOrderVo> pageOrders(long pageNum, long pageSize, Long groupId) {
-        List<Long> ids = expenseGroupOrderMapper.selectList(new LambdaQueryWrapper<ExpenseGroupOrder>()
-                        .eq(ExpenseGroupOrder::getGroupId, groupId)
-                        .select(ExpenseGroupOrder::getOrderId))
-                .stream().map(ExpenseGroupOrder::getOrderId).toList();
-        return expenseOrderService.pageByIds(pageNum, pageSize, ids);
+        return expenseOrderService.pageByGroup(pageNum, pageSize, groupId);
     }
 
     private List<Long> validOrderIds(List<Long> orderIds) {

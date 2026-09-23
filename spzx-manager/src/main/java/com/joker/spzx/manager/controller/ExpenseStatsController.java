@@ -22,26 +22,31 @@ public class ExpenseStatsController {
 
     @GetMapping("/summary")
     public Result<SummaryVo> summary(@RequestParam(defaultValue = "30") int days) {
-        return Result.build(expenseStatsService.summary(days));
+        return Result.build(expenseStatsService.summary(safeDays(days)));
     }
 
     @GetMapping("/daily")
     public Result<List<DailyAmountVo>> daily(@RequestParam(defaultValue = "30") int days) {
-        return Result.build(expenseStatsService.daily(days));
+        return Result.build(expenseStatsService.daily(safeDays(days)));
     }
 
     @GetMapping("/byTag")
     public Result<List<Map<String, Object>>> byTag(@RequestParam(defaultValue = "30") int days) {
-        return Result.build(expenseStatsService.byTag(days));
+        return Result.build(expenseStatsService.byTag(safeDays(days)));
     }
 
     @GetMapping("/byChannel")
     public Result<List<Map<String, Object>>> byChannel(@RequestParam(defaultValue = "30") int days) {
-        return Result.build(expenseStatsService.byChannel(days));
+        return Result.build(expenseStatsService.byChannel(safeDays(days)));
     }
 
     @GetMapping("/monthly")
     public Result<List<Map<String, Object>>> monthly(@RequestParam(required = false) Integer year) {
         return Result.build(expenseStatsService.monthly(year));
+    }
+
+    /** days<=0 会得到"未来日期"的空数据，统一钳制 */
+    private static int safeDays(int days) {
+        return Math.min(Math.max(days, 1), 3660);
     }
 }
