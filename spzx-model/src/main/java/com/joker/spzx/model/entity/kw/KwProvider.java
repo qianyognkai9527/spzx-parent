@@ -34,6 +34,9 @@ public class KwProvider extends Model<KwProvider> {
     @TableField("image_model")
     private String imageModel;
 
+    @TableField("video_model")
+    private String videoModel;
+
     @TableField("max_tokens")
     private Integer maxTokens;
 

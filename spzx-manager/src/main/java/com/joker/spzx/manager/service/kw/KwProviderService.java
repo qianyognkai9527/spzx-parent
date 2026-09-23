@@ -31,11 +31,15 @@ public class KwProviderService implements ApplicationRunner {
      */
     public record ProviderDef(
             String name, String baseUrl, String apiKey,
-            String visionModel, String textModel,
+            String visionModel, String textModel, String videoModel,
             Integer maxTokens, Map<String, Object> extraBody) {
 
         public String modelFor(String kind) {
-            return "vision".equals(kind) ? visionModel : textModel;
+            return switch (kind) {
+                case "vision" -> visionModel;
+                case "video" -> videoModel;
+                default -> textModel;
+            };
         }
     }
 
@@ -98,7 +102,11 @@ public class KwProviderService implements ApplicationRunner {
         if (row.getApiKey() == null || row.getApiKey().isBlank()) {
             throw new RuntimeException("AI provider 未配置 key: " + name);
         }
-        String model = "vision".equals(kind) ? row.getVisionModel() : row.getTextModel();
+        String model = switch (kind) {
+            case "vision" -> row.getVisionModel();
+            case "video" -> row.getVideoModel();
+            default -> row.getTextModel();
+        };
         if (model == null || model.isBlank()) {
             throw new RuntimeException("provider " + name + " 未配置 " + kind + " 模型");
         }
@@ -120,6 +128,6 @@ public class KwProviderService implements ApplicationRunner {
             }
         }
         return new ProviderDef(row.getName(), row.getBaseUrl(), row.getApiKey(),
-                row.getVisionModel(), row.getTextModel(), row.getMaxTokens(), extra);
+                row.getVisionModel(), row.getTextModel(), row.getVideoModel(), row.getMaxTokens(), extra);
     }
 }
