@@ -12,6 +12,8 @@ server:
 
 # 配置数据库连接信息
 spring:
+  config:
+    import: "optional:classpath:application-local.yml"
   servlet:
     multipart:
       max-file-size: 20MB
