@@ -10,4 +10,7 @@ public interface FileService {
 
     /** 字节上传到本 bucket，返回可访问 URL */
     String uploadBytes(String objectKey, byte[] data, String contentType);
+
+    /** 预签名直链下载 URL（1h 有效，attachment 强制下载并带文件名） */
+    String presignedDownloadUrl(String objectKey, String filename);
 }

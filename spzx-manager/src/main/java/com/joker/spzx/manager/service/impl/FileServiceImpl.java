@@ -121,4 +121,22 @@ public class FileServiceImpl implements FileService {
             throw new RuntimeException("上传失败: " + e.getMessage(), e);
         }
     }
+
+    @Override
+    public String presignedDownloadUrl(String objectKey, String filename) {
+        try {
+            // minio 8.5.2 无 extraHttpHeaders；S3 规范下 response-* 覆盖须走查询参数
+            return minioClient.getPresignedObjectUrl(io.minio.GetPresignedObjectUrlArgs.builder()
+                    .method(io.minio.http.Method.GET)
+                    .bucket(bucket)
+                    .object(objectKey)
+                    .expiry(1, java.util.concurrent.TimeUnit.HOURS)
+                    .extraQueryParams(java.util.Map.of(
+                            "response-content-disposition",
+                            "attachment; filename=\"" + filename.replace("\"", "") + "\""))
+                    .build());
+        } catch (Exception e) {
+            throw new RuntimeException("生成下载链接失败: " + e.getMessage(), e);
+        }
+    }
 }

@@ -26,6 +26,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 视频生成任务服务：创建入队 → 线程池执行器（提交 Ark + 轮询 + 成片转存 MinIO）→ 重试/分页。
@@ -52,6 +53,7 @@ public class VideoGenTaskService {
 
     private static final int MAX_QUEUE = 20;
     private static final long POLL_TIMEOUT_MS = 15 * 60 * 1000;
+    private final AtomicInteger threadCounter = new AtomicInteger();
     private ThreadPoolExecutor pool;
 
     @PostConstruct
@@ -59,7 +61,7 @@ public class VideoGenTaskService {
         pool = new ThreadPoolExecutor(2, 2, 60, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(MAX_QUEUE),
                 r -> {
-                    Thread t = new Thread(r, "videogen");
+                    Thread t = new Thread(r, "videogen-" + threadCounter.incrementAndGet());
                     t.setDaemon(true);
                     return t;
                 });

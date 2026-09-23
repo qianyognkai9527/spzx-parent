@@ -2,12 +2,14 @@ package com.joker.spzx.manager.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.joker.spzx.manager.service.FileService;
 import com.joker.spzx.manager.service.videogen.VideoGenTaskService;
 import com.joker.spzx.manager.service.videogen.VideoPromptService;
 import com.joker.spzx.model.entity.videogen.VideoGenTask;
 import com.joker.spzx.model.vo.common.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,6 +33,12 @@ public class VideoGenController {
 
     @Autowired
     private VideoGenTaskService taskService;
+
+    @Autowired
+    private FileService fileService;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Value("${minio.endpoint:http://127.0.0.1:9000}")
     private String minioEndpoint;
@@ -103,7 +111,7 @@ public class VideoGenController {
         return Result.build(null);
     }
 
-    /** 任务实体 → 前端行 VO：拼 videoUrl（objectKey → MinIO 完整 URL，浏览器/`<video>` 直连，无 302 接口） */
+    /** 任务实体 → 前端行 VO：拼 videoUrl（预览直链）与 downloadUrl（预签名 attachment 直链，跨域也能另存为） */
     private Map<String, Object> taskRow(VideoGenTask t) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", t.getId());
@@ -116,10 +124,26 @@ public class VideoGenController {
         row.put("status", t.getStatus());
         row.put("remoteTaskId", t.getRemoteTaskId());
         row.put("errorMsg", t.getErrorMsg());
-        row.put("videoUrl", t.getObjectKey() == null || t.getObjectKey().isBlank()
-                ? null : minioEndpoint + "/" + minioBucket + "/" + t.getObjectKey());
+        boolean hasKey = t.getObjectKey() != null && !t.getObjectKey().isBlank();
+        row.put("videoUrl", hasKey ? minioEndpoint + "/" + minioBucket + "/" + t.getObjectKey() : null);
+        row.put("downloadUrl", hasKey
+                ? fileService.presignedDownloadUrl(t.getObjectKey(), downloadFilename(t)) : null);
         row.put("createTime", t.getCreateTime());
         row.put("finishTime", t.getFinishTime());
         return row;
+    }
+
+    /** 下载文件名：商品编码存在则 code_id.mp4，否则 videogen_id.mp4；仅保留 HTTP 头安全字符 */
+    private String downloadFilename(VideoGenTask t) {
+        String code = null;
+        try {
+            List<String> codes = jdbcTemplate.queryForList(
+                    "SELECT code FROM platform_product WHERE id=?", String.class, t.getProductId());
+            if (!codes.isEmpty() && codes.get(0) != null) {
+                code = codes.get(0).replaceAll("[^A-Za-z0-9._-]", "");
+            }
+        } catch (Exception ignore) { // 编码查询失败退回默认命名，不阻塞列表
+        }
+        return (code == null || code.isBlank() ? "videogen_" + t.getId() : code + "_" + t.getId()) + ".mp4";
     }
 }
