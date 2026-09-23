@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS kw_wordbank_batch (
   word_count INT DEFAULT 0,
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
   remark VARCHAR(255)
-) COMMENT '词表批次';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT '词表批次';
 
 CREATE TABLE IF NOT EXISTS kw_wordbank_item (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS kw_wordbank_item (
   score DECIMAL(8,4) COMMENT '加权总分',
   UNIQUE KEY uk_batch_kw (batch_id, keyword),
   KEY idx_batch_score (batch_id, score)
-) COMMENT '词表词条';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT '词表词条';
 
 CREATE TABLE IF NOT EXISTS kw_product_analysis (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS kw_product_analysis (
   note VARCHAR(500) COMMENT '用户补充说明(材质/人群等)',
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
   KEY idx_product (product_id)
-) COMMENT 'AI识品结果';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT 'AI识品结果';
 
 CREATE TABLE IF NOT EXISTS kw_select_task (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS kw_select_task (
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
   finish_time DATETIME,
   KEY idx_status (status)
-) COMMENT '选词任务';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT '选词任务';
 
 CREATE TABLE IF NOT EXISTS kw_task_word (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS kw_task_word (
   reason VARCHAR(200) COMMENT 'AI理由',
   picked TINYINT DEFAULT 0 COMMENT '用户勾选',
   KEY idx_task (task_id)
-) COMMENT '任务匹配词';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT '任务匹配词';
 
 CREATE TABLE IF NOT EXISTS kw_title_suggestion (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -67,13 +67,13 @@ CREATE TABLE IF NOT EXISTS kw_title_suggestion (
   title VARCHAR(60) NOT NULL,
   reason VARCHAR(300),
   picked TINYINT DEFAULT 0 COMMENT '用户勾选'
-) COMMENT '标题优化建议';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT '标题优化建议';
 
 CREATE TABLE IF NOT EXISTS kw_config (
   config_key VARCHAR(50) PRIMARY KEY,
   config_value VARCHAR(50) NOT NULL,
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) COMMENT 'AI引擎运行时配置';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT 'AI引擎运行时配置';
 
 -- 当前引擎（默认全走 tokens-store）
 INSERT IGNORE INTO kw_config (config_key, config_value) VALUES ('text_provider', 'tokens-store');
@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS kw_provider (
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_name (name)
-) COMMENT 'AI provider 定义（运行时配置源）';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT 'AI provider 定义（运行时配置源）';
 
 -- 菜单：运营管理(38)下，AI选词三页面(65-67)之后；写死 id=68（当前空闲）
 INSERT INTO sys_menu (id, parent_id, title, component, sort_value, status)

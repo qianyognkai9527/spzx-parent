@@ -45,9 +45,11 @@ CREATE TABLE IF NOT EXISTS source_factory (
 -- C. 菜单注册:工厂排行榜页面(后端动态菜单要求 component=路由name)
 -- 先查"货源与商品"父菜单 id(product 父路由),若不存在用 38 兜底
 INSERT INTO sys_menu (parent_id, title, component, sort_value, status, create_time, update_time)
-SELECT COALESCE((SELECT id FROM (SELECT id FROM sys_menu WHERE component='product' LIMIT 1) t), 38),
-       '工厂排行榜', 'sourceFactoryRank', 50, 1, NOW(), NOW();
+SELECT t.pid, '工厂排行榜', 'sourceFactoryRank', 50, 1, NOW(), NOW()
+FROM (SELECT COALESCE((SELECT id FROM (SELECT id FROM sys_menu WHERE component='product' LIMIT 1) x), 38) AS pid) t
+WHERE NOT EXISTS (SELECT 1 FROM (SELECT id FROM sys_menu WHERE component='sourceFactoryRank' LIMIT 1) e);
 
--- 授权给 admin 角色(id=9,若不同请调整)
+-- 授权给 admin 角色(id=9,若不同请调整)，重复执行幂等
 INSERT INTO sys_role_menu (role_id, menu_id)
-SELECT 9, id FROM sys_menu WHERE component='sourceFactoryRank';
+SELECT 9, m.id FROM (SELECT id FROM sys_menu WHERE component='sourceFactoryRank') m
+WHERE NOT EXISTS (SELECT 1 FROM (SELECT role_id, menu_id FROM sys_role_menu) r WHERE r.role_id=9 AND r.menu_id=m.id);

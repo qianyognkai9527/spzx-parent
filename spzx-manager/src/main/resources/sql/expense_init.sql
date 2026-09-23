@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS expense_order (
   UNIQUE KEY uk_trade_no (alipay_trade_no),
   KEY idx_expense_date (expense_date),
   KEY idx_channel (channel)
-) COMMENT '消费账单记录';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT '消费账单记录';
 
 CREATE TABLE IF NOT EXISTS expense_tag (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -28,14 +28,14 @@ CREATE TABLE IF NOT EXISTS expense_tag (
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_name (name)
-) COMMENT '消费标签';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT '消费标签';
 
 CREATE TABLE IF NOT EXISTS expense_order_tag (
   order_id BIGINT NOT NULL,
   tag_id BIGINT NOT NULL,
   PRIMARY KEY (order_id, tag_id),
   KEY idx_tag_id (tag_id)
-) COMMENT '账单-标签关联';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT '账单-标签关联';
 
 -- 预置标签（幂等）
 INSERT INTO expense_tag (name, color, sort_value) SELECT '购物', 'primary', 1 WHERE NOT EXISTS (SELECT 1 FROM expense_tag WHERE name='购物');
@@ -79,11 +79,11 @@ CREATE TABLE IF NOT EXISTS expense_group (
   remark VARCHAR(200) COMMENT '备注',
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) COMMENT '消费分组';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT '消费分组';
 
 CREATE TABLE IF NOT EXISTS expense_group_order (
   group_id BIGINT NOT NULL,
   order_id BIGINT NOT NULL,
   PRIMARY KEY (group_id, order_id),
   KEY idx_egorder_order (order_id)
-) COMMENT '分组-订单关联（多对多，复合主键天然幂等）';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT '分组-订单关联（多对多，复合主键天然幂等）';
