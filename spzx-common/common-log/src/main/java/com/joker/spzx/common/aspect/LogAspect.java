@@ -32,13 +32,17 @@ public class LogAspect {            // 环绕通知切面类定义
             LogUtil.afterHandlLog(sysLog , proceed , sysOperLog , 0 , null) ;
             // 构建响应结果参数
         } catch (Throwable e) {
-            log.error("操作日志记录异常", e);
+            log.warn("操作执行异常, url={}", sysOperLog.getOperUrl(), e);
             LogUtil.afterHandlLog(sysLog, proceed, sysOperLog, 1, e.getMessage());
             throw e;
+        } finally {
+            // 成功与失败都要落审计日志（失败路径此前被丢失）
+            try {
+                asyncOperLogService.saveSysOperLog(sysOperLog);
+            } catch (Exception e) {
+                log.error("操作日志保存失败", e);
+            }
         }
-
-        // 保存日志数据
-        asyncOperLogService.saveSysOperLog(sysOperLog);
 
         // 返回执行结果
         return proceed ;                               // 返回执行结果

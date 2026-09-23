@@ -11,7 +11,9 @@ import com.joker.spzx.model.vo.taskprogress.ProcessStatusVo;
 import com.joker.spzx.model.vo.taskprogress.TaskItemVo;
 import com.joker.spzx.model.vo.taskprogress.TaskOverviewVo;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -48,6 +50,9 @@ public class TaskProgressServiceImpl implements TaskProgressService {
 
     @Value("${task-progress.cdp-base-url:http://127.0.0.1}")
     private String cdpBaseUrl;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Override
     public TaskOverviewVo getOverview() {
@@ -475,24 +480,17 @@ public class TaskProgressServiceImpl implements TaskProgressService {
     }
 
     private void fillDbFactoryGrade(TaskItemVo item) {
-        // 用 DB 查询, 通过 JdbcTemplate 或 Mapper
-        // 简化: 直接查 mysql
         try {
-            ShellUtil.ShellResult r = ShellUtil.run(
-                    "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                            "\"SELECT CONCAT(quality_grade, ':', COUNT(*)) FROM source_factory WHERE is_deleted=0 GROUP BY quality_grade ORDER BY quality_grade DESC\" 2>/dev/null",
-                    10_000);
-            String out = r.output();
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT quality_grade AS grade, COUNT(*) AS cnt FROM source_factory "
+                            + "WHERE is_deleted=0 GROUP BY quality_grade ORDER BY quality_grade DESC");
             int total = 0;
             StringBuilder sb = new StringBuilder();
-            for (String line : out.trim().split("\n")) {
-                String[] parts = line.split(":");
-                if (parts.length == 2) {
-                    int cnt = Integer.parseInt(parts[1].trim());
-                    total += cnt;
-                    if (sb.length() > 0) sb.append(", ");
-                    sb.append(parts[0].trim()).append(":").append(cnt);
-                }
+            for (Map<String, Object> row : rows) {
+                int cnt = ((Number) row.get("cnt")).intValue();
+                total += cnt;
+                if (sb.length() > 0) sb.append(", ");
+                sb.append(row.get("grade")).append(":").append(cnt);
             }
             item.setTotal(total);
             item.setProcessed(total);
@@ -507,21 +505,13 @@ public class TaskProgressServiceImpl implements TaskProgressService {
 
     private void fillDbFreight(TaskItemVo item, JSONObject cfg) {
         try {
-            ShellUtil.ShellResult r = ShellUtil.run(
-                    "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                            "\"SELECT COUNT(*) FROM source_product WHERE freight_cost IS NULL OR freight_cost=0;\" 2>/dev/null && " +
-                            "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                            "\"SELECT COUNT(*) FROM source_product WHERE freight_cost > 0;\" 2>/dev/null",
-                    10_000);
-            String out = r.output();
-            String[] lines = out.trim().split("\n");
-            int pending = lines.length > 0 ? Integer.parseInt(lines[0].trim()) : 0;
-            int done = lines.length > 1 ? Integer.parseInt(lines[1].trim()) : 0;
-            item.setTotal(done + pending);
-            item.setProcessed(done);
-            item.setSaved(done);
-            item.setFailed(pending);
-            item.setProgressPercent(item.getTotal() > 0 ? done * 100 / item.getTotal() : 0);
+            long pending = dbCount("SELECT COUNT(*) FROM source_product WHERE freight_cost IS NULL OR freight_cost=0");
+            long done = dbCount("SELECT COUNT(*) FROM source_product WHERE freight_cost > 0");
+            item.setTotal((int) (done + pending));
+            item.setProcessed((int) done);
+            item.setSaved((int) done);
+            item.setFailed((int) pending);
+            item.setProgressPercent(item.getTotal() > 0 ? (int) (done * 100 / item.getTotal()) : 0);
             item.setLastLog("已抓" + done + ", 待抓" + pending);
         } catch (Exception e) {
             item.setLastLog("DB查询失败: " + e.getMessage());
@@ -530,22 +520,14 @@ public class TaskProgressServiceImpl implements TaskProgressService {
 
     private void fillDbNovel(TaskItemVo item) {
         try {
-            ShellUtil.ShellResult r = ShellUtil.run(
-                    "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                            "\"SELECT total_chapters FROM novel WHERE id=1 AND is_deleted=0;\" 2>/dev/null && " +
-                            "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                            "\"SELECT COUNT(*) FROM novel_chapter WHERE novel_id=1 AND is_deleted=0;\" 2>/dev/null && " +
-                            "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                            "\"SELECT COUNT(*) FROM novel_chapter WHERE novel_id=1 AND is_deleted=0 AND status=2;\" 2>/dev/null",
-                    10_000);
-            if (r.exitCode() != 0) {
-                throw new RuntimeException("mysql 查询失败, exit=" + r.exitCode());
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT total_chapters FROM novel WHERE id=1 AND is_deleted=0");
+            int total = 0;
+            if (!rows.isEmpty() && rows.get(0).get("total_chapters") != null) {
+                total = ((Number) rows.get(0).get("total_chapters")).intValue();
             }
-            String out = r.output();
-            String[] lines = out.trim().split("\n");
-            int total = lines.length > 0 ? Integer.parseInt(lines[0].trim()) : 0;
-            int written = lines.length > 1 ? Integer.parseInt(lines[1].trim()) : 0;
-            int published = lines.length > 2 ? Integer.parseInt(lines[2].trim()) : 0;
+            int written = (int) dbCount("SELECT COUNT(*) FROM novel_chapter WHERE novel_id=1 AND is_deleted=0");
+            int published = (int) dbCount("SELECT COUNT(*) FROM novel_chapter WHERE novel_id=1 AND is_deleted=0 AND status=2");
             item.setTotal(total);
             item.setProcessed(written);
             item.setSaved(published);
@@ -589,22 +571,9 @@ public class TaskProgressServiceImpl implements TaskProgressService {
 
     private void fillDbInventoryAlert(TaskItemVo item) {
         try {
-            ShellUtil.ShellResult r = ShellUtil.run(
-                    "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                            "\"SELECT COUNT(*) FROM source_sku WHERE status=1 AND is_deleted=0;\" 2>/dev/null && " +
-                            "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                            "\"SELECT COUNT(*) FROM sync_alert WHERE status=0;\" 2>/dev/null && " +
-                            "/usr/local/mysql/bin/mysql -uroot -proot123456 db_spzx -N -e " +
-                            "\"SELECT COUNT(*) FROM sku_bind_relation WHERE status=1 AND is_deleted=0;\" 2>/dev/null",
-                    10_000);
-            if (r.exitCode() != 0) {
-                throw new RuntimeException("mysql 查询失败, exit=" + r.exitCode());
-            }
-            String out = r.output();
-            String[] lines = out.trim().split("\n");
-            int activeSku = lines.length > 0 ? Integer.parseInt(lines[0].trim()) : 0;
-            int unreadAlerts = lines.length > 1 ? Integer.parseInt(lines[1].trim()) : 0;
-            int confirmedBind = lines.length > 2 ? Integer.parseInt(lines[2].trim()) : 0;
+            int activeSku = (int) dbCount("SELECT COUNT(*) FROM source_sku WHERE status=1 AND is_deleted=0");
+            int unreadAlerts = (int) dbCount("SELECT COUNT(*) FROM sync_alert WHERE status=0");
+            int confirmedBind = (int) dbCount("SELECT COUNT(*) FROM sku_bind_relation WHERE status=1 AND is_deleted=0");
             item.setTotal(activeSku);
             item.setProcessed(activeSku);
             item.setSaved(confirmedBind);
@@ -614,6 +583,11 @@ public class TaskProgressServiceImpl implements TaskProgressService {
         } catch (Exception e) {
             item.setLastLog("DB查询失败: " + e.getMessage());
         }
+    }
+
+    private long dbCount(String sql) {
+        Long cnt = jdbcTemplate.queryForObject(sql, Long.class);
+        return cnt == null ? 0 : cnt;
     }
 
     // ==================== 工具方法 ====================

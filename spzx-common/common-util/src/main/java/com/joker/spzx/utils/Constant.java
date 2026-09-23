@@ -19,7 +19,6 @@ public class Constant {
             "/admin/system/index/wxLogin/bind",
             "/admin/system/index/wxLogin/mockScan",
             "/admin/system/index/wxLogin/mockConfirm",
-            "/admin/system/fileUpload",
             "/js/**",
             "/css/**",
             "/img/**",

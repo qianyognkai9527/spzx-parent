@@ -6,8 +6,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.joker.spzx.model.entity.base.BaseEntity;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import lombok.ToString;
 
 @Data
+@ToString(exclude = "password")
 @TableName("sys_user")
 @Schema(name = "SysUser", description = "用户表")
 public class SysUser extends BaseEntity {

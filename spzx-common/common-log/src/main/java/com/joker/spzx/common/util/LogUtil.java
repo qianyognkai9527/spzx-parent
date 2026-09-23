@@ -13,15 +13,31 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.regex.Pattern;
 
 public class LogUtil {
+
+    // JSON 形式: "password":"xxx"
+    private static final Pattern PWD_JSON_PATTERN =
+            Pattern.compile("(\"(?:password|passwd|pwd)\"\\s*:\\s*\")[^\"]*(\")", Pattern.CASE_INSENSITIVE);
+    // toString 形式: password=xxx
+    private static final Pattern PWD_TO_STRING_PATTERN =
+            Pattern.compile("((?:password|passwd|pwd)\\s*=\\s*)[^,;\\]\\s]*", Pattern.CASE_INSENSITIVE);
+
+    private static String maskSensitive(String text) {
+        if (text == null) {
+            return null;
+        }
+        return PWD_JSON_PATTERN.matcher(PWD_TO_STRING_PATTERN.matcher(text).replaceAll("$1***"))
+                .replaceAll("$1***$2");
+    }
 
     //操作执行之后调用
     public static void afterHandlLog(Log sysLog, Object proceed,
                                      SysOperLog sysOperLog, int status ,
                                      String errorMsg) {
         if(sysLog.isSaveResponseData()) {
-            sysOperLog.setJsonResult(JSON.toJSONString(proceed));
+            sysOperLog.setJsonResult(maskSensitive(JSON.toJSONString(proceed)));
         }
         sysOperLog.setStatus(status);
         sysOperLog.setErrorMsg(errorMsg);
@@ -53,10 +69,11 @@ public class LogUtil {
         if(sysLog.isSaveRequestData()) {
             String requestMethod = sysOperLog.getRequestMethod();
             if (HttpMethod.PUT.name().equals(requestMethod) || HttpMethod.POST.name().equals(requestMethod)) {
-                String params = Arrays.toString(joinPoint.getArgs());
+                String params = maskSensitive(Arrays.toString(joinPoint.getArgs()));
                 sysOperLog.setOperParam(params);
             }
         }
-        sysOperLog.setOperName(AuthContextUtil.getUser().getUsername());
+        com.joker.spzx.model.entity.system.SysUser user = AuthContextUtil.getUser();
+        sysOperLog.setOperName(user == null ? "anonymous" : user.getUsername());
     }
 }

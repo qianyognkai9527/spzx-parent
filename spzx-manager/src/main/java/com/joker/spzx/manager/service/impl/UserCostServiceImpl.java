@@ -60,10 +60,15 @@ public class UserCostServiceImpl extends ServiceImpl<UserCostMapper, UserCost> i
 
     @Override
     public void updateData(UserCostDto userCostDto) {
+        UserCost exist = this.getById(userCostDto.getId());
+        if (exist == null) {
+            throw new com.joker.spzx.common.exception.ServiceException(202, "记录不存在或已删除");
+        }
         UserCost userCost = new UserCost();
         BeanUtils.copyProperties(userCostDto, userCost);
         Long id = AuthContextUtil.getUser().getId();
-        userCost.setUserId(id);
+        // 保留原归属人，避免编辑他人记录时"抢主"
+        userCost.setUserId(exist.getUserId());
         userCost.setUpdateBy(id);
         userCost.setUpdateTime(LocalDateTime.now());
         userCost.updateById();
@@ -71,6 +76,10 @@ public class UserCostServiceImpl extends ServiceImpl<UserCostMapper, UserCost> i
 
     @Override
     public void removeData(Long id) {
+        UserCost exist = this.getById(id);
+        if (exist == null) {
+            throw new com.joker.spzx.common.exception.ServiceException(202, "记录不存在或已删除");
+        }
         UserCost userCost = new UserCost();
         userCost.setId(id);
         userCost.setIsDeleted(1);

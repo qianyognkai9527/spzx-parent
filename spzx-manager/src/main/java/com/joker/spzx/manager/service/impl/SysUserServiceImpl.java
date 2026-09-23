@@ -139,6 +139,12 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     @Override
     public void updateSysUser(SysUser sysUser) {
+        // 与 saveSysUser 对称: 提交密码必须 MD5 后才可入库; 未修改密码时不更新该列
+        if (StringUtils.isNotBlank(sysUser.getPassword())) {
+            sysUser.setPassword(DigestUtils.md5DigestAsHex(sysUser.getPassword().getBytes()));
+        } else {
+            sysUser.setPassword(null);
+        }
         this.updateById(sysUser);
     }
 
