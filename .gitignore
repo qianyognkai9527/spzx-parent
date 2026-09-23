@@ -58,3 +58,9 @@ automation/tb-auto/novel_batches/
 automation/fanqie-publish/new_chapters/
 automation/*/*.png
 automation/*/*.txt
+.DS_Store
+automation/**/*.bak*
+automation/**/*.lock
+automation/**/*.out
+automation/**/*.html
+automation/**/test_images/
