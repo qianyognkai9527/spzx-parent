@@ -1,0 +1,32 @@
+{
+  "processed": [
+    "945954826"
+  ],
+  "failed": [
+    {
+      "id": "945954824",
+      "error": "异常: Locator.input_value: Target page, context or browser has been closed\nCall log:\n "
+    },
+    {
+      "id": "945954827",
+      "error": "异常: Locator.input_value: Target page, context or browser has been closed"
+    },
+    {
+      "id": "945954824",
+      "error": "异常: Locator.input_value: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator"
+    },
+    {
+      "id": "945954827",
+      "error": "异常: Locator.input_value: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator"
+    },
+    {
+      "id": "945954828",
+      "error": "异常: Locator.input_value: Target page, context or browser has been closed\nCall log:\n "
+    },
+    {
+      "id": "945954829",
+      "error": "异常: Locator.input_value: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator"
+    }
+  ],
+  "count": 1
+}

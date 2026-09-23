@@ -37,3 +37,24 @@ jvisualvm_pid*
 /**/target/
 .qoder/*8.superpowers/
 application-local.yml
+
+# ===== automation (Python 电商自动化生态, 2026-09-23 迁入) =====
+automation/venv/
+automation/*/chrome-profile*/
+automation/*/*.jsonl
+automation/*/*.json
+!automation/sourcing/task-progress-config.json
+automation/*/tmp_*/
+automation/*/videos/
+automation/*/output/
+automation/*/*.bak
+automation/*/*.xlsx
+automation/*/*.mp4
+automation/*/__pycache__/
+automation/*/*.pyc
+automation/sourcing/_archive_20260906/
+automation/sourcing/_probe_20260910/
+automation/tb-auto/novel_batches/
+automation/fanqie-publish/new_chapters/
+automation/*/*.png
+automation/*/*.txt

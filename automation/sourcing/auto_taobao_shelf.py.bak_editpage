@@ -1,0 +1,969 @@
+"""auto_taobao_shelf.py - 淘宝商品定时上架 + 去1688元素 + SKU去数字前缀
+用法:
+  python auto_taobao_shelf.py --test [--no-submit]   # 单商品模式, --no-submit不提交只填值验证
+  python auto_taobao_shelf.py --batch N [--no-submit]
+"""
+import asyncio
+import json
+import os
+import random
+import re
+import sys
+import time
+import pymysql
+from datetime import datetime, timedelta
+from playwright.async_api import async_playwright
+
+CDP = "http://127.0.0.1:9222"
+TITLES_FILE = "/Users/qyk9527/sourcing/taobao_all_titles.jsonl"
+PROGRESS_FILE = "/Users/qyk9527/sourcing/taobao_shelf_progress.json"
+MARK_FILE = "/Users/qyk9527/sourcing/taobao_1688_mark.jsonl"
+DB = dict(host="127.0.0.1", port=3306, user="root", password="root123456", database="db_spzx", charset="utf8mb4")
+
+# 1688 相关字眼
+MARK_WORDS = ["1688", "铺货价", "一件代发", "商品推荐", "阿里巴巴", "代发", "批发"]
+# 颜色词库(用于SKU去数字前缀判断)
+COLOR_WORDS = [
+    "红", "橙", "黄", "绿", "蓝", "紫", "黑", "白", "灰", "粉", "棕", "米", "杏", "卡",
+    "藏青", "墨绿", "酒红", "玫红", "驼", "咖", "豆", "奶", "裸", "焦糖", "樱花", "雾霾",
+    "浅", "深", "荧光", "渐变", "晕染", "纯色", "印花", "格子", "条纹", "波点",
+]
+# 尺寸单位(数字后跟这些则保留)
+SIZE_UNITS = ["厘米", "cm", "CM", "码", "号", "均码", "均", "件", "片", "片装"]
+
+
+def log(msg):
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
+
+
+def load_titles():
+    out = []
+    for line in open(TITLES_FILE, encoding='utf-8'):
+        line = line.strip()
+        if line:
+            out.append(json.loads(line))
+    return out
+
+
+def load_progress():
+    if os.path.exists(PROGRESS_FILE):
+        try:
+            return set(json.load(open(PROGRESS_FILE)).get("done", []))
+        except Exception:
+            pass
+    return set()
+
+
+def save_progress(done, total=0):
+    json.dump({"done": sorted(done), "processed": len(done), "count": total}, open(PROGRESS_FILE, "w"))
+
+
+BASE = datetime(2026, 8, 17, 0, 0, 0)  # 锚点: 下周一 2026-08-17 0:00 (用户要求每10分钟一个)
+SHELF_INTERVAL_MIN = 10  # 每 10 分钟上架一个
+
+
+def shelf_time_for(index):
+    """按商品在 titles 文件中的位置分配定时槽位: BASE + index*10min。
+    唯一、单调、断点续跑不重复。前2300个 × 10min ≈ 16天窗口(8/17 -> 9/1)。"""
+    t = BASE + timedelta(minutes=index * SHELF_INTERVAL_MIN)
+    return t.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def clean_sku_name(name):
+    """SKU去数字前缀: 去开头数字序列(含连字符37-5)+可选空格, 仅当后续是颜色词"""
+    if not name:
+        return name
+    m = re.match(r"^(\d+(-\d+)*)\s*", name)
+    if not m:
+        return name
+    rest = name[m.end():]
+    # 尺寸保护: 后续是尺寸单位则保留
+    if any(rest.startswith(u) for u in SIZE_UNITS):
+        return name
+    # 颜色判断: 后续以颜色词开头
+    if any(rest.startswith(c) for c in COLOR_WORDS):
+        return rest
+    return name
+
+
+async def open_edit_page(page, item_id):
+    url = f"https://item.upload.taobao.com/sell/v2/publish.htm?itemId={item_id}"
+    try:
+        await page.goto(url, wait_until="domcontentloaded", timeout=45000)
+    except Exception:
+        pass
+    # 条件等待: 等"定时上架"radio出现(页面就绪)或最多12s, 替代固定20s
+    for _ in range(12):
+        try:
+            ready = await page.evaluate("""() => {
+                const els = [...document.querySelectorAll('*')];
+                return els.some(e => e.offsetParent !== null && e.children.length === 0
+                    && (e.textContent || '').trim() === '定时上架');
+            }""")
+            if ready:
+                break
+        except Exception:
+            pass
+        await asyncio.sleep(1)
+    await asyncio.sleep(1)
+    return page.url
+
+
+async def detect_slider(page):
+    """检测阿里云滑块/验证码 (size-aware >150x30), 返回 True 表示触发风控"""
+    try:
+        r = await page.evaluate(r"""() => {
+            for (const s of ['#nc_1_wrapper', '.nc_iconfont', '#nc_1_n1z', '#aliyunCaptcha',
+                             '.baxia-dialog', '#baxia-dialog', '.nc-container', '#smcaptcha',
+                             '.J_MIDDLEWARE_FRAME_WIDGET', '[class*="captcha"]', '[class*="verify"]']) {
+                const el = document.querySelector(s);
+                if (el && el.offsetParent) {
+                    const r = el.getBoundingClientRect();
+                    if (r.width > 150 && r.height > 30) return true;
+                }
+            }
+            return false;
+        }""")
+        return bool(r)
+    except Exception:
+        return False
+
+
+async def slider_cooldown(page):
+    """检测到滑块后处理: 返回 True 表示已处理(需跳过该商品)"""
+    if await detect_slider(page):
+        log("  ⚠ 检测到滑块验证(风控), 跳过该商品")
+        await asyncio.sleep(random.uniform(5, 8))
+        return True
+    return False
+
+
+async def close_overlays(page):
+    """关闭编辑页可能出现的遮罩弹窗(引导/提示/校验等)
+    ⚠️ 不隐藏 .next-overlay-backdrop: 那是日期选择器等浮层的容器, 隐藏会破坏浮层显示"""
+    for _ in range(4):
+        try:
+            await page.evaluate(r'''() => {
+                // 点已知关闭按钮
+                for (const txt of ['我知道了','知道了','关闭','取消','暂不','下次再说','跳过']) {
+                    const els=[...document.querySelectorAll('*')];
+                    const e=els.find(x=>x.offsetParent!==null&&x.children.length===0&&(x.textContent||'').trim()===txt);
+                    if(e && typeof e.click==='function'){ e.click(); break; }
+                }
+                // 关闭按钮(排除日期浮层内)
+                for (const c of document.querySelectorAll('.next-dialog-close, .next-icon-close')) {
+                    if (typeof c.click==='function') c.click();
+                }
+            }''')
+        except Exception:
+            pass
+        await asyncio.sleep(0.4)
+    await asyncio.sleep(0.3)
+
+
+async def set_timing_shelf(page, time_str):
+    """选定时上架并填时间(支持跨月切换)"""
+    # 点击"定时上架" radio (真实点击)
+    # 点"定时上架" label (含 input 的 label, 点击才真正切换 radio; 只点 span 不生效)
+    clicked = False
+    for _try in range(3):
+        try:
+            await close_overlays(page)
+            clicked = await page.evaluate("""() => {
+                const labels=[...document.querySelectorAll('label')];
+                const l=labels.find(x=>{
+                    const t=(x.textContent||'').trim();
+                    return t.startsWith('定时上架') && x.querySelector('input[type=radio]');
+                });
+                if(!l) return false;
+                l.scrollIntoView({behavior:'instant', block:'center'});
+                l.click();
+                return true;
+            }""")
+            if not clicked:
+                lab = page.locator("span.item-label", has_text="定时上架").first
+                await lab.scroll_into_view_if_needed(timeout=15000)
+                await lab.click(timeout=15000)
+                clicked = True
+            break
+        except Exception as e:
+            await asyncio.sleep(1.5)
+    if not clicked:
+        return False, f"定时上架radio点击失败({_try+1}次): {str(e)[:40]}"
+    await asyncio.sleep(2)
+    # 验证 radio 真的选中(首次点可能没生效)
+    for _ in range(3):
+        checked = await page.evaluate("""() => {
+            const labels=[...document.querySelectorAll('label')];
+            const l=labels.find(x=>{
+                const t=(x.textContent||'').trim();
+                return t.startsWith('定时上架') && x.querySelector('input[type=radio]');
+            });
+            if(!l) return null;
+            const inp=l.querySelector('input[type=radio]');
+            return inp ? inp.checked : null;
+        }""")
+        if checked:
+            break
+        try:
+            await page.evaluate("""() => {
+                const labels=[...document.querySelectorAll('label')];
+                const l=labels.find(x=>{
+                    const t=(x.textContent||'').trim();
+                    return t.startsWith('定时上架') && x.querySelector('input[type=radio]');
+                });
+                if(l) l.click();
+            }""")
+        except Exception:
+            pass
+        await asyncio.sleep(1)
+    # 等日期输入框出现(最多15s)
+    inp_found = False
+    for _ in range(15):
+        inp_found = await page.evaluate("""() => {
+            const i=document.querySelector('.sell-o-datepicker input');
+            return !!(i && i.offsetParent);
+        }""")
+        if inp_found:
+            break
+        await asyncio.sleep(1)
+    if not inp_found:
+        return False, "日期输入框未出现"
+    # 点时间输入框弹出日历(Playwright真实点击), 重试直到日历出现
+    cal_open = False
+    for _ in range(5):
+        try:
+            inp = page.locator('.sell-o-datepicker input').first
+            await inp.scroll_into_view_if_needed(timeout=5000)
+            await asyncio.sleep(0.5)
+            await inp.click(timeout=5000)
+        except Exception:
+            pass
+        await asyncio.sleep(3)
+        has_cal = await page.evaluate("""() => {
+            const p=document.querySelector('.next-date-picker-body');
+            return !!(p && p.getBoundingClientRect().height>0);
+        }""")
+        if has_cal:
+            cal_open = True
+            break
+    if not cal_open:
+        return False, "日历未弹出"
+    # 解析目标时间
+    dt = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
+    day = str(dt.day)
+    hms = dt.strftime("%H:%M:%S")
+    target_month = dt.month
+    target_year = dt.year
+
+    # 切换到目标月份: 读当前年月, 若不同则点"下个月"直到匹配(最多12次)
+    for _ in range(13):
+        cur_ym = await page.evaluate("""() => {
+            const p=document.querySelector('.next-date-picker-body');
+            if(!p) return null;
+            const btns=[...p.querySelectorAll('.next-calendar-panel-header-full .next-calendar-btn')]
+                .filter(b=>b.offsetParent).map(b=>(b.textContent||'').trim());
+            return btns;
+        }""")
+        if not cur_ym or len(cur_ym) < 2:
+            return False, "日历未弹出"
+        month_map = {'一月':1,'二月':2,'三月':3,'四月':4,'五月':5,'六月':6,
+                     '七月':7,'八月':8,'九月':9,'十月':10,'十一月':11,'十二月':12}
+        cur_month = month_map.get(cur_ym[0], 0)
+        try:
+            cur_year = int(cur_ym[1])
+        except Exception:
+            cur_year = 0
+        if cur_year == target_year and cur_month == target_month:
+            break
+        # 点"下个月"按钮(用dispatchEvent, locator.click 对React按钮可能不生效)
+        try:
+            clicked_next = await page.evaluate("""() => {
+                const btn=[...document.querySelectorAll('.next-calendar-btn-next-month')]
+                    .find(b=>b.offsetParent);
+                if(btn){ btn.dispatchEvent(new MouseEvent('click',{bubbles:true})); return true; }
+                return false;
+            }""")
+            if not clicked_next:
+                # fallback: locator点击
+                btn = page.locator('.next-calendar-btn-next-month').first
+                await btn.scroll_into_view_if_needed(timeout=5000)
+                await btn.click(timeout=5000)
+        except Exception:
+            pass
+        await asyncio.sleep(0.8)
+    else:
+        return False, f"切月失败 目标{target_year}-{target_month} 当前{cur_ym}"
+
+    # 点目标日期格: 用 td class 只选当月日期(排除 prev-month/next-month), 且非 disabled
+    try:
+        clicked = await page.evaluate("""(d) => {
+            const p=document.querySelector('.next-date-picker-body');
+            if(!p) return false;
+            const tds=[...p.querySelectorAll('td.next-calendar-cell')];
+            const td=tds.find(t=>
+                !t.className.includes('prev-month') &&
+                !t.className.includes('next-month') &&
+                !t.className.includes('disabled') &&
+                (t.querySelector('.next-calendar-date')||{}).textContent?.trim()===d
+            );
+            if(td){ td.click(); return true; }
+            return false;
+        }""", day)
+    except Exception:
+        return False, "点日期格失败"
+    if not clicked:
+        return False, f"找不到可用日期格 {day}"
+    await asyncio.sleep(2)
+    # 填时间(等时间输入框启用后用Playwright填)
+    time_ready = False
+    for _ in range(5):
+        time_ready = await page.evaluate("""() => {
+            const inp=document.querySelector('.next-date-picker-body input[placeholder="HH:mm:ss"]');
+            return !!(inp && !inp.disabled);
+        }""")
+        if time_ready:
+            break
+        await asyncio.sleep(1)
+    if not time_ready:
+        return False, "时间输入框未启用"
+    try:
+        tinput = page.locator('.next-date-picker-body input[placeholder="HH:mm:ss"]').first
+        await tinput.click(timeout=5000)
+        await tinput.fill(hms)
+        await tinput.press('Tab')
+    except Exception:
+        return False, "填时间失败"
+    await asyncio.sleep(1)
+    # 点确定
+    ok = await page.evaluate("""() => {
+        const btns=[...document.querySelectorAll('.next-date-picker-body button')];
+        const b=btns.find(x=>(x.textContent||'').trim()==='确定' && !x.disabled);
+        if(b){ b.click(); return true; }
+        return false;
+    }""")
+    return ok, "ok" if ok else "确定按钮不可用"
+
+
+async def clean_sku_colors(page):
+    """清洗SKU颜色: 去数字前缀"""
+    cleaned = []
+    try:
+        inps = page.locator('input[placeholder="主色(必选)"]')
+        cnt = await inps.count()
+        for i in range(cnt):
+            inp = inps.nth(i)
+            val = await inp.input_value()
+            newval = clean_sku_name(val)
+            if newval != val:
+                await inp.click()
+                await inp.fill(newval)
+                await inp.press('Tab')
+                cleaned.append(f"{val}->{newval}")
+    except Exception as e:
+        return cleaned, str(e)[:60]
+    return cleaned, None
+
+
+async def detect_1688_marks(page, item_id, title):
+    """检测详情/页面1688字眼, 记录到表(排除运费模板名的正常命名)"""
+    marks = []
+    freight_ctx = []
+    try:
+        txt = await page.evaluate("() => document.body.innerText")
+        for kw in MARK_WORDS:
+            if kw in txt:
+                i = txt.index(kw)
+                ctx = txt[max(0,i-15):i+15].replace('\n',' ').strip()
+                marks.append({"kw": kw, "ctx": ctx})
+        # 收集运费模板名(正常命名,不算1688元素)
+        for m in re.finditer(r"\[[^\]]*1688[^\]]*\]", txt):
+            freight_ctx.append(m.group(0))
+        # 过滤掉落在运费模板名里的标记
+        filtered = []
+        for m in marks:
+            in_freight = any(fc in m['ctx'] or m['kw'] in fc for fc in freight_ctx)
+            if not in_freight:
+                filtered.append(m)
+        marks = filtered
+    except Exception:
+        pass
+    if marks:
+        issue = "；".join([f"{m['kw']}:{m['ctx']}" for m in marks[:5]])
+        save_mark(item_id, title, issue)
+    return marks
+
+
+def save_mark(item_id, title, issue):
+    conn = pymysql.connect(**DB)
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM platform_product WHERE code=%s AND platform_type=1", (item_id,))
+    row = cur.fetchone()
+    ppid = row[0] if row else None
+    cur.execute("SELECT id FROM taobao_1688_mark WHERE item_id=%s", (item_id,))
+    ex = cur.fetchone()
+    if ex:
+        cur.execute("UPDATE taobao_1688_mark SET issue=%s, update_time=NOW() WHERE id=%s", (issue, ex[0]))
+    else:
+        cur.execute("INSERT INTO taobao_1688_mark (item_id, platform_product_id, title, issue, status, create_time, update_time) VALUES (%s,%s,%s,%s,0,NOW(),NOW())", (item_id, ppid, title, issue))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+async def submit(page):
+    """真实点击提交宝贝信息, 检测是否真的提交成功. 返回(ok, msg)
+    ⚠️ 之前用 evaluate .click() 只点了按钮没触发React保存, 导致大量商品静默失败却标done
+    ⚠️ 2026-08-16 修复: 捕获 submit.htm 响应检测风控拦截(FAIL_SYS_USER_VALIDATE/拼图验证码),
+       之前只查页面文本, 风控拦截(商品未提交)被误判成功 -> 802个假done"""
+    # 注册一次性 response 监听捕获提交结果 (风控错误在JSON响应里, 页面无提示)
+    submit_resp = {}
+    async def _on_resp(resp):
+        if 'sell/v2/submit.htm' in resp.url and '/_____tmd_____/' not in resp.url and 'punish' not in resp.url:
+            try:
+                body = await resp.text()
+                submit_resp['body'] = body
+            except Exception:
+                pass
+    page.on('response', lambda r: asyncio.create_task(_on_resp(r)))
+
+    btn = None
+    try:
+        btn = page.locator("button:has-text('提交宝贝信息'), span:has-text('提交宝贝信息'), div:has-text('提交宝贝信息')").last
+        await btn.wait_for(state='visible', timeout=10000)
+        await btn.scroll_into_view_if_needed(timeout=10000)
+        await btn.click(timeout=10000)
+    except Exception:
+        ok = await page.evaluate("""() => {
+            const els=[...document.querySelectorAll('span,button,a,div')];
+            const e=els.find(x=>x.children.length===0 && (x.textContent||'').trim()==='提交宝贝信息');
+            if(e){ e.click(); return true; }
+            return false;
+        }""")
+        if not ok:
+            return False, "找不到提交宝贝信息按钮"
+    # 风控检测: submit.htm 响应含风控标志 -> 商品未提交 (轮询等待响应捕获, 避免竞态漏捕)
+    body = ''
+    for _ in range(8):
+        body = submit_resp.get('body', '')
+        if body:
+            break
+        await asyncio.sleep(1)
+    if body:
+        risk_kws = ['FAIL_SYS_USER_VALIDATE', 'RGV587_ERROR', 'captchacappuzzle', '被挤爆啦',
+                    '频繁', '验证码', '风控', '操作频繁', 'slide', 'puzzle']
+        if any(k in body for k in risk_kws):
+            return 'RISK', '提交被风控拦截(验证码/频繁): ' + body[:80]
+        # 有响应但非风控(正常提交成功): 立即返回成功
+        if '"ret"' in body and ('success' in body.lower() or '成功' in body or 'ok' in body.lower()):
+            return True, '商品提交成功(响应确认)'
+    # 检测结果: 成功 / 校验错误
+    # 优先检测弹窗/对话框 (提交失败通常弹提示)
+    try:
+        dlg_txt = await page.evaluate("""() => {
+            const ovs = [...document.querySelectorAll('.next-overlay-wrapper.opened, .next-dialog, [class*="dialog"]')]
+                .filter(e => e.offsetParent !== null || (e.getBoundingClientRect().height || 0) > 0);
+            for (const o of ovs) {
+                const t = (o.innerText || '').trim();
+                if (t && t.length > 3 && t.length < 200 && !/仅展示|提示信息：平台识别|属性信息更新/.test(t)) {
+                    return t.slice(0, 150);
+                }
+            }
+            return null;
+        }""")
+        if dlg_txt:
+            # 弹窗可能是错误提示
+            if '成功' in dlg_txt or '已提交' in dlg_txt:
+                return True, dlg_txt[:40]
+            if '违规' in dlg_txt or '商品发布' in dlg_txt:
+                # 违规提醒弹窗: 尝试关闭, 标记违规
+                await page.evaluate("""() => {
+                    const ovs = [...document.querySelectorAll('.next-overlay-wrapper.opened')]
+                        .filter(e => (e.innerText||'').includes('违规'));
+                    for (const o of ovs) {
+                        const btns = [...o.querySelectorAll('button')];
+                        const closeBtn = [...o.querySelectorAll('.next-dialog-close, [aria-label="关闭"]')][0];
+                        const confirmBtn = btns.find(b=>/知道了|返回|关闭/.test(b.textContent||''));
+                        const btn = confirmBtn || closeBtn;
+                        if (btn) { btn.click(); return; }
+                    }
+                }""")
+                return 'VIOLATION', dlg_txt[:60]
+    except Exception:
+        pass
+    txt = await page.evaluate('() => document.body.innerText')
+    if '商品提交成功' in txt or '提交成功' in txt:
+        return True, '商品提交成功'
+    # 校验错误/弹窗
+    errs = []
+    # 类目提示/说明文字(非校验错误) — 排除误判
+    EXCLUDE_LINES = ['只能发布全新宝贝', '该类目下', '商品如有多个不同的可售卖单元', '颜色、尺码等', '填写完成后', '了解属性', '重要属性', '带“*”为必填信息', '主要的应用场景', '带"*"为必填信息']
+    for kw in ['必填','不能为空','请选择','请填写','校验不通过','不允许','无效','错误']:
+        for line in txt.split('\n'):
+            l = line.strip()
+            if kw in l and 4 < len(l) < 45:
+                if any(ex in l for ex in EXCLUDE_LINES):
+                    continue
+                errs.append(l)
+                break
+    if errs:
+        return False, '校验错误: ' + '；'.join(errs[:2])
+    return True, '已提交(未检测到错误提示)'
+
+
+async def cancel_timing(page):
+    """把定时上架商品改为'放入仓库'(即时下架), 取消定时。返回(ok,msg)"""
+    last_err = ""
+    for _try in range(3):
+        try:
+            await close_overlays(page)
+            lab = page.locator("span.item-label", has_text="放入仓库").first
+            await lab.wait_for(state="visible", timeout=15000)
+            await lab.scroll_into_view_if_needed(timeout=15000)
+            await asyncio.sleep(0.5)
+            await lab.click(timeout=15000)
+            await asyncio.sleep(1.5)
+            return True, "ok"
+        except Exception as e:
+            last_err = str(e)[:50]
+            await asyncio.sleep(1.5)
+    return False, f"放入仓库radio失败(3次): {last_err}"
+
+
+async def process_cancel(page, item_id, do_submit=True):
+    """取消定时: 打开编辑页 -> 放入仓库 -> 提交"""
+    steps = {}
+    t0 = time.time()
+    await open_edit_page(page, item_id)
+    steps['open'] = round(time.time()-t0, 1)
+    await close_overlays(page)
+    t1 = time.time()
+    ok, msg = await cancel_timing(page)
+    steps['cancel'] = round(time.time()-t1, 1)
+    log(f"  放入仓库: {'✓' if ok else '✗ '+msg} ({steps['cancel']}s)")
+    if do_submit:
+        if not ok:
+            steps['submit'] = 0
+            steps['total'] = round(time.time()-t0, 1)
+            raise Exception(f"放入仓库失败: {msg}")
+        t2 = time.time()
+        sub_ok, sub_msg = await submit(page)
+        steps['submit'] = round(time.time()-t2, 1)
+        log(f"  提交宝贝信息: {'✓ '+sub_msg if sub_ok else '✗ '+sub_msg} ({steps['submit']}s)")
+        await asyncio.sleep(3)
+        if not sub_ok:
+            steps['total'] = round(time.time()-t0, 1)
+            raise Exception(f"提交失败: {sub_msg}")
+    else:
+        steps['submit'] = 0
+    steps['total'] = round(time.time()-t0, 1)
+    return steps
+
+
+async def clean_title_field(page, title):
+    """标题去1688字眼: 读编辑页标题 -> 去1688痕迹 -> fill+Tab(React受控)"""
+    try:
+        inp = page.locator('input[placeholder*="最多允许输入30个汉字"]').first
+        await inp.wait_for(state='visible', timeout=10000)
+        cur = await inp.input_value()
+        new_title = cur
+        for kw in ["1688", "阿里巴巴", "一件代发", "铺货价", "批发"]:
+            new_title = new_title.replace(kw, "")
+        new_title = re.sub(r'\s+', ' ', new_title).strip()
+        if new_title != cur and new_title:
+            await inp.click()
+            await inp.fill(new_title)
+            await inp.press('Tab')
+            return f"{cur[:20]}->{new_title[:20]}"
+        return None
+    except Exception as e:
+        return f"ERR {str(e)[:50]}"
+
+
+async def set_season_winter(page):
+    """适用季节统一设为冬季: 清空所有已选tag -> 打开下拉 -> 选冬季.
+    返回 'ok' / 'skip'(无此字段) / 错误信息"""
+    def _sel_xy():
+        return page.evaluate("""() => {
+            const leaves = [...document.querySelectorAll('*')].filter(e =>
+                e.offsetParent && e.children.length===0 && (e.textContent||'').trim()==='适用季节');
+            if (!leaves.length) return null;
+            let n = leaves[0];
+            for (let i=0;i<10 && n.parentElement;i++) {
+                n = n.parentElement;
+                const s = n.querySelector('.next-select-trigger');
+                if (s && s.offsetParent) {
+                    s.scrollIntoView({behavior:'instant', block:'center'});
+                    const r = s.getBoundingClientRect();
+                    return {x: Math.round(r.x+r.width/2), y: Math.round(r.y+r.height/2)};
+                }
+            }
+            return null;
+        }""")
+    def _click_trigger():
+        """用 Playwright locator 点适用季节 trigger (可靠)"""
+        return page.evaluate_handle("""() => {
+            const leaves = [...document.querySelectorAll('*')].filter(e =>
+                e.offsetParent && e.children.length===0 && (e.textContent||'').trim()==='适用季节');
+            if (!leaves.length) return null;
+            let n = leaves[0];
+            for (let i=0;i<10 && n.parentElement;i++) {
+                n = n.parentElement;
+                const s = n.querySelector('.next-select-trigger');
+                if (s && s.offsetParent) return s;
+            }
+            return null;
+        }""")
+    def _current_tags():
+        return page.evaluate("""() => {
+            const leaves = [...document.querySelectorAll('*')].filter(e =>
+                e.offsetParent && e.children.length===0 && (e.textContent||'').trim()==='适用季节');
+            if (!leaves.length) return [];
+            let n = leaves[0];
+            for (let i=0;i<10 && n.parentElement;i++) {
+                n = n.parentElement;
+                const s = n.querySelector('.next-select');
+                if (s && s.offsetParent) {
+                    return [...s.querySelectorAll('.next-tag')].map(t=>(t.textContent||'').trim()).filter(Boolean);
+                }
+            }
+            return [];
+        }""")
+    try:
+        tags = await _current_tags()
+        # 清掉所有已选 tag
+        for _ in range(5):
+            cleared = await page.evaluate("""() => {
+                const leaves = [...document.querySelectorAll('*')].filter(e =>
+                    e.offsetParent && e.children.length===0 && (e.textContent||'').trim()==='适用季节');
+                if (!leaves.length) return false;
+                let n = leaves[0];
+                for (let i=0;i<10 && n.parentElement;i++) {
+                    n = n.parentElement;
+                    const s = n.querySelector('.next-select');
+                    if (s && s.offsetParent) {
+                        const tag = s.querySelector('.next-tag');
+                        if (tag) {
+                            const closeBtn = tag.querySelector('.next-tag-close-btn');
+                            if (closeBtn) { closeBtn.click(); return true; }
+                        }
+                    }
+                }
+                return false;
+            }""")
+            if not cleared:
+                break
+            await asyncio.sleep(0.5)
+        # 打开下拉选冬季 (用 Playwright locator 点击, 可靠)
+        try:
+            handle = await _click_trigger()
+            el = handle.as_element()
+            if el is None:
+                return "skip"
+            await el.scroll_into_view_if_needed()
+            await asyncio.sleep(0.5)
+            await el.click(timeout=8000)
+        except Exception:
+            return "trigger-click-fail"
+        await asyncio.sleep(2)
+        tgt = await page.evaluate("""() => {
+            for (const o of document.querySelectorAll('.options-item')) {
+                if (o.offsetParent && (o.textContent||'').trim()==='冬季') {
+                    const r = o.getBoundingClientRect();
+                    return {x:Math.round(r.x+r.width/2), y:Math.round(r.y+r.height/2)};
+                }
+            }
+            return null;
+        }""")
+        if not tgt:
+            await page.keyboard.press("Escape")
+            return "no-winter-option"
+        await page.mouse.click(tgt['x'], tgt['y'])
+        await asyncio.sleep(1.5)
+        # 验证
+        tags_after = await _current_tags()
+        if tags_after == ['冬季']:
+            return "ok"
+        return f"warn:{tags_after}"
+    except Exception as e:
+        return f"ERR {str(e)[:50]}"
+
+
+async def process_one(page, item_id, title, time_str, do_submit=True):
+    steps = {}
+    t0 = time.time()
+    # 打开编辑页
+    await open_edit_page(page, item_id)
+    steps['open'] = round(time.time()-t0, 1)
+    # 关闭遮挡弹窗(巡检/引导等), 防止遮挡"定时上架"单选框
+    await close_overlays(page)
+
+    # 滑块/风控检测: 打开页后触发则跳过该商品(静默处理不卡住)
+    if await slider_cooldown(page):
+        steps['total'] = round(time.time()-t0, 1)
+        return steps, "SLIDER"
+
+    # 定时上架
+    t1 = time.time()
+    ok, msg = await set_timing_shelf(page, time_str)
+    steps['shelf'] = round(time.time()-t1, 1)
+    log(f"  定时上架[{time_str}]: {'✓' if ok else '✗ '+msg} ({steps['shelf']}s)")
+
+    # SKU清洗
+    t2 = time.time()
+    cleaned, cerr = await clean_sku_colors(page)
+    steps['sku'] = round(time.time()-t2, 1)
+    if cleaned:
+        log(f"  SKU清洗: {cleaned} ({steps['sku']}s)")
+    elif cerr:
+        log(f"  SKU清洗异常: {cerr}")
+    else:
+        log(f"  SKU无数字前缀需清理 ({steps['sku']}s)")
+
+    # 标题清洗
+    t2b = time.time()
+    title_res = await clean_title_field(page, title)
+    steps['title'] = round(time.time()-t2b, 1)
+    if title_res:
+        log(f"  标题清洗: {title_res} ({steps['title']}s)")
+    else:
+        log(f"  标题无1688需清理 ({steps['title']}s)")
+
+    # 适用季节统一设冬季 (必填校验通过)
+    t2c = time.time()
+    season_res = await set_season_winter(page)
+    steps['season'] = round(time.time()-t2c, 1)
+    log(f"  适用季节=冬季: {season_res} ({steps['season']}s)")
+
+    # 提取方式: 勾选第一个checkbox(使用物流配送)
+    t2d = time.time()
+    extract_res = await set_extract_method(page)
+    steps['extract'] = round(time.time()-t2d, 1)
+    log(f"  提取方式: {extract_res} ({steps['extract']}s)")
+
+    # 检测1688元素
+    t3 = time.time()
+    marks = await detect_1688_marks(page, item_id, title)
+    steps['mark'] = round(time.time()-t3, 1)
+    if marks:
+        log(f"  检测到1688元素: {len(marks)}处, 已记录到表")
+    else:
+        log(f"  未检测到1688元素")
+
+    # 提交
+    if do_submit:
+        if not ok:
+            # 定时上架未设置成功: 跳过提交, 避免商品被误上架/误改
+            steps['submit'] = 0
+            steps['total'] = round(time.time()-t0, 1)
+            log(f"  ⚠ 定时上架失败({msg}), 跳过提交(该商品下次重试)")
+            raise Exception(f"定时上架失败: {msg}")
+        t4 = time.time()
+        sub_ok, sub_msg = await submit(page)
+        steps['submit'] = round(time.time()-t4, 1)
+        if sub_ok == 'VIOLATION':
+            # 违规商品: 记录到表并跳过(不重试)
+            log(f"  ✗ 违规拦截: {sub_msg}")
+            save_mark(item_id, title, "商品发布违规提醒: " + str(sub_msg))
+            steps['total'] = round(time.time()-t0, 1)
+            return steps, "VIOLATION"
+        if sub_ok == 'RISK':
+            # 提交被风控拦截(验证码/频繁): 不标done, 返回给主循环冷却重试
+            log(f"  ⚠ 提交被风控拦截: {str(sub_msg)[:80]}")
+            steps['total'] = round(time.time()-t0, 1)
+            steps['_risk'] = True
+            return steps
+        if not sub_ok and ('关键词' in str(sub_msg) or '标签' in str(sub_msg)):
+            # 关键词/标签必填(特定类目强制卖点): 记录跳过不重试
+            log(f"  ✗ 关键词/标签必填, 记录跳过: {sub_msg[:40]}")
+            save_mark(item_id, title, "关键词/标签必填未填(类目强制卖点): " + str(sub_msg)[:100])
+            steps['total'] = round(time.time()-t0, 1)
+            return steps, "KEYWORD"
+        log(f"  提交宝贝信息: {'✓ '+sub_msg if sub_ok else '✗ '+sub_msg} ({steps['submit']}s)")
+        await asyncio.sleep(3)
+        if not sub_ok:
+            # 提交后触发滑块/验证码: 静默跳过(风控), 不重试
+            if await slider_cooldown(page) or ('验证' in str(sub_msg) or '滑块' in str(sub_msg)):
+                log(f"  ⚠ 提交后风控(滑块/验证), 静默跳过该商品")
+                steps['total'] = round(time.time()-t0, 1)
+                return steps, "SLIDER"
+            steps['total'] = round(time.time()-t0, 1)
+            raise Exception(f"提交失败: {sub_msg}")
+    else:
+        steps['submit'] = 0
+
+    steps['total'] = round(time.time()-t0, 1)
+    return steps
+
+
+async def set_extract_method(page):
+    """物流服务-提取方式: 勾选第一个checkbox(使用物流配送). 
+    返回 'ok' / 'skip'(无此字段) / 错误信息"""
+    try:
+        # 找提取方式 checkbox 组
+        found = await page.evaluate("""() => {
+            const leaves = [...document.querySelectorAll('*')].filter(e =>
+                e.offsetParent && e.children.length===0 && (e.textContent||'').trim()==='提取方式');
+            if (!leaves.length) return false;
+            const lab = leaves[leaves.length-1];
+            const lr = lab.getBoundingClientRect();
+            const grp = [...document.querySelectorAll('.next-checkbox-group')].find(g => {
+                const r = g.getBoundingClientRect();
+                return g.offsetParent && Math.abs(r.y - lr.y) < 50 && r.x > lr.x;
+            });
+            return !!grp;
+        }""")
+        if not found:
+            return "skip"
+        # 滚动到该字段并勾选第一个未勾选的checkbox
+        clicked = await page.evaluate("""() => {
+            const leaves = [...document.querySelectorAll('*')].filter(e =>
+                e.offsetParent && e.children.length===0 && (e.textContent||'').trim()==='提取方式');
+            const lab = leaves[leaves.length-1];
+            lab.scrollIntoView({behavior:'instant', block:'center'});
+            const lr = lab.getBoundingClientRect();
+            const grp = [...document.querySelectorAll('.next-checkbox-group')].find(g => {
+                const r = g.getBoundingClientRect();
+                return g.offsetParent && Math.abs(r.y - lr.y) < 50 && r.x > lr.x;
+            });
+            if (!grp) return 'no-group';
+            const cbs = [...grp.querySelectorAll('.next-checkbox')];
+            if (!cbs.length) return 'no-cb';
+            let changed = false;
+            for (const cb of cbs) {
+                const input = cb.querySelector('input[type=checkbox]');
+                if (input && !input.checked) { cb.click(); changed = true; break; }
+            }
+            return changed ? 'checked' : 'already';
+        }""")
+        await asyncio.sleep(1.5)
+        return clicked
+    except Exception as e:
+        return f"ERR {str(e)[:50]}"
+
+
+async def main():
+    test = '--test' in sys.argv
+    no_submit = '--no-submit' in sys.argv
+    retiming = '--retiming' in sys.argv  # 重置已done商品的定时(把错时间的移到周六+整点)
+    cancel_mode = '--cancel-timing' in sys.argv  # 下架: 把done商品的定时取消(放入仓库)
+    skip_first = 0
+    if '--skip-first' in sys.argv:
+        skip_first = int(sys.argv[sys.argv.index('--skip-first')+1])
+    only_pid = None
+    if '--pid' in sys.argv:
+        only_pid = str(sys.argv[sys.argv.index('--pid')+1])
+    titles = load_titles()
+    done = load_progress()
+    idx_map = {t['itemId']: i for i, t in enumerate(titles)}  # titles位置 = 定时槽位
+    mode = 'cancel-timing' if cancel_mode else ('retiming' if retiming else 'normal')
+    log(f"商品总数: {len(titles)}, 已完成: {len(done)}, 模式: {mode}" + (f", 跳过前{skip_first}" if skip_first else ""))
+
+    if only_pid:
+        todo = [t for t in titles if str(t['itemId']) == only_pid]
+        log(f"单商品模式: {only_pid}")
+    elif test:
+        todo = [titles[0]]
+    elif cancel_mode:
+        # 下架: 处理done中 idx>=skip_first 的(默认跳过前24=周六retiming那批), 按 titles 顺序
+        todo = [t for t in titles if t['itemId'] in done and idx_map[t['itemId']] >= skip_first]
+        if '--batch' in sys.argv:
+            todo = todo[:int(sys.argv[sys.argv.index('--batch')+1])]
+    elif retiming:
+        # retiming: 处理已done的, 按 titles 顺序(=原提交顺序=周五时间顺序), 优先移走最早的
+        todo = [t for t in titles if t['itemId'] in done]
+        if '--batch' in sys.argv:
+            todo = todo[:int(sys.argv[sys.argv.index('--batch')+1])]
+    else:
+        batch = None
+        if '--batch' in sys.argv:
+            batch = int(sys.argv[sys.argv.index('--batch')+1])
+        # 只处理前 MAX_SHELF 个 (用户要求前2300)
+        MAX_SHELF = 2300
+        todo = [t for t in titles[:MAX_SHELF] if t['itemId'] not in done]
+        if batch:
+            todo = todo[:batch]
+    # 跳过带水印/错放类目的商品 (taobao_1688_mark mark_type=2图片水印/3错放类目)
+    skip_items = set()
+    try:
+        conn = pymysql.connect(**DB)
+        cur = conn.cursor()
+        cur.execute("SELECT item_id FROM taobao_1688_mark WHERE mark_type IN (2,3) AND status=0")
+        skip_items = {str(r[0]) for r in cur.fetchall()}
+        cur.close(); conn.close()
+    except Exception:
+        pass
+    if skip_items:
+        before = len(todo)
+        todo = [t for t in todo if str(t['itemId']) not in skip_items]
+        log(f"跳过带水印/错放类目商品: {before - len(todo)} 个")
+    log(f"本次处理: {len(todo)} 个商品" + (f" (锚点: {BASE.strftime('%Y-%m-%d %H:%M')}, 每{SHELF_INTERVAL_MIN}分钟1个)" if not cancel_mode else " (放入仓库=下架)"))
+
+    pw = await async_playwright().start()
+    b = await pw.chromium.connect_over_cdp(CDP)
+    ctx = b.contexts[0]
+
+    total_time = 0
+    for i, rec in enumerate(todo):
+        item_id = rec['itemId']
+        title = rec['title']
+        t_start = time.time()
+        if cancel_mode:
+            log(f"[{i+1}/{len(todo)}] {item_id} 下架(放入仓库) 开始...")
+        else:
+            time_str = shelf_time_for(idx_map.get(item_id, 0))
+            log(f"[{i+1}/{len(todo)}] {item_id} 定时上架[{time_str}] 开始...")
+        # 每个商品用新page(避免SPA同路径不重渲染)
+        try:
+            page = await ctx.new_page()
+        except Exception as ne:
+            # context 可能被关闭(提交成功触发的连接重建等): 重建连接+context 再继续
+            log(f"  ⚠ context 重建: {str(ne)[:50]}")
+            try: await b.close()
+            except Exception: pass
+            pw = await async_playwright().start()
+            b = await pw.chromium.connect_over_cdp(CDP)
+            ctx = b.contexts[0]
+            page = await ctx.new_page()
+        try:
+            if cancel_mode:
+                steps = await process_cancel(page, item_id, do_submit=not no_submit)
+                log(f"  单商品耗时: {steps['total']}s (open={steps['open']} cancel={steps['cancel']} submit={steps['submit']})")
+            else:
+                steps = await process_one(page, item_id, title, time_str, do_submit=not no_submit)
+                if isinstance(steps, tuple):
+                    # (steps, flag): 违规/关键词/滑块 商品标记 done 不再重试; 风控不标done冷却重试
+                    steps, _flag = steps
+                    if _flag in ("VIOLATION", "KEYWORD", "SLIDER"):
+                        done.add(item_id)
+                        save_progress(done, len(titles))
+                log(f"  单商品耗时: {steps['total']}s (open={steps['open']} shelf={steps['shelf']} sku={steps['sku']} mark={steps['mark']} submit={steps['submit']})")
+            total_time += steps['total']
+            if not no_submit and not (isinstance(steps, dict) and steps.get('_risk')):
+                done.add(item_id)
+                save_progress(done, len(titles))
+            if isinstance(steps, dict) and steps.get('_risk'):
+                # 风控拦截: 冷却10分钟再试下一个 (不标done, 本次剩余继续)
+                log(f"  ⚠ {item_id} 提交被风控拦截, 冷却10分钟后继续")
+                await asyncio.sleep(600)
+        except Exception as e:
+            log(f"  ✗ {item_id} 处理异常: {str(e)[:100]}, 跳过(不标记完成,下次重试)")
+            total_time += time.time() - t_start
+        finally:
+            await page.close()
+        if test:
+            log(f"=== 测试完成: 单商品总耗时 {total_time}s ===")
+            break
+        # 节奏控制: 每商品间隔5-8s(加速), 每80个休息2分钟防风控
+        await asyncio.sleep(random.uniform(5, 8))
+        if (i + 1) % 80 == 0:
+            rest = random.uniform(100, 150)
+            log(f"  已处理 {i+1} 个, 休息 {int(rest)}s 防风控...")
+            await asyncio.sleep(rest)
+
+    await b.close()
+    log(f"完成: 处理 {len(todo)} 个, 累计 {len(done)} 个")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

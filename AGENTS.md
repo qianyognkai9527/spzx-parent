@@ -136,3 +136,18 @@ pay_notify_topic: notify.pay / notify.refund
 - 代码生成: `spzx-model/src/test/GeneratorCode.java`，运行前改 `outPath`（硬编码 Windows 路径）和 `tables`
 - 索引优化: `spzx-manager/src/main/resources/sql/db_optimization_plan.sql`（执行前需审阅）
 - 远景规划: `docs/ARCHITECTURE.md`（微服务蓝图，未落地）
+
+## automation/ — Python 电商自动化生态（2026-09-23 迁入）
+
+Playwright async + CDP 浏览器自动化。Python 3.9（`automation/venv`，全生态共用）。**Chrome 风控红线/坑位详见根 `~/AGENTS.md` 与各子目录 AGENTS.md**。
+
+| 子目录 | 用途 | CDP 端口 |
+|---|---|---|
+| `automation/sourcing/` | 1688 选品/归类调价/抖店直建/商品数据 | 9223（抖店+1688） |
+| `automation/tb-auto/` | 1688→淘宝铺货/巡检/小说章节导入 | 9222（1688+淘宝） |
+| `automation/fanqie-publish/` | 番茄小说自动发布（常驻 publish_auto.py，每日 12:00 发 8 章） | 9223 |
+
+- venv `automation/venv/bin/python`（3.9.6；迁移时已修复 entry-point shebang）
+- crontab 6 条任务已指向 automation/ 路径（真源 `crontab -l`）
+- 数据/缓存/登录态（chrome-profile*、*.jsonl、tmp_*、novel_batches、xlsx/mp4 等）**已 gitignore，勿提交**
+- 迁移前位置 `~/sourcing/`、`~/tb-auto/`、`~/fanqie-publish/` 已不存在；代码里发现旧路径 = bug

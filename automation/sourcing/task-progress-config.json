@@ -1,0 +1,201 @@
+{
+ "tasks": [
+  {
+   "key": "collect_1688_full",
+   "name": "1688详情采集·合并",
+   "category": "scheduled",
+   "tags": [
+    "1688",
+    "定时·周六03:00"
+   ],
+   "port": 9222,
+   "type": "list_progress",
+   "path": "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/collect_full_progress.json",
+   "script": "cron_collect_full.sh",
+   "logPath": "/tmp/cron_collect_full.log",
+   "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing && /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python collect_1688_full.py --limit 100",
+   "doneKey": "done"
+  },
+  {
+   "key": "guiruo_douyin",
+   "name": "抖音铺货·草稿",
+   "category": "manual",
+   "tags": [
+    "抖音"
+   ],
+   "port": 9223,
+   "type": "douyin_pipeline",
+   "worklist": "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/douyin_worklist.jsonl",
+   "dataFile": "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/douyin_product_data.jsonl",
+   "progressFile": "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/douyin_create_progress.json",
+   "scripts": [
+    "run_douyin_all.sh",
+    "build_douyin_worklist.py",
+    "scrape_1688_for_douyin.py",
+    "create_douyin_product.py"
+   ],
+   "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing && ./run_douyin_all.sh"
+  },
+  {
+   "key": "sync_douyin_stock",
+   "name": "抖店库存同步",
+   "category": "manual",
+   "tags": [
+    "抖音"
+   ],
+   "port": 9223,
+   "type": "process_only",
+   "script": "sync_douyin_stock.py",
+   "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing && /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python sync_douyin_stock.py --test 3 --dry-run"
+  },
+  {
+   "key": "crawl_douyin_orders",
+   "name": "抖店订单采集",
+   "category": "manual",
+   "tags": [
+    "抖音"
+   ],
+   "port": 9223,
+   "type": "process_only",
+   "script": "crawl_douyin_orders.py",
+   "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing && /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python crawl_douyin_orders.py --test"
+  },
+  {
+   "key": "sourcing_crawl",
+   "name": "1688选品爬取",
+   "category": "manual",
+   "tags": [
+    "1688"
+   ],
+   "port": 9222,
+   "type": "sourcing_progress",
+   "progressFile": "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/sourcing_progress.json",
+   "rawFile": "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/sourcing_raw.jsonl",
+   "script": "source_1688.py",
+   "logPath": "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/source_run.log",
+   "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing && nohup /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python source_1688.py > source_run.log 2>&1 &"
+  },
+  {
+   "key": "gold_factory",
+   "name": "金牌制造榜厂家",
+   "category": "manual",
+   "tags": [
+    "1688"
+   ],
+   "port": 9223,
+   "type": "db_factory_grade",
+   "script": "crawl_gold_factory.py",
+   "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing && /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python crawl_gold_factory.py"
+  },
+  {
+   "key": "freight_fetch",
+   "name": "运费补抓",
+   "category": "scheduled",
+   "tags": [
+    "9223",
+    "定时·周六03:30"
+   ],
+   "port": 9223,
+   "type": "db_freight",
+   "progressFile": "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/freight_progress.json",
+   "script": "cron_freight.sh",
+   "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing && /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python fetch_freight.py --limit 100",
+   "logPath": "/tmp/cron_freight.log"
+  },
+  {
+   "key": "collect_source_sku",
+   "name": "1688 SKU采集",
+   "category": "manual",
+   "tags": [
+    "1688"
+   ],
+   "port": 9222,
+   "type": "process_only",
+   "script": "collect_source_sku.py",
+   "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing && /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python collect_source_sku.py --test 3"
+  },
+  {
+   "key": "detect_stock_change",
+   "name": "库存变化检测",
+   "category": "scheduled",
+   "tags": [
+    "9222",
+    "定时·每日05:00"
+   ],
+   "port": 9222,
+   "type": "process_only",
+   "script": "inventory_cron.sh",
+   "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing && /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python detect_stock_change.py --pool",
+   "logPath": "/tmp/inventory_weekly.log"
+  },
+  {
+   "key": "guess_sku_bind",
+   "name": "SKU关联猜测",
+   "category": "manual",
+   "tags": [
+    "1688",
+    "抖音"
+   ],
+   "port": 0,
+   "type": "process_only",
+   "script": "guess_sku_bind.py",
+   "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing && /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python guess_sku_bind.py"
+  },
+  {
+   "key": "novel_writing",
+   "name": "小说写作·万域邪主",
+   "category": "manual",
+   "tags": [
+    "其他"
+   ],
+   "port": 0,
+   "type": "db_novel",
+   "script": "novel_import.py",
+   "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/tb-auto && /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python novel_import.py --novel-id 1 --file xxx.jsonl --update-outline"
+  },
+  {
+   "key": "fanqie_publish",
+   "name": "番茄发布·万域邪主",
+   "category": "manual",
+   "tags": [
+    "其他"
+   ],
+   "port": 9223,
+   "type": "fanqie_publish",
+   "path": "/Users/qyk9527/ideaProject/spzx-parent/automation/fanqie-publish/fanqie_publish_state.json",
+   "script": "publish_fanqie.py",
+   "logPath": "/Users/qyk9527/ideaProject/spzx-parent/automation/fanqie-publish/fanqie-publish.log",
+   "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/fanqie-publish && /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python publish_fanqie.py"
+  },
+  {
+   "key": "grade_quality",
+   "name": "质量分级",
+   "category": "scheduled",
+   "tags": [
+    "定时·每日05:30"
+   ],
+   "port": 0,
+   "type": "process_only",
+   "script": "grade_quality.py",
+   "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing && /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python grade_quality.py",
+   "logPath": "/tmp/cron_grades.log"
+  },
+  {
+   "key": "taobao_cat_v2",
+   "name": "淘宝归类调价v2",
+   "category": "manual",
+   "tags": [
+    "淘宝",
+    "9222",
+    "长跑"
+   ],
+   "port": 9222,
+   "type": "json_progress",
+   "path": "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/shop_cat_v2_progress.json",
+   "script": "assign_shop_category_v2.py",
+   "logPath": "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/cat_v2_run.log",
+   "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing && nohup bash run_cat_v2.sh --retry-failed >> /dev/null 2>&1 &",
+   "doneKey": "done"
+  }
+ ]
+}

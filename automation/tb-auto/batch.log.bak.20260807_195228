@@ -1,0 +1,450 @@
+2026-08-07 07:49:02,004 [INFO] 加载进度: 已处理 519 个, 失败 357 个
+2026-08-07 07:49:04,703 [INFO] 已连接到Chrome
+2026-08-07 07:49:04,704 [INFO] 模式: 正式批量
+2026-08-07 07:49:04,705 [INFO] 已连接到1688铺货日志页面
+2026-08-07 07:49:04,743 [INFO] 倒序处理:跳到最后一页(共 9 页)
+2026-08-07 07:49:04,749 [INFO] 
+============================================================
+2026-08-07 07:49:04,749 [INFO] 第 9 页
+2026-08-07 07:49:04,749 [INFO] ============================================================
+2026-08-07 07:49:04,768 [INFO] 本页共 100 个商品，未处理 100 个
+2026-08-07 07:49:04,768 [INFO] 
+--- 处理商品 [945955504]: 预览瑰若内衣性感聚拢加胸垫纯欲甜美丝绒透视网纱睡裙外袍套装C5928ID：922 ---
+2026-08-07 07:49:04,949 [INFO]   已点击'编辑店铺草稿'
+2026-08-07 07:49:06,869 [INFO]   已点击'继续上架'
+2026-08-07 07:49:11,858 [INFO]   编辑页面已打开: https://item.upload.taobao.com/from1688/render.htm?sourceId=
+2026-08-07 07:49:11,858 [INFO] ==================================================
+2026-08-07 07:49:11,858 [INFO] 开始处理商品编辑页面
+2026-08-07 07:49:13,248 [INFO]   标题优化: 瑰若内衣性感聚拢加胸垫纯欲甜美丝绒透视网纱睡裙外袍套装C59 -> 内衣性感聚拢加胸垫纯欲甜美丝绒透视网纱睡裙外袍套装
+2026-08-07 07:49:13,249 [INFO] 商品标题: 内衣性感聚拢加胸垫纯欲甜美丝绒透视网纱睡裙外袍套装
+2026-08-07 07:49:13,261 [INFO] 生成款号: FL011
+2026-08-07 07:49:13,622 [INFO]   货号已填写: FL011
+2026-08-07 07:49:14,497 [INFO] 一口价: 27.94 -> 83.82
+2026-08-07 07:49:15,426 [INFO]   SKU价格: 41.0 -> 123.00
+2026-08-07 07:49:15,686 [INFO]   SKU价格: 41.0 -> 123.00
+2026-08-07 07:49:15,949 [INFO]   SKU价格: 48.1 -> 144.30
+2026-08-07 07:49:16,187 [INFO]   SKU价格: 48.1 -> 144.30
+2026-08-07 07:49:16,434 [INFO]   SKU价格: 48.1 -> 144.30
+2026-08-07 07:49:16,672 [INFO]   SKU价格: 36.5 -> 109.50
+2026-08-07 07:49:16,905 [INFO]   SKU价格: 41.0 -> 123.00
+2026-08-07 07:49:17,153 [INFO]   SKU价格: 41.0 -> 123.00
+2026-08-07 07:49:49,603 [WARNING]   SKU改价异常[87]: Locator.press: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator("#sell-field-sku span.fusion-input input, #sell-field-sku span.next-input input").nth(87)
+
+2026-08-07 07:50:09,623 [INFO]   SKU改价 15 个
+2026-08-07 07:50:09,640 [INFO]   补改 15 个(0库存/禁用)SKU价格
+2026-08-07 07:50:10,164 [INFO] 选择店铺中分类...
+2026-08-07 07:50:10,655 [INFO]   选择: 家居服/睡衣
+2026-08-07 07:50:12,425 [INFO] 设置上架时间: 放入仓库
+2026-08-07 07:50:12,485 [INFO]   放入仓库 已点击 (selector: #sell-field-startTime .radio-item:has-text("放入仓库"))
+2026-08-07 07:50:14,323 [INFO]   验证上架时间: selected='放入仓库'
+2026-08-07 07:50:14,323 [INFO] 开启商品预检...
+2026-08-07 07:50:14,922 [INFO]   商品预检 已点击开启(尝试 1)
+2026-08-07 07:50:15,719 [INFO]   验证预检: checked=True, disabled=False
+2026-08-07 07:50:15,757 [INFO] 扫描必填字段...
+2026-08-07 07:50:15,766 [WARNING]   发现 10 个空的必填字段:
+2026-08-07 07:50:15,767 [WARNING]     - [struct-content] 模板
+2026-08-07 07:50:15,767 [WARNING]     - [struct-card] 模板
+2026-08-07 07:50:15,767 [WARNING]     - [struct-catProp] 类目属性*若发布时遇到属性、属性值不能满足您提交商品的需求，请点击商品属性问题反馈请根据实际情况填写产品的重要属性，填写属性越完整，越有可能影响搜索流量，越有机会被消费者购买。了解更多重要属性5/6填完*项即可发布上架品牌瑰若 正确填写品牌信息有助于提升曝光，请正确填写，若未找到品牌，请[新增品牌]或选择【无品牌/无注册商标】上市年份季节请选择 领型一字领 袖长七分袖 适用季节四季通用 适用性别女 其他属性3/20其他参数的补充说明款号5/128产地请选择 吊牌价元必须输入整数是否可外穿请选择 柔软指数请选择 版型请选择 穿着方式请选择 衣长请选择 适用场景请选择 适用对象请选择 销售渠道类型请选择 面料俗称主面料克重请选择 厚薄薄款 图案请选择 服装款式细节请选择 衣门襟请选择 家居服风格请选择 里料材质成分请选择材质 删除请选择材质 删除添加材质成分正确填写材质成分信息，有利于商品在平台被消费者看到！查看更多！您最多可填写7种材质，且需填写每项【材质】的含量，填写完成后材质成分占比总和必须为100%，若存在其他特殊情况可在详情页增加描述。点击查看材质数据填写须知面料材质成分上传吊牌请选择材质 删除请选择材质 删除添加材质成分正确填写材质成分信息，有利于商品在平台被消费者看到！查看更多！您最多可填写7种材质，且需填写每项【材质】的含量，填写完成后材质成分占比总和必须为100%，若存在其他特殊情况可在详情页增加描述。点击查看材质数据填写须知
+2026-08-07 07:50:15,767 [WARNING]     - [sell-field-catProp] 类目属性*
+2026-08-07 07:50:15,767 [WARNING]     - [struct-tbDeliveryTime] *天内发货
+2026-08-07 07:50:15,767 [WARNING]     - [sell-field-tbDeliveryTime] *
+2026-08-07 07:50:15,767 [WARNING]     - [struct-sizeModelTryNew] 模特试穿信息上身素材*模特名称*试穿尺码*试穿心得*身高（cm）*体重（kg）*胸围（cm）*肩宽（cm）体型操作+图片0/200/400/320/10删除+图片0/200/400/320/10删除+图片0/200/400/320/10删除新增
+2026-08-07 07:50:15,767 [WARNING]     - [sell-field-sizeModelTryNew] 模特试穿信息
+2026-08-07 07:50:15,767 [WARNING]     - [struct-tbExtractWay] 提取方式*使用物流配送为了提升消费者购物体验，淘宝要求全网商品设置运费模板，如何使用模板，查看视频教程以下为包邮模板，请谨慎使用，如需修改可重新编辑运费模板0  编辑 新建 刷新电子交易凭证电子凭证管理后台   亲，请谨慎设置有效期，若后续您需要退出平台时店铺存在未核销的电子凭证订单，您将无法完成退出流程！
+2026-08-07 07:50:15,767 [WARNING]     - [sell-field-tbExtractWay] 提取方式*
+2026-08-07 07:50:15,769 [INFO] 提交商品...
+2026-08-07 07:50:15,776 [INFO]   点击: 提交宝贝信息
+2026-08-07 07:50:16,977 [ERROR]   提交失败原因: 校验错误数: 1 | 错误(1)建议(0)基础信息1类目属性必填项未填
+2026-08-07 07:50:16,977 [INFO] 首次提交失败，填充类目属性后重试...
+2026-08-07 07:50:16,977 [INFO] 填充类目属性...
+2026-08-07 07:50:16,985 [WARNING]   未找到产品名称 input
+2026-08-07 07:50:20,060 [INFO]   属性[上市年份季节]: 选择 '2023年夏季' ✓
+2026-08-07 07:50:23,363 [INFO]   属性[产地]: 选择 '中国' ✓
+2026-08-07 07:50:27,306 [INFO]   属性[是否可外穿]: 选择 '可外穿' ✓
+2026-08-07 07:50:31,120 [INFO]   属性[柔软指数]: 选择 '适中' ✓
+2026-08-07 07:50:35,163 [INFO]   属性[版型]: 选择 '宽松' ✓
+2026-08-07 07:50:39,532 [INFO]   属性[穿着方式]: 选择 '其他' ✓
+2026-08-07 07:50:43,345 [INFO]   属性[衣长]: 选择 '中长款' ✓
+2026-08-07 07:50:47,421 [INFO]   属性[适用场景]: 选择 '运动家居' ✓
+2026-08-07 07:50:51,885 [INFO]   属性[适用对象]: 选择 '青年' ✓
+2026-08-07 07:50:56,174 [INFO]   属性[销售渠道类型]: 选择 '商场同款(线上线下都销售)' ✓
+2026-08-07 07:51:00,281 [INFO]   属性[主面料克重]: 选择 '200g及以下' ✓
+2026-08-07 07:51:04,749 [INFO]   属性[图案]: 选择 '纯色' ✓
+2026-08-07 07:51:07,999 [INFO]   属性[服装款式细节]: 选择 '镂空' ✓
+2026-08-07 07:51:11,754 [INFO]   属性[衣门襟]: 选择 '套头' ✓
+2026-08-07 07:51:15,453 [INFO]   属性[家居服风格]: 选择 '甜美' ✓
+2026-08-07 07:51:16,413 [INFO]   共填充 15 个属性下拉
+2026-08-07 07:51:16,735 [INFO]   数字[吊牌价]: 填 '198'
+2026-08-07 07:51:19,459 [INFO]   点击: 提交宝贝信息
+2026-08-07 07:51:20,587 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:51:20,587 [WARNING] ⚠️ 检测到滑块验证！请在 Chrome 窗口手动完成滑块,脚本自动等待(最多10分钟)...
+2026-08-07 07:51:25,600 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:51:30,614 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:51:35,635 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:51:40,648 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:51:45,660 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:51:50,687 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:51:55,704 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:52:00,717 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:52:05,736 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:52:10,754 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:52:15,787 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:52:20,819 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:52:25,862 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:52:30,885 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:52:35,929 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:52:40,979 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:52:46,006 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:52:51,041 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:52:56,072 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:53:01,092 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:53:06,131 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:53:11,177 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:53:16,214 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:53:21,242 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:53:26,274 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:53:31,295 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:53:36,323 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:53:41,355 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:53:46,388 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:53:51,446 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:53:56,478 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:54:01,532 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:54:06,562 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:54:11,585 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:54:16,617 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:54:21,662 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:54:26,696 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:54:31,712 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:54:36,764 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:54:41,780 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:54:46,792 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:54:51,922 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:54:56,964 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:55:01,983 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:55:07,006 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:55:12,020 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:55:17,035 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:55:22,050 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:55:27,117 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:55:32,131 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:55:37,146 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:55:42,160 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:55:47,174 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:55:52,187 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:55:57,198 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:56:02,223 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:56:07,236 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:56:12,253 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:56:17,272 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:56:22,299 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:56:27,313 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:56:32,324 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:56:37,341 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:56:42,355 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:56:47,374 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:56:52,394 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:56:57,407 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:57:02,423 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:57:07,439 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:57:12,455 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:57:17,472 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:57:22,488 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:57:27,504 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:57:32,522 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:57:37,541 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:57:42,557 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:57:47,573 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:57:52,590 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:57:57,607 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:58:02,623 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:58:07,640 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:58:12,665 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:58:17,680 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:58:22,697 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:58:27,715 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:58:32,732 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:58:37,752 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:58:42,774 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:58:47,797 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:58:52,814 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:58:57,828 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:59:02,847 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:59:07,867 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:59:12,887 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:59:17,903 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:59:22,920 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:59:27,937 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:59:32,953 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:59:37,990 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:59:43,013 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:59:48,036 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:59:53,052 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 07:59:58,090 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:00:03,102 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:00:08,170 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:00:13,189 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:00:18,201 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:00:23,226 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:00:28,238 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:00:33,260 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:00:38,273 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:00:43,294 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:00:48,306 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:00:53,318 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:00:58,341 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:01:03,353 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:01:08,539 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:01:13,561 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:01:18,577 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:01:23,600 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:01:23,601 [ERROR] 等待滑块验证超时(10分钟),跳过
+2026-08-07 08:01:23,601 [ERROR]   ✗ 遇到滑块验证，跳过该商品继续: 滑块验证超时
+2026-08-07 08:01:24,338 [INFO] 等待 10.2 秒...
+2026-08-07 08:01:34,515 [INFO] 
+============================================================
+2026-08-07 08:01:34,515 [INFO] 第 9 页
+2026-08-07 08:01:34,515 [INFO] ============================================================
+2026-08-07 08:01:34,546 [INFO] 本页共 100 个商品，未处理 99 个
+2026-08-07 08:01:34,546 [INFO] 
+--- 处理商品 [945955503]: 预览瑰若热辣低胸睡衣大码轻奢透视网纱性感收腰吊带睡裙家居套装5523ID：922 ---
+2026-08-07 08:01:34,662 [INFO]   已点击'编辑店铺草稿'
+2026-08-07 08:01:36,825 [INFO]   已点击'继续上架'
+2026-08-07 08:01:40,901 [INFO]   编辑页面已打开: https://item.upload.taobao.com/from1688/render.htm?sourceId=
+2026-08-07 08:01:40,902 [INFO] ==================================================
+2026-08-07 08:01:40,902 [INFO] 开始处理商品编辑页面
+2026-08-07 08:01:42,062 [INFO]   标题优化: 瑰若热辣低胸睡衣大码轻奢透视网纱性感收腰吊带睡裙家居套装55 -> 热辣低胸睡衣大码轻奢透视网纱性感收腰吊带睡裙家居套装
+2026-08-07 08:01:42,062 [INFO] 商品标题: 热辣低胸睡衣大码轻奢透视网纱性感收腰吊带睡裙家居套装
+2026-08-07 08:01:42,137 [INFO] 生成款号: PF034
+2026-08-07 08:01:42,529 [INFO]   货号已填写: PF034
+2026-08-07 08:01:43,489 [INFO] 一口价: 28.60 -> 85.80
+2026-08-07 08:01:44,313 [INFO]   SKU价格: 28.6 -> 85.80
+2026-08-07 08:01:44,552 [INFO]   SKU价格: 28.6 -> 85.80
+2026-08-07 08:01:44,752 [INFO]   SKU价格: 28.6 -> 85.80
+2026-08-07 08:01:44,933 [INFO]   SKU改价 3 个
+2026-08-07 08:01:44,937 [INFO]   补改 4 个(0库存/禁用)SKU价格
+2026-08-07 08:01:45,839 [INFO] 选择店铺中分类...
+2026-08-07 08:01:46,287 [INFO]   选择: 家居服/睡衣
+2026-08-07 08:01:47,878 [INFO] 设置上架时间: 放入仓库
+2026-08-07 08:01:47,907 [INFO]   放入仓库 已点击 (selector: #sell-field-startTime .radio-item:has-text("放入仓库"))
+2026-08-07 08:01:49,199 [INFO]   验证上架时间: selected='放入仓库'
+2026-08-07 08:01:49,200 [INFO] 开启商品预检...
+2026-08-07 08:01:49,751 [INFO]   商品预检 已点击开启(尝试 1)
+2026-08-07 08:01:50,651 [INFO]   验证预检: checked=True, disabled=False
+2026-08-07 08:01:51,181 [INFO] 扫描必填字段...
+2026-08-07 08:01:51,218 [WARNING]   发现 10 个空的必填字段:
+2026-08-07 08:01:51,218 [WARNING]     - [struct-content] 模板
+2026-08-07 08:01:51,219 [WARNING]     - [struct-card] 模板
+2026-08-07 08:01:51,219 [WARNING]     - [struct-catProp] 类目属性*若发布时遇到属性、属性值不能满足您提交商品的需求，请点击商品属性问题反馈请根据实际情况填写产品的重要属性，填写属性越完整，越有可能影响搜索流量，越有机会被消费者购买。了解更多重要属性4/6填完*项即可发布上架品牌瑰若 正确填写品牌信息有助于提升曝光，请正确填写，若未找到品牌，请[新增品牌]或选择【无品牌/无注册商标】上市年份季节请选择 领型一字领 袖长无袖 裙长短裙 适用季节请选择 其他属性1/15其他参数的补充说明款号5/128产地请选择 厚薄请选择 吊牌价元必须输入整数是否带胸垫请选择 衣门襟请选择 适用场景请选择 适用对象请选择 面料工艺请选择 主面料克重请选择 图案请选择 服装款式细节请选择 家居服风格请选择 里料材质成分请选择材质 删除请选择材质 删除添加材质成分正确填写材质成分信息，有利于商品在平台被消费者看到！查看更多！您最多可填写7种材质，可选择填写【含量】(皮类材质除外)，若填写【含量】，则需填写每项【材质】的含量，填写完成后材质成分占比总和必须为100%，若不填写【含量】，请按照【材质】的重要程度从高到低填写，若存在其他特殊情况可在详情页增加描述；点击查看材质数据填写须知面料材质成分上传吊牌请选择材质 删除请选择材质 删除添加材质成分正确填写材质成分信息，有利于商品在平台被消费者看到！查看更多！您最多可填写7种材质，可选择填写【含量】(皮类材质除外)，若填写【含量】，则需填写每项【材质】的含量，填写完成后材质成分占比总和必须为100%，若不填写【含量】，请按照【材质】的重要程度从高到低填写，若存在其他特殊情况可在详情页增加描述；点击查看材质数据填写须知
+2026-08-07 08:01:51,219 [WARNING]     - [sell-field-catProp] 类目属性*
+2026-08-07 08:01:51,220 [WARNING]     - [struct-tbDeliveryTime] *天内发货
+2026-08-07 08:01:51,220 [WARNING]     - [sell-field-tbDeliveryTime] *
+2026-08-07 08:01:51,221 [WARNING]     - [struct-sizeModelTryNew] 模特试穿信息上身素材*模特名称*试穿尺码*试穿心得*身高（cm）*体重（kg）*腰围（cm）*臀围（cm）*体型操作+图片0/200/400/320/10删除+图片0/200/400/320/10删除+图片0/200/400/320/10删除新增
+2026-08-07 08:01:51,221 [WARNING]     - [sell-field-sizeModelTryNew] 模特试穿信息
+2026-08-07 08:01:51,221 [WARNING]     - [struct-tbExtractWay] 提取方式*使用物流配送为了提升消费者购物体验，淘宝要求全网商品设置运费模板，如何使用模板，查看视频教程以下为包邮模板，请谨慎使用，如需修改可重新编辑运费模板0  编辑 新建 刷新电子交易凭证电子凭证管理后台   亲，请谨慎设置有效期，若后续您需要退出平台时店铺存在未核销的电子凭证订单，您将无法完成退出流程！
+2026-08-07 08:01:51,221 [WARNING]     - [sell-field-tbExtractWay] 提取方式*
+2026-08-07 08:01:51,227 [INFO] 提交商品...
+2026-08-07 08:01:51,270 [INFO]   点击: 提交宝贝信息
+2026-08-07 08:01:52,671 [ERROR]   提交失败原因: 校验错误数: 2 | 错误(2)建议(0)基础信息2类目属性必填项未填
+2026-08-07 08:01:52,671 [INFO] 首次提交失败，填充类目属性后重试...
+2026-08-07 08:01:52,671 [INFO] 填充类目属性...
+2026-08-07 08:01:52,683 [WARNING]   未找到产品名称 input
+2026-08-07 08:01:55,060 [INFO]   属性[上市年份季节]: 选择 '2022年夏季' ✓
+2026-08-07 08:01:59,211 [INFO]   属性[适用季节]: 选择 '秋季' ✓
+2026-08-07 08:02:02,905 [INFO]   属性[产地]: 选择 '中国' ✓
+2026-08-07 08:02:07,020 [INFO]   属性[厚薄]: 选择 '薄款' ✓
+2026-08-07 08:02:11,137 [INFO]   属性[是否带胸垫]: 选择 '不带胸垫' ✓
+2026-08-07 08:02:14,629 [INFO]   属性[衣门襟]: 选择 '套头' ✓
+2026-08-07 08:02:19,171 [INFO]   属性[适用场景]: 选择 '运动家居' ✓
+2026-08-07 08:02:24,180 [INFO]   属性[适用对象]: 选择 '青年' ✓
+2026-08-07 08:02:27,521 [INFO]   属性[面料工艺]: 选择 '印花' ✓
+2026-08-07 08:02:31,724 [INFO]   属性[主面料克重]: 选择 '200g及以下' ✓
+2026-08-07 08:02:35,402 [INFO]   属性[图案]: 选择 '纯色' ✓
+2026-08-07 08:02:39,288 [INFO]   属性[服装款式细节]: 选择 '镂空' ✓
+2026-08-07 08:02:43,020 [INFO]   属性[家居服风格]: 选择 '性感' ✓
+2026-08-07 08:02:44,328 [INFO]   共填充 13 个属性下拉
+2026-08-07 08:02:44,609 [INFO]   数字[吊牌价]: 填 '142'
+2026-08-07 08:02:46,901 [INFO]   点击: 提交宝贝信息
+2026-08-07 08:02:48,080 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:02:48,081 [WARNING] ⚠️ 检测到滑块验证！请在 Chrome 窗口手动完成滑块,脚本自动等待(最多10分钟)...
+2026-08-07 08:02:53,100 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:02:58,166 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:03:03,186 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:03:08,671 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:03:13,698 [WARNING] [滑块检测] selector=#nc_1_wrapper frame=https://item.upload.taobao.com//from1688 size=300x34
+2026-08-07 08:03:18,742 [WARNING] [滑块检测] selector=#baxia-dialog-content frame=https://item.upload.taobao.com/from1688/ size=420x320
+2026-08-07 08:03:23,790 [INFO] ✅ 滑块已手动验证,重新点击提交
+2026-08-07 08:03:26,811 [INFO]   提交成功! URL: https://item.upload.taobao.com/from1688/success.htm?primaryI
+2026-08-07 08:03:26,813 [INFO]   ✓ 处理成功 (总计: 520)
+2026-08-07 08:03:27,004 [INFO] 等待 10.2 秒...
+2026-08-07 08:03:37,232 [INFO] 
+============================================================
+2026-08-07 08:03:37,234 [INFO] 第 9 页
+2026-08-07 08:03:37,234 [INFO] ============================================================
+2026-08-07 08:03:37,263 [INFO] 本页共 99 个商品，未处理 98 个
+2026-08-07 08:03:37,263 [INFO] 
+--- 处理商品 [945955500]: 预览瑰若品牌内衣火辣性感不规则裙摆纯欲缎面低胸睡裙家居服套装4989ID：922 ---
+2026-08-07 08:03:37,327 [INFO]   已点击'编辑店铺草稿'
+2026-08-07 08:03:39,423 [INFO]   已点击'继续上架'
+2026-08-07 08:03:43,549 [INFO]   编辑页面已打开: https://item.upload.taobao.com/from1688/render.htm?sourceId=
+2026-08-07 08:03:43,549 [INFO] ==================================================
+2026-08-07 08:03:43,550 [INFO] 开始处理商品编辑页面
+2026-08-07 08:03:45,561 [INFO]   标题优化: 瑰若品牌内衣火辣性感不规则裙摆纯欲缎面低胸睡裙家居服套装49 -> 品牌内衣火辣性感不规则裙摆纯欲缎面低胸睡裙家居服套装
+2026-08-07 08:03:45,561 [INFO] 商品标题: 品牌内衣火辣性感不规则裙摆纯欲缎面低胸睡裙家居服套装
+2026-08-07 08:03:45,570 [INFO] 生成款号: XH371
+2026-08-07 08:03:45,784 [INFO]   货号已填写: XH371
+2026-08-07 08:03:46,839 [INFO] 一口价: 39.00 -> 117.00
+2026-08-07 08:03:47,717 [INFO]   SKU价格: 39.0 -> 117.00
+2026-08-07 08:03:47,982 [INFO]   SKU价格: 39.0 -> 117.00
+2026-08-07 08:03:48,208 [INFO]   SKU价格: 39.0 -> 117.00
+2026-08-07 08:03:48,428 [INFO]   SKU价格: 39.0 -> 117.00
+2026-08-07 08:03:48,678 [INFO]   SKU价格: 39.0 -> 117.00
+2026-08-07 08:03:48,896 [INFO]   SKU价格: 39.0 -> 117.00
+2026-08-07 08:03:49,121 [INFO]   SKU价格: 39.0 -> 117.00
+2026-08-07 08:03:49,340 [INFO]   SKU价格: 39.0 -> 117.00
+2026-08-07 08:03:50,415 [INFO]   SKU改价 12 个
+2026-08-07 08:03:50,422 [INFO]   补改 13 个(0库存/禁用)SKU价格
+2026-08-07 08:03:51,027 [INFO] 选择店铺中分类...
+2026-08-07 08:03:51,486 [INFO]   选择: 家居服/睡衣
+2026-08-07 08:03:53,018 [INFO] 设置上架时间: 放入仓库
+2026-08-07 08:03:53,057 [INFO]   放入仓库 已点击 (selector: #sell-field-startTime .radio-item:has-text("放入仓库"))
+2026-08-07 08:03:54,830 [INFO]   验证上架时间: selected='放入仓库'
+2026-08-07 08:03:54,831 [INFO] 开启商品预检...
+2026-08-07 08:03:55,389 [INFO]   商品预检 已点击开启(尝试 1)
+2026-08-07 08:03:56,119 [INFO]   验证预检: checked=True, disabled=False
+2026-08-07 08:03:56,150 [INFO] 扫描必填字段...
+2026-08-07 08:03:56,157 [WARNING]   发现 10 个空的必填字段:
+2026-08-07 08:03:56,158 [WARNING]     - [struct-content] 模板
+2026-08-07 08:03:56,158 [WARNING]     - [struct-card] 模板
+2026-08-07 08:03:56,158 [WARNING]     - [struct-catProp] 类目属性*若发布时遇到属性、属性值不能满足您提交商品的需求，请点击商品属性问题反馈请根据实际情况填写产品的重要属性，填写属性越完整，越有可能影响搜索流量，越有机会被消费者购买。了解更多重要属性4/6填完*项即可发布上架品牌瑰若 正确填写品牌信息有助于提升曝光，请正确填写，若未找到品牌，请[新增品牌]或选择【无品牌/无注册商标】上市年份季节请选择 领型一字领 袖长无袖 裙长短裙 适用季节请选择 其他属性1/15其他参数的补充说明款号5/128产地请选择 厚薄请选择 吊牌价元必须输入整数是否带胸垫请选择 衣门襟请选择 适用场景请选择 适用对象请选择 面料工艺请选择 主面料克重请选择 图案请选择 服装款式细节请选择 家居服风格请选择 里料材质成分请选择材质 删除请选择材质 删除添加材质成分正确填写材质成分信息，有利于商品在平台被消费者看到！查看更多！您最多可填写7种材质，可选择填写【含量】(皮类材质除外)，若填写【含量】，则需填写每项【材质】的含量，填写完成后材质成分占比总和必须为100%，若不填写【含量】，请按照【材质】的重要程度从高到低填写，若存在其他特殊情况可在详情页增加描述；点击查看材质数据填写须知面料材质成分上传吊牌请选择材质 删除请选择材质 删除添加材质成分正确填写材质成分信息，有利于商品在平台被消费者看到！查看更多！您最多可填写7种材质，可选择填写【含量】(皮类材质除外)，若填写【含量】，则需填写每项【材质】的含量，填写完成后材质成分占比总和必须为100%，若不填写【含量】，请按照【材质】的重要程度从高到低填写，若存在其他特殊情况可在详情页增加描述；点击查看材质数据填写须知
+2026-08-07 08:03:56,158 [WARNING]     - [sell-field-catProp] 类目属性*
+2026-08-07 08:03:56,158 [WARNING]     - [struct-tbDeliveryTime] *天内发货
+2026-08-07 08:03:56,158 [WARNING]     - [sell-field-tbDeliveryTime] *
+2026-08-07 08:03:56,158 [WARNING]     - [struct-sizeModelTryNew] 模特试穿信息上身素材*模特名称*试穿尺码*试穿心得*身高（cm）*体重（kg）*腰围（cm）*臀围（cm）*体型操作+图片0/200/400/320/10删除+图片0/200/400/320/10删除+图片0/200/400/320/10删除新增
+2026-08-07 08:03:56,158 [WARNING]     - [sell-field-sizeModelTryNew] 模特试穿信息
+2026-08-07 08:03:56,158 [WARNING]     - [struct-tbExtractWay] 提取方式*使用物流配送为了提升消费者购物体验，淘宝要求全网商品设置运费模板，如何使用模板，查看视频教程以下为包邮模板，请谨慎使用，如需修改可重新编辑运费模板0  编辑 新建 刷新电子交易凭证电子凭证管理后台   亲，请谨慎设置有效期，若后续您需要退出平台时店铺存在未核销的电子凭证订单，您将无法完成退出流程！
+2026-08-07 08:03:56,158 [WARNING]     - [sell-field-tbExtractWay] 提取方式*
+2026-08-07 08:03:56,162 [INFO] 提交商品...
+2026-08-07 08:03:56,168 [INFO]   点击: 提交宝贝信息
+2026-08-07 08:03:57,335 [ERROR]   提交失败原因: 校验错误数: 2 | 错误(2)建议(0)基础信息2类目属性必填项未填
+2026-08-07 08:03:57,335 [INFO] 首次提交失败，填充类目属性后重试...
+2026-08-07 08:03:57,336 [INFO] 填充类目属性...
+2026-08-07 08:03:57,341 [WARNING]   未找到产品名称 input
+2026-08-07 08:04:00,067 [INFO]   属性[上市年份季节]: 选择 '2022年夏季' ✓
+2026-08-07 08:04:04,270 [INFO]   属性[适用季节]: 选择 '秋季' ✓
+2026-08-07 08:04:08,218 [INFO]   属性[产地]: 选择 '中国' ✓
+2026-08-07 08:04:11,830 [INFO]   属性[厚薄]: 选择 '薄款' ✓
+2026-08-07 08:04:15,639 [INFO]   属性[是否带胸垫]: 选择 '不带胸垫' ✓
+2026-08-07 08:04:19,903 [INFO]   属性[衣门襟]: 选择 '套头' ✓
+2026-08-07 08:04:23,418 [INFO]   属性[适用场景]: 选择 '运动家居' ✓
+2026-08-07 08:04:27,233 [INFO]   属性[适用对象]: 选择 '青年' ✓
+2026-08-07 08:04:31,133 [INFO]   属性[面料工艺]: 选择 '印花' ✓
+2026-08-07 08:04:34,985 [INFO]   属性[主面料克重]: 选择 '200g及以下' ✓
+2026-08-07 08:04:39,039 [INFO]   属性[图案]: 选择 '纯色' ✓
+2026-08-07 08:04:42,923 [INFO]   属性[服装款式细节]: 选择 '镂空' ✓
+2026-08-07 08:04:46,673 [INFO]   属性[家居服风格]: 选择 '甜美' ✓
+2026-08-07 08:04:47,869 [INFO]   共填充 13 个属性下拉
+2026-08-07 08:04:48,050 [INFO]   数字[吊牌价]: 填 '147'
+2026-08-07 08:04:50,318 [INFO]   点击: 提交宝贝信息
+2026-08-07 08:04:52,451 [INFO]   提交成功! URL: https://item.upload.taobao.com/from1688/success.htm?primaryI
+2026-08-07 08:04:52,456 [INFO]   ✓ 处理成功 (总计: 521)
+2026-08-07 08:04:52,613 [INFO] 等待 13.8 秒...
+2026-08-07 08:05:06,367 [INFO] 
+============================================================
+2026-08-07 08:05:06,367 [INFO] 第 9 页
+2026-08-07 08:05:06,368 [INFO] ============================================================
+2026-08-07 08:05:06,407 [INFO] 本页共 100 个商品，未处理 98 个
+2026-08-07 08:05:06,408 [INFO] 
+--- 处理商品 [945955506]: 预览瑰若品牌内衣深V聚拢加胸垫纯欲诱惑丝滑缎面睡裙家居服套装4681ID：921 ---
+2026-08-07 08:05:06,443 [INFO]   已点击'编辑店铺草稿'
+2026-08-07 08:05:08,754 [INFO]   已点击'继续上架'
+2026-08-07 08:05:12,645 [INFO]   编辑页面已打开: https://item.upload.taobao.com/from1688/render.htm?sourceId=
+2026-08-07 08:05:12,646 [INFO] ==================================================
+2026-08-07 08:05:12,646 [INFO] 开始处理商品编辑页面
+2026-08-07 08:05:14,416 [INFO]   标题优化: 瑰若品牌内衣深V聚拢加胸垫纯欲诱惑丝滑缎面睡裙家居服套装46 -> 品牌内衣深V聚拢加胸垫纯欲诱惑丝滑缎面睡裙家居服套装
+2026-08-07 08:05:14,416 [INFO] 商品标题: 品牌内衣深V聚拢加胸垫纯欲诱惑丝滑缎面睡裙家居服套装
+2026-08-07 08:05:14,423 [INFO] 生成款号: WZ806
+2026-08-07 08:05:14,757 [INFO]   货号已填写: WZ806
+2026-08-07 08:05:15,522 [INFO] 一口价: 46.79 -> 140.37
+2026-08-07 08:05:16,329 [INFO]   SKU价格: 46.79 -> 140.37
+2026-08-07 08:05:16,536 [INFO]   SKU价格: 46.79 -> 140.37
+2026-08-07 08:05:16,755 [INFO]   SKU价格: 46.79 -> 140.37
+2026-08-07 08:05:16,974 [INFO]   SKU价格: 46.79 -> 140.37
+2026-08-07 08:05:17,186 [INFO]   SKU价格: 46.79 -> 140.37
+2026-08-07 08:05:17,403 [INFO]   SKU价格: 0.0 -> 140.37
+2026-08-07 08:05:17,617 [INFO]   SKU价格: 46.79 -> 140.37
+2026-08-07 08:05:17,838 [INFO]   SKU价格: 46.79 -> 140.37
+2026-08-07 08:05:18,197 [INFO]   SKU改价 9 个
+2026-08-07 08:05:18,203 [INFO]   补改 10 个(0库存/禁用)SKU价格
+2026-08-07 08:05:18,902 [INFO] 选择店铺中分类...
+2026-08-07 08:05:19,329 [INFO]   选择: 家居服/睡衣
+2026-08-07 08:05:21,176 [INFO] 设置上架时间: 放入仓库
+2026-08-07 08:05:21,228 [INFO]   放入仓库 已点击 (selector: #sell-field-startTime .radio-item:has-text("放入仓库"))
+2026-08-07 08:05:22,522 [INFO]   验证上架时间: selected='放入仓库'
+2026-08-07 08:05:22,522 [INFO] 开启商品预检...
+2026-08-07 08:05:23,103 [INFO]   商品预检 已点击开启(尝试 1)
+2026-08-07 08:05:23,789 [INFO]   验证预检: checked=True, disabled=False
+2026-08-07 08:05:23,831 [INFO] 扫描必填字段...
+2026-08-07 08:05:23,839 [WARNING]   发现 10 个空的必填字段:
+2026-08-07 08:05:23,839 [WARNING]     - [struct-content] 模板
+2026-08-07 08:05:23,839 [WARNING]     - [struct-card] 模板
+2026-08-07 08:05:23,839 [WARNING]     - [struct-catProp] 类目属性*若发布时遇到属性、属性值不能满足您提交商品的需求，请点击商品属性问题反馈请根据实际情况填写产品的重要属性，填写属性越完整，越有可能影响搜索流量，越有机会被消费者购买。了解更多重要属性4/6填完*项即可发布上架品牌瑰若 正确填写品牌信息有助于提升曝光，请正确填写，若未找到品牌，请[新增品牌]或选择【无品牌/无注册商标】上市年份季节请选择 领型一字领 袖长无袖 裙长短裙 适用季节请选择 其他属性1/15其他参数的补充说明款号5/128产地请选择 厚薄请选择 吊牌价元必须输入整数是否带胸垫请选择 衣门襟请选择 适用场景请选择 适用对象请选择 面料工艺请选择 主面料克重请选择 图案请选择 服装款式细节请选择 家居服风格请选择 里料材质成分请选择材质 删除请选择材质 删除添加材质成分正确填写材质成分信息，有利于商品在平台被消费者看到！查看更多！您最多可填写7种材质，可选择填写【含量】(皮类材质除外)，若填写【含量】，则需填写每项【材质】的含量，填写完成后材质成分占比总和必须为100%，若不填写【含量】，请按照【材质】的重要程度从高到低填写，若存在其他特殊情况可在详情页增加描述；点击查看材质数据填写须知面料材质成分上传吊牌请选择材质 删除请选择材质 删除添加材质成分正确填写材质成分信息，有利于商品在平台被消费者看到！查看更多！您最多可填写7种材质，可选择填写【含量】(皮类材质除外)，若填写【含量】，则需填写每项【材质】的含量，填写完成后材质成分占比总和必须为100%，若不填写【含量】，请按照【材质】的重要程度从高到低填写，若存在其他特殊情况可在详情页增加描述；点击查看材质数据填写须知
+2026-08-07 08:05:23,839 [WARNING]     - [sell-field-catProp] 类目属性*
+2026-08-07 08:05:23,839 [WARNING]     - [struct-tbDeliveryTime] *天内发货
+2026-08-07 08:05:23,839 [WARNING]     - [sell-field-tbDeliveryTime] *
+2026-08-07 08:05:23,839 [WARNING]     - [struct-sizeModelTryNew] 模特试穿信息上身素材*模特名称*试穿尺码*试穿心得*身高（cm）*体重（kg）*腰围（cm）*臀围（cm）*体型操作+图片0/200/400/320/10删除+图片0/200/400/320/10删除+图片0/200/400/320/10删除新增
+2026-08-07 08:05:23,839 [WARNING]     - [sell-field-sizeModelTryNew] 模特试穿信息
+2026-08-07 08:05:23,839 [WARNING]     - [struct-tbExtractWay] 提取方式*使用物流配送为了提升消费者购物体验，淘宝要求全网商品设置运费模板，如何使用模板，查看视频教程以下为包邮模板，请谨慎使用，如需修改可重新编辑运费模板0  编辑 新建 刷新电子交易凭证电子凭证管理后台   亲，请谨慎设置有效期，若后续您需要退出平台时店铺存在未核销的电子凭证订单，您将无法完成退出流程！
+2026-08-07 08:05:23,839 [WARNING]     - [sell-field-tbExtractWay] 提取方式*
+2026-08-07 08:05:23,844 [INFO] 提交商品...
+2026-08-07 08:05:23,856 [INFO]   点击: 提交宝贝信息
+2026-08-07 08:05:25,054 [ERROR]   提交失败原因: 校验错误数: 2 | 错误(2)建议(0)基础信息2类目属性必填项未填
+2026-08-07 08:05:25,054 [INFO] 首次提交失败，填充类目属性后重试...
+2026-08-07 08:05:25,055 [INFO] 填充类目属性...
+2026-08-07 08:05:25,064 [WARNING]   未找到产品名称 input
+2026-08-07 08:05:27,848 [INFO]   属性[上市年份季节]: 选择 '2022年夏季' ✓
+2026-08-07 08:05:31,790 [INFO]   属性[适用季节]: 选择 '秋季' ✓
+2026-08-07 08:05:35,913 [INFO]   属性[产地]: 选择 '中国' ✓
+2026-08-07 08:05:39,759 [INFO]   属性[厚薄]: 选择 '薄款' ✓
+2026-08-07 08:05:43,741 [INFO]   属性[是否带胸垫]: 选择 '不带胸垫' ✓
+2026-08-07 08:05:47,737 [INFO]   属性[衣门襟]: 选择 '套头' ✓
+2026-08-07 08:05:51,173 [INFO]   属性[适用场景]: 选择 '运动家居' ✓
+2026-08-07 08:05:54,975 [INFO]   属性[适用对象]: 选择 '青年' ✓
+2026-08-07 08:05:58,794 [INFO]   属性[面料工艺]: 选择 '印花' ✓
+2026-08-07 08:06:01,944 [INFO]   属性[主面料克重]: 选择 '200g及以下' ✓
+2026-08-07 08:06:06,291 [INFO]   属性[图案]: 选择 '纯色' ✓
+2026-08-07 08:06:10,337 [INFO]   属性[服装款式细节]: 选择 '镂空' ✓
+2026-08-07 08:06:13,439 [INFO]   属性[家居服风格]: 选择 '甜美' ✓
+2026-08-07 08:06:14,359 [INFO]   共填充 13 个属性下拉
+2026-08-07 08:06:14,583 [INFO]   数字[吊牌价]: 填 '139'
+2026-08-07 08:06:17,354 [INFO]   点击: 提交宝贝信息
+2026-08-07 08:06:19,555 [INFO]   提交成功! URL: https://item.upload.taobao.com/from1688/success.htm?primaryI
+2026-08-07 08:06:19,559 [INFO]   ✓ 处理成功 (总计: 522)
+2026-08-07 08:06:19,711 [INFO] 等待 12.7 秒...
+2026-08-07 08:06:32,455 [INFO] 
+============================================================
+2026-08-07 08:06:32,456 [INFO] 第 9 页
+2026-08-07 08:06:32,456 [INFO] ============================================================
+2026-08-07 08:06:32,478 [INFO] 本页共 100 个商品，未处理 97 个
+2026-08-07 08:06:32,478 [INFO] 
+--- 处理商品 [945955385]: 预览瑰若大码睡衣甜美蕾丝装饰激情火辣加胸垫缎面吊带裙外袍套装5302ID：943 ---
+2026-08-07 08:06:32,519 [INFO]   已点击'编辑店铺草稿'
+2026-08-07 08:06:35,721 [INFO]   已点击'继续上架'
+2026-08-07 08:06:39,661 [INFO]   编辑页面已打开: https://item.upload.taobao.com/from1688/render.htm?sourceId=
+2026-08-07 08:06:39,662 [INFO] ==================================================
+2026-08-07 08:06:39,662 [INFO] 开始处理商品编辑页面
+2026-08-07 08:06:41,032 [INFO]   标题优化: 瑰若大码睡衣甜美蕾丝装饰激情火辣加胸垫缎面吊带裙外袍套装53 -> 大码睡衣甜美蕾丝装饰激情火辣加胸垫缎面吊带裙外袍套装
+2026-08-07 08:06:41,032 [INFO] 商品标题: 大码睡衣甜美蕾丝装饰激情火辣加胸垫缎面吊带裙外袍套装
+2026-08-07 08:06:41,048 [INFO] 生成款号: WL963
+2026-08-07 08:06:41,412 [INFO]   货号已填写: WL963
+2026-08-07 08:06:42,381 [INFO] 一口价: 40.29 -> 120.87
+2026-08-07 08:06:43,233 [INFO]   SKU价格: 31.0 -> 93.00
+2026-08-07 08:06:43,513 [INFO]   SKU价格: 31.0 -> 93.00
+2026-08-07 08:06:43,772 [INFO]   SKU价格: 31.0 -> 93.00
+2026-08-07 08:06:43,999 [INFO]   SKU价格: 31.0 -> 93.00
+2026-08-07 08:06:44,238 [INFO]   SKU价格: 31.0 -> 93.00
+2026-08-07 08:06:44,490 [INFO]   SKU价格: 40.29 -> 120.87
+2026-08-07 08:06:44,750 [INFO]   SKU价格: 31.0 -> 93.00
+2026-08-07 08:06:45,005 [INFO]   SKU价格: 31.0 -> 93.00
