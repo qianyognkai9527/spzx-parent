@@ -5,6 +5,7 @@ import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.StrUtil;
 import com.joker.spzx.manager.service.FileService;
 import io.minio.BucketExistsArgs;
+import io.minio.GetObjectArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
@@ -14,6 +15,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.Date;
 import java.util.UUID;
 
@@ -73,6 +78,47 @@ public class FileServiceImpl implements FileService {
 
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public byte[] readBytes(String fileUrl) {
+        try {
+            String prefix = endpoint + "/" + bucket + "/";
+            if (fileUrl != null && fileUrl.startsWith(prefix)) {
+                // 本 bucket 对象: 走 MinIO 客户端读回
+                String object = fileUrl.substring(prefix.length());
+                try (InputStream in = minioClient.getObject(
+                        GetObjectArgs.builder().bucket(bucket).object(object).build())) {
+                    return in.readAllBytes();
+                }
+            }
+            // 跨 bucket / 外部 URL(如 Ark 返回的公网 video_url): 直接 HTTP GET
+            HttpURLConnection conn = (HttpURLConnection) new URL(fileUrl).openConnection();
+            conn.setConnectTimeout(10_000);
+            conn.setReadTimeout(30_000);
+            conn.setInstanceFollowRedirects(true); // 跟随同协议 302 跳转
+            try (InputStream in = conn.getInputStream()) {
+                return in.readAllBytes();
+            }
+        } catch (Exception e) {
+            // 非 2xx 响应 getInputStream() 抛 IOException, 统一包装为 RuntimeException
+            throw new RuntimeException("读取文件失败: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public String uploadBytes(String objectKey, byte[] data, String contentType) {
+        try (InputStream in = new ByteArrayInputStream(data)) {
+            minioClient.putObject(PutObjectArgs.builder()
+                    .bucket(bucket)
+                    .object(objectKey)
+                    .stream(in, data.length, -1)
+                    .contentType(contentType)
+                    .build());
+            return endpoint + "/" + bucket + "/" + objectKey;
+        } catch (Exception e) {
+            throw new RuntimeException("上传失败: " + e.getMessage(), e);
         }
     }
 }
