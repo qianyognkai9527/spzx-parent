@@ -102,10 +102,14 @@ public class VideoGenTaskService {
         VideoGenTask t = taskMapper.selectById(id);
         if (t == null) throw new IllegalArgumentException("任务不存在");
         if (t.getStatus() != VideoGenTask.ST_FAIL) throw new IllegalArgumentException("仅失败任务可重试");
-        taskMapper.update(null, new LambdaUpdateWrapper<VideoGenTask>()
+        // 原子抢占 FAIL→QUEUED：并发重试仅一方 update 命中，防止双提交 Ark
+        int claimed = taskMapper.update(null, new LambdaUpdateWrapper<VideoGenTask>()
                 .set(VideoGenTask::getStatus, VideoGenTask.ST_QUEUED)
                 .set(VideoGenTask::getErrorMsg, null).set(VideoGenTask::getRemoteTaskId, null)
-                .eq(VideoGenTask::getId, id));
+                .set(VideoGenTask::getFinishTime, null)
+                .eq(VideoGenTask::getId, id)
+                .eq(VideoGenTask::getStatus, VideoGenTask.ST_FAIL));
+        if (claimed == 0) throw new IllegalArgumentException("任务状态已变更，请刷新");
         submitToPool(id);
     }
 
@@ -145,6 +149,7 @@ public class VideoGenTaskService {
                     .set(VideoGenTask::getRemoteTaskId, remoteId).eq(VideoGenTask::getId, id));
             long deadline = System.currentTimeMillis() + POLL_TIMEOUT_MS;
             int consecutiveErr = 0;
+            int lastStatus = VideoGenTask.ST_SUBMITTED; // 提交时已写入，轮询中状态未变则跳过重复写
             while (System.currentTimeMillis() < deadline) {
                 Thread.sleep(consecutiveErr > 0 ? 15_000 : 5_000);
                 ArkVideoClient.ArkStatus st;
@@ -171,11 +176,15 @@ public class VideoGenTaskService {
                         return;
                     }
                     case "failed" -> throw new RuntimeException(st.errorMsg() == null ? "生成失败" : st.errorMsg());
-                    default -> { // queued/running → 状态推进
-                        taskMapper.update(null, new LambdaUpdateWrapper<VideoGenTask>()
-                                .set(VideoGenTask::getStatus, "running".equals(st.state())
-                                        ? VideoGenTask.ST_RUNNING : VideoGenTask.ST_SUBMITTED)
-                                .eq(VideoGenTask::getId, id));
+                    default -> { // queued/running → 状态推进（仅在状态实际变化时写库）
+                        int next = "running".equals(st.state())
+                                ? VideoGenTask.ST_RUNNING : VideoGenTask.ST_SUBMITTED;
+                        if (next != lastStatus) {
+                            taskMapper.update(null, new LambdaUpdateWrapper<VideoGenTask>()
+                                    .set(VideoGenTask::getStatus, next)
+                                    .eq(VideoGenTask::getId, id));
+                            lastStatus = next;
+                        }
                     }
                 }
             }
