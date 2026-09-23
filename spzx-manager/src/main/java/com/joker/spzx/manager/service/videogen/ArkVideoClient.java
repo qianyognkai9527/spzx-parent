@@ -67,10 +67,12 @@ public class ArkVideoClient {
         }
         String id = obj.getStr("id");
         if (id == null || id.isBlank()) {
+            // 非 2xx 但响应体是合法 JSON 且无 id：前缀 HTTP 状态码，避免错误信息缺状态码难排查
+            String httpPrefix = status >= 400 ? "HTTP " + status + " " : "";
             JSONObject err = obj.getJSONObject("error");
             throw new RuntimeException(err != null
-                    ? "Ark提交失败: " + err.getStr("message", "")
-                    : "Ark提交失败: " + truncate(resp));
+                    ? "Ark提交失败: " + httpPrefix + err.getStr("message", "")
+                    : "Ark提交失败: " + httpPrefix + truncate(resp));
         }
         log.debug("Ark提交成功 taskId={}", id);
         return id;

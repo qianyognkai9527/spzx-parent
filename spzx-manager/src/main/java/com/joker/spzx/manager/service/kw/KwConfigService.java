@@ -12,6 +12,7 @@ public class KwConfigService {
 
     public static final String KEY_TEXT = "text_provider";
     public static final String KEY_VISION = "vision_provider";
+    public static final String KEY_VIDEO = "video_provider";
     public static final String DEFAULT_PROVIDER = "tokens-store";
 
     @Autowired

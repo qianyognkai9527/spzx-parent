@@ -32,3 +32,8 @@ WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE component='videogen');
 INSERT INTO sys_role_menu (role_id, menu_id)
 SELECT 9, id FROM sys_menu WHERE component='videogen'
 AND id NOT IN (SELECT menu_id FROM sys_role_menu WHERE role_id=9);
+
+-- kw_config 播种：视频生成默认 provider（kw_config 主键=config_key 无 id 列，brief 的 SELECT id 子查询形态不可用；
+-- 改用与 kw_init.sql 一致的 INSERT IGNORE 幂等写法。无行时 getProvider 兜底 DEFAULT_PROVIDER=tokens-store，
+-- 但 tokens-store 未配 video_model，requireActive 报 "未配置 video 模型"，故显式指向方舟 provider）
+INSERT IGNORE INTO kw_config (config_key, config_value) VALUES ('video_provider', 'volcengine-ark');
