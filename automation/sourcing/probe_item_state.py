@@ -7,6 +7,7 @@ import sys
 import time
 from cdp_utils import connect_cdp
 from assign_shop_category import wait_edit_ready, scroll_edit_page
+from assign_shop_category_v2 import ensure_guard_tab
 
 EDIT_URL = "https://item.upload.taobao.com/sell/v2/publish.htm?itemId={id}&fromAIPublish=true"
 
@@ -58,6 +59,7 @@ async def main():
             log(await probe(ctx, iid))
             await asyncio.sleep(2)
     finally:
+        ensure_guard_tab()  # 防 0-tab 坏下次 connect (fix round 1 F4)
         await b.close()
 
 

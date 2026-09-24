@@ -70,6 +70,20 @@ async def click_next_page(page):
     return bool(ok)
 
 
+async def read_tab_count(page, name):
+    """读列表 tab 计数(如 出售中(1840)/仓库中(2203)). 读不到返回 0(不设上限, 保持旧行为)"""
+    pat = '出售中' if name == 'sold_out' else '仓库中'
+    r = await page.evaluate("""(pat) => {
+        const re = new RegExp(pat + '\\\\((\\\\d+)\\\\)');
+        for (const el of document.querySelectorAll('.next-tabs-tab-inner')) {
+            const m = (el.textContent||'').match(re);
+            if (m) return parseInt(m[1], 10);
+        }
+        return 0;
+    }""", pat)
+    return int(r or 0)
+
+
 def load_existing(out_path):
     seen = set()
     items = []
@@ -134,6 +148,15 @@ async def run_collect(name, limit, restart, b, ctx):
     await close_overlays(page)
     await asyncio.sleep(2)
 
+    # 页数上限: 读 tab 计数(出售中(N)/仓库中(N)), 防最后一页后「下一页」仍可点击越界采到其他状态商品 (2026-09-25 污染修复)
+    tab_n = await read_tab_count(page, name)
+    if tab_n > 0:
+        max_pages = (tab_n + 19) // 20
+        log(f"[{name}] tab计数={tab_n} -> 页数上限 {max_pages}")
+    else:
+        max_pages = 0
+        log(f"[{name}] 未读到tab计数, 不设页数上限(保持旧行为)")
+
     pageno = 0
     try:
         while True:
@@ -156,6 +179,10 @@ async def run_collect(name, limit, restart, b, ctx):
 
             if limit and len(all_items) >= limit:
                 all_items = all_items[:limit]
+                break
+
+            if max_pages and pageno >= max_pages:
+                log(f"[{name}] 页{pageno}: 已达页数上限{max_pages}(tab计数{tab_n}), 停止翻页防越界")
                 break
 
             ok = await click_next_page(page)
