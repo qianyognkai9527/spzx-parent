@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""重采当前淘宝仓库中(in_stock)全部商品ID+标题 -> taobao_in_stock_current.jsonl
+"""重采当前淘宝仓库中(in_stock)/出售中(sold_out)全部商品ID+标题 -> 对应 jsonl
 断点续跑: 已存在的条目跳过; 每页即时追加写文件(防进程被杀丢数据)。
-用法: python collect_in_stock_current.py [--limit N]
+用法: python collect_in_stock_current.py [--list in_stock|sold_out|both] [--limit N]
 """
 import asyncio
 import json
@@ -13,8 +13,17 @@ from playwright.async_api import async_playwright
 from cdp_utils import connect_cdp
 
 CDP_PORT = 9222
-FIRST_URL = "https://myseller.taobao.com/home.htm/SellManage/in_stock?current=1&pageSize=20"
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "taobao_in_stock_current.jsonl")
+BASE = os.path.dirname(os.path.abspath(__file__))
+URLS = {
+    'in_stock': "https://myseller.taobao.com/home.htm/SellManage/in_stock?current=1&pageSize=20",
+    'sold_out': "https://myseller.taobao.com/home.htm/SellManage/sold_out?current=1&pageSize=20",
+}
+OUT_FILES = {
+    'in_stock': os.path.join(BASE, "taobao_in_stock_current.jsonl"),
+    'sold_out': os.path.join(BASE, "taobao_onsale_current.jsonl"),
+}
+FIRST_URL = URLS['in_stock']   # 兼容旧引用
+OUT = OUT_FILES['in_stock']    # 兼容旧引用
 
 
 def log(msg):
@@ -61,11 +70,11 @@ async def click_next_page(page):
     return bool(ok)
 
 
-def load_existing():
+def load_existing(out_path):
     seen = set()
     items = []
-    if os.path.exists(OUT):
-        for line in open(OUT, encoding='utf-8'):
+    if os.path.exists(out_path):
+        for line in open(out_path, encoding='utf-8'):
             line = line.strip()
             if line:
                 try:
@@ -77,34 +86,47 @@ def load_existing():
     return seen, items
 
 
-def append_items(items):
-    with open(OUT, 'a', encoding='utf-8') as f:
+def append_items(out_path, items):
+    with open(out_path, 'a', encoding='utf-8') as f:
         for it in items:
             f.write(json.dumps(it, ensure_ascii=False) + '\n')
 
 
-async def main():
-    limit = 0
-    if '--limit' in sys.argv:
-        limit = int(sys.argv[sys.argv.index('--limit') + 1])
-    restart = '--restart' in sys.argv
+def parse_lists(argv):
+    """argv(不含脚本名) -> (要采集的列表名列表, 剩余参数). --list both = 两个都采"""
+    lists = ['in_stock']
+    rest = []
+    i = 0
+    while i < len(argv):
+        if argv[i] == '--list':
+            val = argv[i + 1]
+            assert val in ('in_stock', 'sold_out', 'both'), f'未知 --list {val}'
+            lists = ['in_stock', 'sold_out'] if val == 'both' else [val]
+            i += 2
+        else:
+            rest.append(argv[i])
+            i += 1
+    return lists, rest
 
-    seen, all_items = load_existing()
-    log(f"已有 {len(seen)} 个, 断点续跑")
 
-    b, ctx = await connect_cdp(CDP_PORT, keep_urls=["myseller.taobao.com"], log=log)
+async def run_collect(name, limit, restart, b, ctx):
+    out = OUT_FILES[name]
+    first_url = URLS[name]
+
+    seen, all_items = load_existing(out)
+    log(f"[{name}] 已有 {len(seen)} 个, 断点续跑")
 
     page = None
     for p in ctx.pages:
-        if 'SellManage/in_stock' in p.url:
+        if f'SellManage/{name}' in p.url:
             page = p
             break
     if page is None:
         page = await ctx.new_page()
-        await page.goto(FIRST_URL, wait_until='domcontentloaded', timeout=40000)
+        await page.goto(first_url, wait_until='domcontentloaded', timeout=40000)
         await asyncio.sleep(12)
     elif restart:
-        await page.goto(FIRST_URL, wait_until='domcontentloaded', timeout=40000)
+        await page.goto(first_url, wait_until='domcontentloaded', timeout=40000)
         await asyncio.sleep(10)
     else:
         await page.bring_to_front()
@@ -118,19 +140,19 @@ async def main():
             pageno += 1
             items = await extract_items(page)
             if not items:
-                log(f"页{pageno}: 提取0个, 关闭弹窗重试...")
+                log(f"[{name}] 页{pageno}: 提取0个, 关闭弹窗重试...")
                 await close_overlays(page)
                 await asyncio.sleep(5)
                 items = await extract_items(page)
                 if not items:
-                    log(f"页{pageno}: 仍为0, 结束")
+                    log(f"[{name}] 页{pageno}: 仍为0, 结束")
                     break
 
             new_items = [it for it in items if it['itemId'] not in seen]
             all_items.extend(new_items)
             seen.update(it['itemId'] for it in new_items)
-            append_items(new_items)
-            log(f"页{pageno}: 本页{len(items)}个 新{len(new_items)}个 累计{len(all_items)}个")
+            append_items(out, new_items)
+            log(f"[{name}] 页{pageno}: 本页{len(items)}个 新{len(new_items)}个 累计{len(all_items)}个")
 
             if limit and len(all_items) >= limit:
                 all_items = all_items[:limit]
@@ -138,20 +160,35 @@ async def main():
 
             ok = await click_next_page(page)
             if not ok:
-                log(f"页{pageno}: 无下一页, 结束")
+                log(f"[{name}] 页{pageno}: 无下一页, 结束")
                 break
             await asyncio.sleep(7)
             await close_overlays(page)
             await asyncio.sleep(1)
             if pageno > 250:
-                log("超过250页安全限制, 结束")
+                log(f"[{name}] 超过250页安全限制, 结束")
                 break
-        log(f"完成: 共{len(all_items)}个商品 -> {OUT}")
+        log(f"[{name}] 完成: 共{len(all_items)}个商品 -> {out}")
     finally:
         try:
             await page.close()
         except Exception:
             pass
+
+
+async def main():
+    lists, rest = parse_lists(sys.argv[1:])
+    limit = 0
+    if '--limit' in rest:
+        limit = int(rest[rest.index('--limit') + 1])
+    restart = '--restart' in rest
+
+    b, ctx = await connect_cdp(CDP_PORT, keep_urls=["myseller.taobao.com"], log=log)
+    try:
+        for name in lists:
+            log(f"=== 采集列表 {name} ===")
+            await run_collect(name, limit, restart, b, ctx)
+    finally:
         await b.close()
 
 
