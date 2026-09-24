@@ -33,9 +33,9 @@ public class ArkVideoClient {
 
     /**
      * 构造提交请求体（纯函数，不联网）。首帧图通过 content[1].role=first_frame 传入。
-     * duration/ratio/generate_audio 为 Ark 视频生成模型参数。
+     * 不传 ratio：Seedance 2.5 首帧/首尾帧模式下比例自动跟随首帧图，显式传 ratio 会被 400 拒绝（T7 联调实测）。
      */
-    public String buildSubmitBody(String model, String prompt, String imageDataUrl, int duration, String ratio) {
+    public String buildSubmitBody(String model, String prompt, String imageDataUrl, int duration) {
         JSONObject body = new JSONObject();
         body.set("model", model);
         JSONArray content = new JSONArray();
@@ -45,8 +45,8 @@ public class ArkVideoClient {
                 .set("role", "first_frame"));
         body.set("content", content);
         body.set("duration", duration);
-        body.set("ratio", ratio);
         body.set("generate_audio", false);
+        body.set("watermark", false);
         return body.toString();
     }
 

@@ -144,7 +144,7 @@ public class VideoGenTaskService {
             byte[] frame = firstFrameBytes(t.getProductId());
             String body = arkClient.buildSubmitBody(t.getModel(), t.getPrompt(),
                     "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(frame),
-                    t.getDuration(), t.getRatio());
+                    t.getDuration());
             String remoteId = arkClient.submit(provider, body);
             taskMapper.update(null, new LambdaUpdateWrapper<VideoGenTask>()
                     .set(VideoGenTask::getStatus, VideoGenTask.ST_SUBMITTED)

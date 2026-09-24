@@ -14,7 +14,7 @@ class ArkVideoClientTest {
     @Test
     void buildBodyHasFirstFrame() {
         String body = new ArkVideoClient().buildSubmitBody(
-                "m1", "一只猫", "data:image/jpeg;base64,QUJD", 5, "9:16");
+                "m1", "一只猫", "data:image/jpeg;base64,QUJD", 5);
         var obj = JSONUtil.parseObj(body);
         assertEquals("m1", obj.getStr("model"));
         var content = obj.getJSONArray("content");
@@ -23,7 +23,9 @@ class ArkVideoClientTest {
         assertEquals("first_frame", img.getStr("role"));
         assertEquals("data:image/jpeg;base64,QUJD", img.getJSONObject("image_url").getStr("url"));
         assertEquals(5, obj.getInt("duration"));
-        assertEquals("9:16", obj.getStr("ratio"));
+        // Seedance 2.5 首帧模式禁止传 ratio（400 实测），比例跟随首帧图
+        assertEquals(null, obj.getStr("ratio"));
         assertEquals(Boolean.FALSE, obj.getBool("generate_audio"));
+        assertEquals(Boolean.FALSE, obj.getBool("watermark"));
     }
 }
