@@ -46,9 +46,22 @@ def test_legacy_no_pool_field():
     assert [r['itemId'] for r in todo] == ['x1']         # 按 warehouse 兜底, 不报错
 
 
+def test_ids_filter():
+    # --ids 选中子集、保持排序、done 仍被剔除
+    todo = build_todo(PLAN, prog(), retry_failed=True, ids=['w1', 'd1', 'o2', 'f1'])
+    assert [r['itemId'] for r in todo] == ['o2', 'w1', 'f1']   # onsale->warehouse->failed, d1(done)剔除
+    todo2 = build_todo(PLAN, prog(), retry_failed=True, ids=['o1', 'w1'])
+    assert [r['itemId'] for r in todo2] == ['o1', 'w1']        # 未命中 ids 的(failed 重试与否)不出现
+    todo3 = build_todo(PLAN, prog(), ids=['o1', 'f1'])          # 不带 retry_failed: failed 剔除
+    assert [r['itemId'] for r in todo3] == ['o1']
+    todo4 = build_todo(PLAN, prog(), retry_failed=True, ids=['nope'])
+    assert todo4 == []                                          # 无命中返回空
+
+
 if __name__ == '__main__':
     test_order_and_filter()
     test_limit_hits_onsale_head()
     test_no_retry_failed_excludes()
     test_legacy_no_pool_field()
+    test_ids_filter()
     print('PASS: v2 build_todo')

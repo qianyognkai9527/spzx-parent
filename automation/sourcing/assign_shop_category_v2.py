@@ -9,7 +9,7 @@
   2. 尺码缺口: 被禁用/无价格的 SKU 行(如未启用的 XL/XXL)记录到 sizegap, 待货源 SKU 数据齐全后再做启用同步
   3. 风控: process_one 返回 risk → 保存进度 → exit(42), 由 run_cat_v2.sh 接力跑 detect_stock_change.py --pool
 
-用法: python assign_shop_category_v2.py [--test|--limit N|--start N|--retry-failed]
+用法: python assign_shop_category_v2.py [--test|--limit N|--start N|--retry-failed|--ids id1,id2,...]
 进度: shop_cat_v2_progress.json (done/failed/skipped/noprice/sizegap)
 """
 import asyncio
@@ -373,13 +373,16 @@ async def process_one(ctx, rec, source_price):
                 pass
 
 
-def build_todo(plan, prog, retry_failed=False, start=0, limit=0, test=False):
+def build_todo(plan, prog, retry_failed=False, start=0, limit=0, test=False, ids=None):
     """过滤 done/skipped/failed(可选重试) 后按 出售中->仓库->gone/failed 排序; limit/test 在排序后切片"""
     done = set(prog['done'])
     skipped = set(prog['skipped'])
     failed_ids = set(prog['failed'].keys())
     todo = [r for r in plan[start:] if str(r['itemId']) not in done and str(r['itemId']) not in skipped
             and (retry_failed or str(r['itemId']) not in failed_ids)]
+    if ids:   # 定向选取(过滤之后, 保持排序); done/skipped 仍剔除, 定向重跑已 done 的会被跳过
+        want = set(ids)
+        todo = [r for r in todo if str(r['itemId']) in want]
 
     def sort_key(r):
         iid = str(r['itemId'])
@@ -405,10 +408,13 @@ async def main():
     if '--start' in sys.argv:
         start = int(sys.argv[sys.argv.index('--start') + 1])
     retry_failed = '--retry-failed' in sys.argv
+    ids = None
+    if '--ids' in sys.argv:
+        ids = sys.argv[sys.argv.index('--ids') + 1].split(',')
 
     plan = load_plan()
     prog = load_progress()
-    todo = build_todo(plan, prog, retry_failed=retry_failed, start=start, limit=limit, test=test)
+    todo = build_todo(plan, prog, retry_failed=retry_failed, start=start, limit=limit, test=test, ids=ids)
     my_ids = {str(r['itemId']) for r in todo}
     done = set(prog['done'])
     skipped = set(prog['skipped'])
