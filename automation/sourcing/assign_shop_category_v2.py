@@ -370,6 +370,29 @@ async def process_one(ctx, rec, source_price):
                 pass
 
 
+def build_todo(plan, prog, retry_failed=False, start=0, limit=0, test=False):
+    """过滤 done/skipped/failed(可选重试) 后按 出售中->仓库->gone/failed 排序; limit/test 在排序后切片"""
+    done = set(prog['done'])
+    skipped = set(prog['skipped'])
+    failed_ids = set(prog['failed'].keys())
+    todo = [r for r in plan[start:] if str(r['itemId']) not in done and str(r['itemId']) not in skipped
+            and (retry_failed or str(r['itemId']) not in failed_ids)]
+
+    def sort_key(r):
+        iid = str(r['itemId'])
+        if iid in failed_ids:
+            return 3
+        pool = r.get('pool', 'warehouse')
+        return 0 if pool == 'onsale' else (1 if pool == 'warehouse' else 2)
+
+    todo.sort(key=sort_key)
+    if test:
+        todo = todo[:1]
+    elif limit:
+        todo = todo[:limit]
+    return todo
+
+
 async def main():
     test = '--test' in sys.argv
     limit = 0
@@ -382,16 +405,11 @@ async def main():
 
     plan = load_plan()
     prog = load_progress()
+    todo = build_todo(plan, prog, retry_failed=retry_failed, start=start, limit=limit, test=test)
+    my_ids = {str(r['itemId']) for r in todo}
     done = set(prog['done'])
     skipped = set(prog['skipped'])
     failed_ids = set(prog['failed'].keys())
-    todo = [r for r in plan[start:] if str(r['itemId']) not in done and str(r['itemId']) not in skipped
-            and (retry_failed or str(r['itemId']) not in failed_ids)]
-    if test:
-        todo = todo[:1]
-    elif limit:
-        todo = todo[:limit]
-    my_ids = {str(r['itemId']) for r in todo}
     log(f"计划 {len(plan)} 个, v2已完成 {len(done)}, 跳过 {len(skipped)}, 失败 {len(failed_ids)}, 本次处理 {len(todo)}")
 
     anchor = load_price_anchor()
