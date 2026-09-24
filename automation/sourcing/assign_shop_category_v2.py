@@ -284,6 +284,7 @@ async def remove_videos(page):
 
 
 PRICE_CATS = ("家居服/睡衣", "美甲")   # 用户指令: 调价(货源价+130)只限这两类, 其他类目不动价格
+LISTING_OK_STATES = ('放入仓库', '立刻上架')   # 仓库商品维持待上架; 在售商品维持出售中(用户指令 2026-09-24)
 
 
 async def process_one(ctx, rec, source_price):
@@ -306,8 +307,10 @@ async def process_one(ctx, rec, source_price):
         if rh2:
             log(f"  · {rmsg2}")
         lm = await check_listing_mode(page)
-        if not lm.get('ok') or '放入仓库' not in lm.get('txt', ''):
-            return 'fail', f'上架时间非放入仓库: {lm.get("txt")}', None
+        if not lm.get('ok'):
+            return 'fail', f'上架状态读取失败: {lm.get("txt")}', None
+        if not any(s in lm.get('txt', '') for s in LISTING_OK_STATES):
+            return 'fail', f'上架状态异常: {lm.get("txt")}', None
         await ensure_extract_way(page)
         # 调价(仅 家居服/睡衣+美甲; 其他类目不动价格, 失败不阻塞归类)
         if category in PRICE_CATS:
