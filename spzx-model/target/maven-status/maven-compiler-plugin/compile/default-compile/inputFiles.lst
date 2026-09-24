@@ -91,6 +91,7 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/user/SysUserSchedule.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/user/SysUserScheduleTask.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/user/UserCost.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/entity/videogen/VideoGenTask.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/enums/PlatformTypeEnum.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/common/Result.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-model/src/main/java/com/joker/spzx/model/vo/common/ResultCodeEnum.java

@@ -20,6 +20,7 @@ com/joker/spzx/manager/controller/TaskProgressController.class
 com/joker/spzx/manager/service/expense/AlipayBillCsvParser.class
 com/joker/spzx/manager/config/WxLoginProperties.class
 com/joker/spzx/manager/service/SysRoleMenuService.class
+com/joker/spzx/manager/mapper/VideoGenTaskMapper.class
 com/joker/spzx/manager/mapper/SysPlanMapper.class
 com/joker/spzx/manager/controller/SysRoleController.class
 com/joker/spzx/manager/service/kw/KwExportService$WordRow.class
@@ -50,6 +51,7 @@ com/joker/spzx/manager/service/CategoryService.class
 com/joker/spzx/manager/mapper/CategoryMapper.class
 com/joker/spzx/manager/controller/SyncAlertController.class
 com/joker/spzx/manager/service/MallRefundOrderService.class
+com/joker/spzx/manager/service/videogen/VideoJsonUtil$VideoPromptResult.class
 com/joker/spzx/manager/mapper/KwProviderMapper.class
 com/joker/spzx/manager/controller/SysDictTypeController.class
 com/joker/spzx/manager/controller/ProfitAnalysisRecordController.class
@@ -95,6 +97,7 @@ com/joker/spzx/manager/mapper/ProductUnitMapper.class
 com/joker/spzx/manager/mapper/MallProductLinkMapper.class
 com/joker/spzx/manager/service/NovelChapterService.class
 com/joker/spzx/manager/controller/KwConfigController$SetDto.class
+com/joker/spzx/manager/service/videogen/ArkVideoClient.class
 com/joker/spzx/manager/service/impl/NovelChapterServiceImpl.class
 com/joker/spzx/manager/config/KwProperties$Weights.class
 com/joker/spzx/manager/mapper/SysMenuMapper.class
@@ -116,6 +119,7 @@ com/joker/spzx/manager/mapper/MallRefundRecordDetailMapper.class
 com/joker/spzx/manager/config/KwProperties.class
 com/joker/spzx/manager/service/impl/ProductBindRelationServiceImpl.class
 com/joker/spzx/manager/service/SkuBindService.class
+com/joker/spzx/manager/service/videogen/VideoGenStartupReconciler.class
 com/joker/spzx/manager/service/impl/SysDictTypeServiceImpl.class
 com/joker/spzx/manager/mapper/KwConfigMapper.class
 com/joker/spzx/manager/controller/SourceFactoryController.class
@@ -130,6 +134,7 @@ com/joker/spzx/manager/mapper/ExpenseGroupMapper.class
 com/joker/spzx/manager/service/impl/SysPlanServiceImpl.class
 com/joker/spzx/manager/mapper/OrderInfoMapper.class
 com/joker/spzx/manager/controller/MallFarmOrderController.class
+com/joker/spzx/manager/service/videogen/VideoGenTaskService.class
 com/joker/spzx/manager/mapper/CategoryBrandMapper.class
 com/joker/spzx/manager/controller/KwProductController.class
 com/joker/spzx/manager/service/impl/SysMenuServiceImpl.class
@@ -140,6 +145,8 @@ com/joker/spzx/manager/service/impl/CategoryServiceImpl.class
 com/joker/spzx/manager/service/FanqiePublishService.class
 com/joker/spzx/manager/controller/SysDictDataController.class
 com/joker/spzx/manager/controller/IndexController.class
+com/joker/spzx/manager/controller/VideoGenController.class
+com/joker/spzx/manager/controller/VideoGenController$TaskDto.class
 com/joker/spzx/manager/service/MallRefundRecordService.class
 com/joker/spzx/manager/controller/SysPlanController.class
 com/joker/spzx/manager/service/impl/EvalGapServiceImpl.class
@@ -213,6 +220,7 @@ com/joker/spzx/manager/mapper/BrandMapper.class
 com/joker/spzx/manager/mapper/SysUserMapper.class
 com/joker/spzx/manager/service/impl/DashboardServiceImpl.class
 com/joker/spzx/manager/service/impl/SysUserServiceImpl$1.class
+com/joker/spzx/manager/service/videogen/ArkVideoClient$ArkStatus.class
 com/joker/spzx/manager/mapper/MallRefundOrderMapper.class
 com/joker/spzx/manager/service/BrandService.class
 com/joker/spzx/manager/util/PageQueryUtil.class
@@ -225,6 +233,7 @@ com/joker/spzx/manager/service/impl/MallOperServiceImpl.class
 com/joker/spzx/manager/service/SysMenuService.class
 com/joker/spzx/manager/service/SysDictTypeService.class
 com/joker/spzx/manager/mapper/KwWordbankBatchMapper.class
+com/joker/spzx/manager/service/videogen/VideoJsonUtil.class
 com/joker/spzx/manager/mapper/ProfitAnalysisRecordMapper.class
 com/joker/spzx/manager/service/MallProductTitleService.class
 com/joker/spzx/manager/mapper/SysRoleMapper.class
@@ -246,6 +255,7 @@ com/joker/spzx/manager/service/OrderSourceRelationService.class
 com/joker/spzx/manager/mapper/ExpenseGroupOrderMapper.class
 com/joker/spzx/manager/mapper/ExpenseTagMapper.class
 com/joker/spzx/manager/service/impl/SourceFactoryServiceImpl.class
+com/joker/spzx/manager/service/videogen/VideoPromptService.class
 com/joker/spzx/manager/service/expense/ExpenseOrderService$OrderDto.class
 com/joker/spzx/manager/controller/SkuBindController.class
 com/joker/spzx/manager/mapper/OrderSourceRelationMapper.class

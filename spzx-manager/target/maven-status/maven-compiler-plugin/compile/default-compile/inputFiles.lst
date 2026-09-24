@@ -58,6 +58,7 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/controller/SysUserScheduleTaskController.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/controller/TaskProgressController.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/controller/UserCostController.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/controller/VideoGenController.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/controller/VisualScoreController.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/controller/WxLoginController.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/excel/OrderSimpleExcelBo.java
@@ -126,6 +127,7 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/SysUserScheduleTaskMapper.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/SysWechatUserMapper.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/UserCostMapper.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/VideoGenTaskMapper.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/mapper/VisualScoreMapper.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/BrandService.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/CategoryBrandService.java
@@ -232,6 +234,11 @@
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/kw/KwScoreUtil.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/kw/KwTaskService.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/kw/KwWordbankService.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/videogen/ArkVideoClient.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/videogen/VideoGenStartupReconciler.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/videogen/VideoGenTaskService.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/videogen/VideoJsonUtil.java
+/Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/service/videogen/VideoPromptService.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/task/OrderStatisticsTask.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/task/QrLoginTicketCleanTask.java
 /Users/qyk9527/ideaProject/spzx-parent/spzx-manager/src/main/java/com/joker/spzx/manager/util/PageQueryUtil.java

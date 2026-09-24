@@ -14,6 +14,7 @@ com/joker/spzx/model/dto/system/SysRoleDto.class
 com/joker/spzx/model/dto/mall/OrderEvaluation.class
 com/joker/spzx/model/vo/expense/SummaryVo.class
 com/joker/spzx/model/vo/product/UserCostPageVo.class
+com/joker/spzx/model/entity/videogen/VideoGenTask.class
 com/joker/spzx/model/entity/user/SysPlanProduct.class
 com/joker/spzx/model/vo/mall/VisualScoreVo.class
 com/joker/spzx/model/dto/system/AssginRoleDto.class
