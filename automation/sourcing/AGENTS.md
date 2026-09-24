@@ -110,8 +110,10 @@
 淘宝仓库商品批量设置「店铺中分类」到 8 个店铺类目（家居服/睡衣、牛仔短裤、秋冬款、连衣裙、长裤、半身裙、美甲、other）。CDP 9222，编辑页 `item.upload.taobao.com/sell/v2/publish.htm?itemId={id}&fromAIPublish=true`。
 
 - `collect_in_stock_current.py`：重采当前 in_stock 列表 → `taobao_in_stock_current.jsonl`（翻页必须点"下一页"，goto ?current=N 无效；断点续跑按 itemId 去重；**复用已打开的 in_stock 标签页会误关用户页面**，用 `--restart` 强制回第 1 页）。
-- `build_shop_cat_plan.py`：标题关键词 → 8 类目 → `shop_cat_plan.json`。优先级（已与用户确认）：美甲→牛仔短裤→秋冬款（**含"秋冬/加厚/毛绒"的睡裙也归秋冬款，优先于家居服**）→半身裙→连衣裙→长裤（**排除套装词**：含睡裙/睡衣/家居服/吊带裙/胸垫/外袍等不进长裤）→家居服/睡衣→other。纯货号垃圾标题归 other。
+- `--list sold_out`：采出售中列表 → `taobao_onsale_current.jsonl`（tab 计数设页数上限防越界，千分位计数如"1,840"已兼容）。
+- `build_shop_cat_plan.py`：标题关键词 → 8 类目 → `shop_cat_plan.json`。优先级（已与用户确认）：美甲→牛仔短裤→秋冬款（**含"秋冬/加厚/毛绒"的睡裙也归秋冬款，优先于家居服**）→半身裙→连衣裙→长裤（**排除套装词**：含睡裙/睡衣/家居服/吊带裙/胸垫/外袍等不进长裤）→家居服/睡衣→other。纯货号垃圾标题归 other。`--merge` 合并重建（旧判定保留 + 新商品 classify，plan 带 pool 字段 onsale/warehouse/gone）。
 - `assign_shop_category.py`：批量编辑+提交宝贝信息。进度 `shop_cat_progress.json`（done/failed/skipped）。`--test`/`--limit N`/`--start N`/`--retry-failed`/`--worker K N`（K/N 分片并行，**见下：不推荐**）。
+- `assign_shop_category_v2.py`（v2，2026-09-24 起扩大覆盖在售商品）：`--test`/`--limit N`/`--start N`/`--retry-failed`/`--ids id1,id2`（定向选取，**可补跑 skipped，done 仍跳过**；gone 池商品无 `--ids` 时自动剔除）。进度 `shop_cat_v2_progress.json`（done/failed/skipped/noprice/sizegap）。skipped 中 754 个 onsale 美甲为人工修数据队列（探路 4/4 数据问题拦），修完用 `--ids` 补跑。
 
 **关键机制（勿再踩坑）**:
 - **属性推荐弹框「商品属性信息更新确定」必须点「确定」**。⚠️ 弹框容器是 **`.next-dialog`**，不是 `.next-dialog-wrapper`！且它是 position:fixed，**`offsetParent` 恒为 null** → 检测可见性必须用 `getClientRects().length > 0`，用 `offsetParent` 会永远检测不到（这是本任务最深的坑，曾导致弹框从未被处理）。点击用 Playwright locator（`dlg.locator('button', has_text='确定')`），JS `.click()` 对 React 不可靠。弹框在页面加载后/滚动时可能弹出，进编辑页后、滚动后、提交前都要调用处理函数。
@@ -119,7 +121,7 @@
 - **提交成功判定以 `submit.htm` 响应体为准**（`globalMessage.type=success` → 跳 `sell/v2/success.htm` 或页面"商品提交成功"）；页面文本/URL 不可靠。提交后可能有「继续发布」/「前往查看」违规弹窗（详情图含尺码信息自动填表提示），点后部分需**二次点提交**。
 - **尺码表报错处理**：响应 `CHK_SIZE_ROW_IS_EMPTY` 或页面"商品尺寸表 必填项未填" → 清空商品尺寸表（`#sell-field-sizeMapping` 内「一键清空」）后重新提交。尺码表**要么全填要么不填**；个别类目尺寸表为硬必填（清空仍报错）→ 标 skipped 待人工。
 - 提取方式（`#sell-field-tbExtractWay`）默认已选"使用物流配送"，未选时点第一个选项。
-- 上架时间必须=「放入仓库」（`#sell-field-startTime`），防误上架；提交前校验。
+- 上架时间（`#sell-field-startTime`）读当前状态**原样维持**：仓库商品保持「放入仓库」、在售商品保持「立刻上架」，不碰 radio 防误上架；2026-09-24 起支持在售商品（探路验收通过）。
 - **每商品必须 `ctx.new_page()` 新开 tab**（SPA 同 URL goto 不重渲染），用完只关自己的 tab；用 `connect_cdp(9222, keep_urls=["myseller.taobao.com","item.upload.taobao.com"])` 保护用户页面。
 - **数据问题商品标 skipped 不再自动重试**（`--retry-failed` 只重试 failed）：商品属性必填未填、销售规格必填未填、`CHK_VIDEO_RATIO_INVALID_ERROR`（视频比例）都需人工修数据，重试永远失败。
 - 节奏（2026-08-30 提速后）：间隔 3-5s、每 30 个休息 25-35s。实测单商品 ~60-80s，其中大量时间花在等 submit 响应/弹框处理。

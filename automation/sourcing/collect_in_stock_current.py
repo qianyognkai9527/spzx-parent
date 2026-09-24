@@ -71,13 +71,14 @@ async def click_next_page(page):
 
 
 async def read_tab_count(page, name):
-    """读列表 tab 计数(如 出售中(1840)/仓库中(2203)). 读不到返回 0(不设上限, 保持旧行为)"""
+    """读列表 tab 计数(如 出售中(1840)/仓库中(2203)). 千分位(1,840)去非数字字符后再 int;
+    读不到返回 0(不设上限, 保持旧行为)"""
     pat = '出售中' if name == 'sold_out' else '仓库中'
     r = await page.evaluate("""(pat) => {
-        const re = new RegExp(pat + '\\\\((\\\\d+)\\\\)');
+        const re = new RegExp(pat + '\\\\(([\\\\d,]+)\\\\)');
         for (const el of document.querySelectorAll('.next-tabs-tab-inner')) {
             const m = (el.textContent||'').match(re);
-            if (m) return parseInt(m[1], 10);
+            if (m) return parseInt(m[1].replace(/[^\\\\d]/g, ''), 10);
         }
         return 0;
     }""", pat)

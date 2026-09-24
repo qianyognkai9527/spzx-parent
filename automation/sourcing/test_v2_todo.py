@@ -17,9 +17,10 @@ PLAN = [
     {'itemId': 'w1', 'category': '长裤', 'pool': 'warehouse'},
     {'itemId': 'f1', 'category': '美甲', 'pool': 'onsale'},      # failed -> 尾部
     {'itemId': 'o1', 'category': '美甲', 'pool': 'onsale'},
-    {'itemId': 'g1', 'category': 'other', 'pool': 'gone'},
+    {'itemId': 'g1', 'category': 'other', 'pool': 'gone'},       # gone -> 无 --ids 剔除
     {'itemId': 'd1', 'category': '长裤', 'pool': 'warehouse'},   # done -> 剔除
-    {'itemId': 'o2', 'category': 'other', 'pool': 'onsale'},     # 无 pool 旧数据按 warehouse
+    {'itemId': 's1', 'category': '美甲', 'pool': 'onsale'},      # skipped -> 剔除(--ids 放行)
+    {'itemId': 'o2', 'category': 'other', 'pool': 'onsale'},     # onsale -> 前部(无 pool 用例见 test_legacy_no_pool_field)
 ]
 
 
@@ -27,7 +28,8 @@ def test_order_and_filter():
     todo = build_todo(PLAN, prog(), retry_failed=True)
     ids = [r['itemId'] for r in todo]
     assert 'd1' not in ids and 's1' not in ids     # done/skipped 剔除
-    assert ids == ['o1', 'o2', 'w1', 'g1', 'f1']   # onsale -> warehouse -> gone -> failed
+    assert 'g1' not in ids                         # gone 池剔除
+    assert ids == ['o1', 'o2', 'w1', 'f1']         # onsale -> warehouse -> failed
 
 
 def test_limit_hits_onsale_head():
@@ -58,10 +60,28 @@ def test_ids_filter():
     assert todo4 == []                                          # 无命中返回空
 
 
+def test_ids_admits_skipped():
+    # --ids 定向时 skipped 放行(人工修完数据补跑); done 仍剔除
+    todo = build_todo(PLAN, prog(), retry_failed=True, ids=['s1'])
+    assert [r['itemId'] for r in todo] == ['s1']
+    todo2 = build_todo(PLAN, prog(), retry_failed=True, ids=['d1'])
+    assert todo2 == []
+
+
+def test_gone_excluded():
+    # gone 池无 --ids 剔除(编辑页打不开); 显式 --ids 放行
+    todo = build_todo(PLAN, prog(), retry_failed=True)
+    assert 'g1' not in [r['itemId'] for r in todo]
+    todo2 = build_todo(PLAN, prog(), retry_failed=True, ids=['g1'])
+    assert [r['itemId'] for r in todo2] == ['g1']
+
+
 if __name__ == '__main__':
     test_order_and_filter()
     test_limit_hits_onsale_head()
     test_no_retry_failed_excludes()
     test_legacy_no_pool_field()
     test_ids_filter()
+    test_ids_admits_skipped()
+    test_gone_excluded()
     print('PASS: v2 build_todo')
