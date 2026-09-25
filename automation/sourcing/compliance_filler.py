@@ -25,7 +25,9 @@ ZONE_EXTRACT, ZONE_SKU, ZONE_PROP = 'extract', 'sku', 'prop'
 FIELD_ZONE = {'厚薄': ZONE_SKU, '是否加绒': ZONE_SKU, '款式': ZONE_SKU,
               '面料': ZONE_PROP, '材质成分': ZONE_PROP, '上市年份季节': ZONE_PROP,
               '是否商场同款': ZONE_PROP, '功能': ZONE_PROP, '适用场景': ZONE_PROP,
-              '提取方式': ZONE_EXTRACT}
+              '提取方式': ZONE_EXTRACT,
+              # 长裤/牛仔短裤实测必填 SKU 列(探路 2026-09-25): msg-bar 报缺但平台必填清单未列
+              '裤型': ZONE_SKU, '裤长': ZONE_SKU}
 KNOWN_FIELDS = tuple(FIELD_ZONE)  # 对外接口别名, 与 FIELD_ZONE 声明同序
 IMAGE_FAIL_MARK = 'PIC_STEAL'
 FILL_FAIL_MARKS = ('必填', '不能为空', '规格')
@@ -74,32 +76,99 @@ def is_image_only_failure(msg):
 
 
 async def detect_gaps(page):
-    """读页面错误态(自带上次失败态, 零试提交) -> parse_gaps."""
-    body = await page.evaluate("() => document.body.innerText")
+    """读页面错误态(自带上次失败态, 零试提交) -> parse_gaps.
+    #struct-error-board 可能已被 clear_overlays 隐藏(display:none), body.innerText 读不到
+    → 同步 evaluate 内临时还原读 innerText 再隐藏(行结构保留, parse 依赖行);
+    board 实测随表单实时重算(填完即消), 初检与 gaps2 复检同样适用. 提取方式类错误只在此板出现."""
+    body = await page.evaluate("""() => {
+        const b = document.querySelector('#struct-error-board');
+        let extra = '';
+        if (b && b.style.display === 'none') {
+            b.style.display = '';
+            extra = b.innerText || '';
+            b.style.display = 'none';
+        }
+        return document.body.innerText + (extra ? '\\n' + extra : '');
+    }""")
     return parse_gaps(body)
 
 
+_EXTRACT_CHECKED_JS = """() => {
+    const el = document.querySelector('#sell-field-tbExtractWay');
+    if (!el) return null;
+    for (const l of el.querySelectorAll('label')) {
+        if (/使用物流配送/.test(l.textContent||'')) {
+            const i = l.querySelector('input');
+            return i ? !!i.checked : null;
+        }
+    }
+    return null;
+}"""
+
+_EXTRACT_DUMP_JS = """() => {
+    const el = document.querySelector('#sell-field-tbExtractWay');
+    if (!el) return null;
+    let labelText = '', disabled = null, checked = null, hasInput = false;
+    for (const l of el.querySelectorAll('label')) {
+        if (/使用物流配送/.test(l.textContent||'')) {
+            labelText = (l.textContent||'').replace(/\\s+/g,' ').trim().slice(0, 30);
+            const i = l.querySelector('input');
+            if (i) { hasInput = true; disabled = !!i.disabled; checked = !!i.checked; }
+        }
+    }
+    return {labelText: labelText, disabled: disabled, checked: checked, hasInput: hasInput,
+            hasSelect: !!el.querySelector('span.next-select'),
+            raw: (el.innerText||'').replace(/\\s+/g,' ').trim().slice(0, 60)};
+}"""
+
+
 async def fill_extract_way(page):
-    """提取方式: 浮层清理后 Playwright 真点「使用物流配送」label, 以 input.checked 翻转为准."""
-    lbl = page.locator('#sell-field-tbExtractWay label', has_text='使用物流配送').first
+    """提取方式: 浮层清理后 Playwright 真点「使用物流配送」label, 以 input.checked 翻转为准.
+    无效果时一次性 dump 现场定性(前置修正 2026-09-25): DISABLED=需人工 / SELECT 变体走
+    _set_next_select / NO_INPUT / 重试点 input 本体+4x0.5s 写回复核.
+    返回 (ok, CHECKED|DISABLED:..|SELECT:..|NO_INPUT|NO_EFFECT:..)."""
+    zone = page.locator('#sell-field-tbExtractWay')
+    if await zone.count() == 0:
+        return False, 'NO_ZONE'
+    lbl = zone.locator('label', has_text='使用物流配送').first
     if await lbl.count() == 0:
         return False, 'NO_LABEL'
     await lbl.click(timeout=8000)
     await asyncio.sleep(0.8)
-    checked = await page.evaluate("""() => {
-        const el = document.querySelector('#sell-field-tbExtractWay');
-        if (!el) return null;
-        for (const l of el.querySelectorAll('label')) {
-            if (/使用物流配送/.test(l.textContent||'')) {
-                const i = l.querySelector('input');
-                return i ? i.checked : null;
-            }
-        }
-        return null;
-    }""")
-    if checked:
+    if await page.evaluate(_EXTRACT_CHECKED_JS):
         return True, 'CHECKED'
-    return False, 'CLICK_NO_EFFECT'
+    d = await page.evaluate(_EXTRACT_DUMP_JS)
+    if not d:
+        return False, 'NO_ZONE'
+    if d.get('disabled'):
+        return False, f"DISABLED:提取方式需人工 label={d.get('labelText')!r} raw={d.get('raw')!r}"
+    if d.get('hasSelect'):
+        picked = await _set_next_select(page, zone, '使用物流配送')
+        if picked:
+            return True, f'SELECT:{picked}'
+        return False, f"NO_EFFECT:SELECT变体未命中 dump={d}"
+    if not d.get('hasInput'):
+        return False, f"NO_INPUT dump={d}"
+    try:
+        await lbl.locator('input').first.click(timeout=4000)
+    except Exception:
+        try:
+            await page.evaluate("""() => {
+                const el = document.querySelector('#sell-field-tbExtractWay');
+                for (const l of el.querySelectorAll('label')) {
+                    if (/使用物流配送/.test(l.textContent||'')) {
+                        const i = l.querySelector('input');
+                        if (i) { i.click(); return; }
+                    }
+                }
+            }""")
+        except Exception:
+            pass
+    for _ in range(4):
+        await asyncio.sleep(0.5)
+        if await page.evaluate(_EXTRACT_CHECKED_JS):
+            return True, 'CHECKED'
+    return False, f"NO_EFFECT:label点击与input重试均无效 dump={d}"
 
 
 SKU_DEFAULTS = {'厚薄': '常规', '是否加绒': '否'}
@@ -107,7 +176,8 @@ JIA_RONG_KW = ('加绒', '绒')
 
 
 def sku_value_for(field, title, options=None):
-    """SKU 属性取值. options: 面板内可选项(款式等无默认值字段取第一项)."""
+    """SKU 属性取值. options: 面板内可选项; 无默认值字段(款式/裤型/裤长等)标题含选项名者
+    优选中(长选项优先防 '超短裤' 被 '短裤' 抢先), 无命中取第一项(合规目标=非空)."""
     if field == '是否加绒':
         return '是' if any(k in (title or '') for k in JIA_RONG_KW) else '否'
     if field in SKU_DEFAULTS:
@@ -118,7 +188,13 @@ def sku_value_for(field, title, options=None):
                     return v
             return options[0]
         return v
-    return (options or [''])[0] if options else ''
+    opts = [o for o in (options or []) if o]
+    if opts:
+        hits = [o for o in opts if o in (title or '')]
+        if hits:
+            return max(hits, key=len)
+        return opts[0]
+    return ''
 
 
 # 「去填写」面板实测(compliance_ui_notes.md 末尾 task3 补记): 非批量弹层, 而是 SKU 表格内联下拉列——
@@ -157,7 +233,9 @@ _READ_OPTIONS_JS = """() => {
 
 async def fill_sku_gaps(page, gaps, title):
     """SKU 级缺失填充: SKU 表格内联下拉列逐行选值(表头文本定位列, 单元格 id 定位行),
-    选值即时写回表单态无需确认; 填充后 re-detect 由调用方负责."""
+    选值即时写回表单态无需确认; 填充后 re-detect 由调用方负责.
+    探路修正(2026-09-25): 占位符'请选择'不算已有值; async-select 弹层延迟出现须轮询;
+    多选(next-select-multiple)弹层不自动关须 Escape, 写回态='… '+tag 文本, 校验按含值判定."""
     sku_gaps = [g for g in gaps if g['zone'] == ZONE_SKU]
     if not sku_gaps:
         return True, 'no sku gaps'
@@ -169,32 +247,54 @@ async def fill_sku_gaps(page, gaps, title):
             if 'err' in info:
                 return False, f'{field}: {info["err"]}'
             prop, n_rows = info['prop'], info['nRows']
-            value, filled = None, 0
+            value, filled, is_multi = None, 0, None
             for i in range(n_rows):
                 trig = page.locator(
                     f'#sell-field-sku [id="{i}-skuParam_p-{prop}"] span.next-select').first
                 if await trig.count() == 0:
                     continue
+                if is_multi is None:
+                    is_multi = 'next-select-multiple' in (
+                        (await trig.get_attribute('class', timeout=3000)) or '')
                 cur = (await trig.inner_text()).strip()
-                if cur:  # 已有值: 不覆盖(重跑幂等)
+                if cur and cur != '请选择':  # 已有值: 不覆盖(重跑幂等)
                     filled += 1
                     value = value or cur
                     continue
                 await trig.click(timeout=8000)
-                await asyncio.sleep(1.0)
-                options = await page.evaluate(_READ_OPTIONS_JS)
+                options = None
+                for _ in range(8):  # async-select 弹层延迟出现, 0.5s x8 轮询
+                    await asyncio.sleep(0.5)
+                    options = await page.evaluate(_READ_OPTIONS_JS)
+                    if options:
+                        break
+                if not options:
+                    await page.keyboard.press('Escape')
+                    await asyncio.sleep(0.5)
+                    return False, f'{field}: 行{i}下拉无选项'
                 value = sku_value_for(field, title, options)
                 opt = page.locator(SKU_PANEL['option'] + f'[title="{value}"]').last
-                if await opt.count() == 0:  # 取值不在选项(虚拟滚动等)兜底第一项
+                if await opt.count() == 0:  # 取值不在选项(虚拟滚动等)兜底
                     opt = page.locator(SKU_PANEL['option']).last
                 if await opt.count() == 0:
+                    await page.keyboard.press('Escape')
+                    await asyncio.sleep(0.5)
                     return False, f'{field}: 行{i}下拉无选项'
                 await opt.click(timeout=8000)
+                if is_multi:  # 多选弹层不自动关, 且挡下一行 trigger, 必须关
+                    await page.keyboard.press('Escape')
                 ok = False
-                for _ in range(4):  # 选值写回校验
+                for _ in range(4):  # 选值写回校验: 多选='… '+tag 文本, 须按含值/标签判定
                     await asyncio.sleep(0.5)
-                    if (await trig.inner_text()).strip() == value:
-                        ok = True
+                    ok = await page.evaluate("""(a) => {
+                        const td = document.getElementById(a[0]);
+                        if (!td) return false;
+                        const sel = td.querySelector('span.next-select');
+                        if (sel && (sel.innerText||'').includes(a[1])) return true;
+                        return [...td.querySelectorAll('.next-tag-body')].some(
+                            e => (e.innerText||'').trim() === a[1]);
+                    }""", [f'{i}-skuParam_p-{prop}', value])
+                    if ok:
                         break
                 if not ok:
                     return False, f'{field}: 行{i}选值未生效'
@@ -397,4 +497,6 @@ async def fill_prop_gaps(page, gaps, title):
             done.append(f'{field}={picked}')
         except Exception as e:
             return False, f'{field}: {str(e)[:60]}'
+    if not done:
+        return True, 'no prop gaps'
     return True, 'filled ' + ','.join(done)

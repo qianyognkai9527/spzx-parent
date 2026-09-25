@@ -31,6 +31,10 @@ from assign_shop_category import (
     check_listing_mode, ensure_extract_way, set_shop_category,
     click_submit, cleanup_leaked_tabs,
 )
+from compliance_filler import (
+    clear_overlays, detect_gaps, fill_extract_way, fill_sku_gaps,
+    fill_prop_gaps, is_image_only_failure, ZONE_EXTRACT,
+)
 
 CDP_PORT = 9222
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -70,6 +74,9 @@ def save_progress(prog):
             "failed": {**disk.get('failed', {}), **prog.get('failed', {})},
             "sizegap": {**disk.get('sizegap', {}), **prog.get('sizegap', {})},
         }
+        # failed 合并为纯增量, PIC_STEAL 转 skipped / done 后必须从 failed 剔除, 否则磁盘旧档复活
+        for iid in [k for k in merged['failed'] if k in merged['done'] or k in merged['skipped']]:
+            del merged['failed'][iid]
         tmp = PROGRESS_FILE + '.tmp'
         with open(tmp, 'w', encoding='utf-8') as f:
             json.dump(merged, f, ensure_ascii=False, indent=1)
@@ -307,6 +314,7 @@ async def process_one(ctx, rec, source_price):
         rh2, rmsg2 = await handle_recommend_dialog(page)
         if rh2:
             log(f"  · {rmsg2}")
+        await clear_overlays(page)   # 新增浮层拦截点击(调价也被拦), 须在一切交互前
         lm = await check_listing_mode(page)
         if not lm.get('ok'):
             return 'fail', f'上架状态读取失败: {lm.get("txt")}', None
@@ -330,6 +338,36 @@ async def process_one(ctx, rec, source_price):
         rh3, rmsg3 = await handle_recommend_dialog(page)
         if rh3:
             log(f"  · {rmsg3}")
+        title_txt = title or ''
+        filled_msgs = []
+        gaps = await detect_gaps(page)
+        for _round in range(4):   # SKU msg-bar 一次只报行内首缺字段(裤型/裤长级联), 须迭代填净
+            if not gaps:
+                break
+            await clear_overlays(page)
+            if any(g['zone'] == ZONE_EXTRACT for g in gaps):
+                # 前置修正(审查裁决): fill_extract_way 必须由 detect gap 门控, 无 gap 页面点击必 CLICK_NO_EFFECT
+                eok, emsg = await fill_extract_way(page)
+                if eok:
+                    log(f"  · 提取方式: {emsg}")
+                elif emsg.startswith('DISABLED'):
+                    return 'fail', f'提取方式需人工: {emsg}', None
+                else:
+                    log(f"  ⚠ 提取方式: {emsg}")
+            sok1, smsg1 = await fill_sku_gaps(page, gaps, title_txt)
+            if not sok1:
+                return 'fail', f'合规SKU填充失败: {smsg1}', None
+            pok1, pmsg1 = await fill_prop_gaps(page, gaps, title_txt)
+            if not pok1:
+                return 'fail', f'合规属性填充失败: {pmsg1}', None
+            for m in (smsg1, pmsg1):
+                if m and not m.startswith('no '):
+                    filled_msgs.append(m)
+            gaps = await detect_gaps(page)
+        else:
+            return 'fail', f'合规字段4轮未清零: {[g["name"] for g in gaps]}', None
+        if filled_msgs:
+            log(f"  · 合规填充: {' | '.join(filled_msgs)}")
         # 删除横版视频(1:1/16:9 会拦提交, 淘宝要求 9:16), 用户指令 2026-09-13: 删视频再提交
         vok, vremoved = await remove_videos(page)
         if vremoved:
@@ -477,8 +515,14 @@ async def main():
             log(f"  ⚠ 风控: {msg}")
         else:
             fail_c += 1
-            prog['failed'][item_id] = {'category': category, 'error': msg}
-            log(f"  ✗ {msg}")
+            if is_image_only_failure(msg):
+                if item_id not in prog['skipped']:
+                    prog['skipped'].append(item_id)
+                prog['failed'].pop(item_id, None)
+                log(f"  ⏭ 仅剩盗图(PIC_STEAL), 转 skipped 待换图")
+            else:
+                prog['failed'][item_id] = {'category': category, 'error': msg}
+                log(f"  ✗ {msg}")
         save_progress(prog)
         await cleanup_leaked_tabs(ctx, my_ids)
         if status == 'risk':
