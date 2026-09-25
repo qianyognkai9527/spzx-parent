@@ -262,7 +262,7 @@ brief 把 面料/材质成分 合并走「添加材质成分」组合路径—�
 - **修法**：选项 `title` **必须点击前取**；所有 locator 动作显式 `timeout=3000~8000`，`inner_text` 包 try/except；搜索框先 `is_visible()` 再 fill（`next-no-search` 的 trigger 弹层可能无/藏搜索框）。
 - 教训：Playwright locator 默认 30s 超时在「点击后读弹层内元素」场景必踩，凡跨弹层生命周期读属性都要前置或加短超时。
 
-## 3. 属性下拉交互实测（两样本 5 字段全通过）
+## 3. 属性下拉交互实测（两样本 4 字段全通过）
 
 - 定位：`.sell-component-info-wrapper-label` 文本（去 `*`/空白/重要/必填）**精确匹配** → `closest('[id^="sell-field-p-"]')`（排除 `.next-drawer` 内同构壳）；「上市年份季节」美甲类 label=「上市时间」按别名次序优先匹配。
 - 单选（上市年份季节/是否商场同款）：点 trigger → `.next-overlay-wrapper.opened .next-select-popup-wrap` → 点 `.options-item[title=值]` → **弹层自动关**，trigger innerText 即写回值；上市年份季节弹层选项全量直出（2026年冬季/2026年秋季/2012年春季…），无需搜索。

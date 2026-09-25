@@ -30,7 +30,8 @@ FIELD_ZONE = {'厚薄': ZONE_SKU, '是否加绒': ZONE_SKU, '款式': ZONE_SKU,
               '裤型': ZONE_SKU, '裤长': ZONE_SKU}
 KNOWN_FIELDS = tuple(FIELD_ZONE)  # 对外接口别名, 与 FIELD_ZONE 声明同序
 IMAGE_FAIL_MARK = 'PIC_STEAL'
-FILL_FAIL_MARKS = ('必填', '不能为空', '规格')
+IMAGE_FAIL_CODE = 'CHK_IMAGE_PC_PIC_STEAL'  # 盗图完整错误码自带 CHK_ 前缀, 排除集检查前须抹掉防自伤
+FILL_FAIL_MARKS = ('必填', '不能为空', '规格', 'CHK_', '视频', '尺码')  # 混合错误(盗图+其他类)不转换图队列
 ERROR_LINE_TOKENS = ('必填项未填', '必填项不能为空')  # 错误面板汇总行 / 字段内联错误行(1072552474230 实测)
 LABEL_LOOKBACK = 10  # 内联错误行距字段 label 行的最大非空行距(实测 7)
 
@@ -69,10 +70,11 @@ def _prev_label_is(text, name):
 
 
 def is_image_only_failure(msg):
-    """提交失败信息是否仅剩图片(盗图)问题(无必填/规格类错误). 纯函数."""
+    """提交失败信息是否仅剩图片(盗图)问题(无必填/规格/其他错误码/视频/尺码类错误). 纯函数."""
     if IMAGE_FAIL_MARK not in msg:
         return False
-    return not any(m in msg for m in FILL_FAIL_MARKS)
+    rest = msg.replace(IMAGE_FAIL_CODE, '')  # 抹掉盗图码自身, 否则其 CHK_ 前缀误命中排除集
+    return not any(m in rest for m in FILL_FAIL_MARKS)
 
 
 async def detect_gaps(page):
@@ -175,11 +177,24 @@ SKU_DEFAULTS = {'厚薄': '常规', '是否加绒': '否'}
 JIA_RONG_KW = ('加绒', '绒')
 
 
+def _is_cn(ch):
+    return '\u4e00' <= ch <= '\u9fff'
+
+
+def _share_cn_sub2(a, b):
+    """a/b 是否有公共子串(≥2 连续中文字符)=a 存在相邻中文二字组出现在 b 中. 纯函数."""
+    for i in range(len(a) - 1):
+        if _is_cn(a[i]) and _is_cn(a[i + 1]) and a[i:i + 2] in b:
+            return True
+    return False
+
+
 def sku_value_for(field, title, options=None):
-    """SKU 属性取值. options: 面板内可选项; 无默认值字段(款式/裤型/裤长等)标题含选项名者
-    优选中(长选项优先防 '超短裤' 被 '短裤' 抢先), 无命中取第一项(合规目标=非空)."""
+    """SKU 属性取值. 命名字段(厚薄/是否加绒/款式)规则不变; 未知字段(裤型/裤长等)标题匹配优先——
+    取与 title 有公共子串(≥2 连续中文)的首个选项, 无匹配返回 None(F-B: 绝不写首项猜测值)."""
+    title = title or ''
     if field == '是否加绒':
-        return '是' if any(k in (title or '') for k in JIA_RONG_KW) else '否'
+        return '是' if any(k in title for k in JIA_RONG_KW) else '否'
     if field in SKU_DEFAULTS:
         v = SKU_DEFAULTS[field]
         if options:
@@ -189,12 +204,15 @@ def sku_value_for(field, title, options=None):
             return options[0]
         return v
     opts = [o for o in (options or []) if o]
-    if opts:
-        hits = [o for o in opts if o in (title or '')]
-        if hits:
-            return max(hits, key=len)
-        return opts[0]
-    return ''
+    if field == '款式':  # 命名字段规则不变: 标题含选项名者优选(长选项优先), 无命中首项兜底
+        if opts:
+            hits = [o for o in opts if o in title]
+            return max(hits, key=len) if hits else opts[0]
+        return ''
+    for o in opts:  # 未知字段: 公共子串匹配优先
+        if _share_cn_sub2(o, title):
+            return o
+    return None
 
 
 # 「去填写」面板实测(compliance_ui_notes.md 末尾 task3 补记): 非批量弹层, 而是 SKU 表格内联下拉列——
@@ -235,11 +253,12 @@ async def fill_sku_gaps(page, gaps, title):
     """SKU 级缺失填充: SKU 表格内联下拉列逐行选值(表头文本定位列, 单元格 id 定位行),
     选值即时写回表单态无需确认; 填充后 re-detect 由调用方负责.
     探路修正(2026-09-25): 占位符'请选择'不算已有值; async-select 弹层延迟出现须轮询;
-    多选(next-select-multiple)弹层不自动关须 Escape, 写回态='… '+tag 文本, 校验按含值判定."""
+    多选(next-select-multiple)弹层不自动关须 Escape, 写回态='… '+tag 文本, 校验按含值判定.
+    未知字段无匹配(F-B): 跳过该字段记'=无匹配需人工', 残留 gap 由 re-detect/提交校验兜底, 绝不写猜测值."""
     sku_gaps = [g for g in gaps if g['zone'] == ZONE_SKU]
     if not sku_gaps:
         return True, 'no sku gaps'
-    done = []
+    done, manual_skipped = [], []
     for g in sku_gaps:
         field = g['name']
         try:
@@ -247,7 +266,7 @@ async def fill_sku_gaps(page, gaps, title):
             if 'err' in info:
                 return False, f'{field}: {info["err"]}'
             prop, n_rows = info['prop'], info['nRows']
-            value, filled, is_multi = None, 0, None
+            value, filled, is_multi, manual = None, 0, None, False
             for i in range(n_rows):
                 trig = page.locator(
                     f'#sell-field-sku [id="{i}-skuParam_p-{prop}"] span.next-select').first
@@ -273,6 +292,11 @@ async def fill_sku_gaps(page, gaps, title):
                     await asyncio.sleep(0.5)
                     return False, f'{field}: 行{i}下拉无选项'
                 value = sku_value_for(field, title, options)
+                if value is None:  # 无匹配: 绝不写猜测值, 留 gap 交人工(商品进 failed 可诊断)
+                    await page.keyboard.press('Escape')
+                    await asyncio.sleep(0.5)
+                    manual = True
+                    break
                 opt = page.locator(SKU_PANEL['option'] + f'[title="{value}"]').last
                 if await opt.count() == 0:  # 取值不在选项(虚拟滚动等)兜底
                     opt = page.locator(SKU_PANEL['option']).last
@@ -299,12 +323,22 @@ async def fill_sku_gaps(page, gaps, title):
                 if not ok:
                     return False, f'{field}: 行{i}选值未生效'
                 filled += 1
+            if manual:  # 跳过该字段不视为填充成功
+                manual_skipped.append(f'{field}=无匹配需人工')
+                continue
             if filled == 0:
                 return False, f'{field}: 0行填充(prop={prop})'
             done.append(f'{field}={value}({filled}行)')
         except Exception as e:
             return False, f'{field}: {str(e)[:60]}'
-    return True, 'filled ' + ','.join(done)
+    segs = []
+    if done:
+        segs.append('filled ' + ','.join(done))
+    if manual_skipped:
+        segs.append('人工:' + ','.join(manual_skipped))
+    if not segs:
+        return True, 'no sku fills'
+    return True, ' | '.join(segs)
 
 
 # ---------------- 属性级填充 (Task 4) ----------------

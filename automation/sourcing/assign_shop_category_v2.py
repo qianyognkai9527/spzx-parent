@@ -46,6 +46,7 @@ DB_CONFIG = {"host": "localhost", "port": 3306, "user": "root",
 PRICE_ADD = 130          # 新价 = 货源价 + 130
 DEFAULT_RATIO = 3.9      # 无货源价时按历史均值反推
 PRICE_MIN, PRICE_MAX = 60, 500   # 合理区间告警线(不拦截只告警)
+MAX_FILL_ROUNDS = 3      # 合规填充有效轮数成功上限(range(MAX+1)=初检填充+MAX轮re-fill, 末轮清零也放行)
 
 
 def load_progress():
@@ -341,7 +342,7 @@ async def process_one(ctx, rec, source_price):
         title_txt = title or ''
         filled_msgs = []
         gaps = await detect_gaps(page)
-        for _round in range(4):   # SKU msg-bar 一次只报行内首缺字段(裤型/裤长级联), 须迭代填净
+        for _round in range(MAX_FILL_ROUNDS + 1):   # msg-bar 一次只报行内首缺字段(裤型/裤长级联), 须迭代填净; 有效填充 3 轮成功上限, 末轮清零放行
             if not gaps:
                 break
             await clear_overlays(page)
@@ -364,8 +365,8 @@ async def process_one(ctx, rec, source_price):
                 if m and not m.startswith('no '):
                     filled_msgs.append(m)
             gaps = await detect_gaps(page)
-        else:
-            return 'fail', f'合规字段4轮未清零: {[g["name"] for g in gaps]}', None
+        if gaps:   # 去掉 for-else(off-by-one): 末轮填充才清零时循环自然耗尽, 不得误报失败
+            return 'fail', f'合规字段{MAX_FILL_ROUNDS}轮成功上限未清零: {[g["name"] for g in gaps]}', None
         if filled_msgs:
             log(f"  · 合规填充: {' | '.join(filled_msgs)}")
         # 删除横版视频(1:1/16:9 会拦提交, 淘宝要求 9:16), 用户指令 2026-09-13: 删视频再提交

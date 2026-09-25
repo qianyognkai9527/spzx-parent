@@ -81,6 +81,10 @@ def test_image_only():
     assert is_image_only_failure('提交失败: 数据问题: ...CHK_IMAGE_PC_PIC_STEAL...mainImagesGroup...')
     assert not is_image_only_failure('CHK_IMAGE_PC_PIC_STEAL 销售规格 必填项未填')
     assert not is_image_only_failure('提交失败: 数据问题: 商品发布 错误(4) 销售规格 必填项未填')
+    # F-C: 混合错误(盗图+其他类错误码/视频/尺码)不误转 skipped 待换图队列
+    assert not is_image_only_failure('提交失败: 数据问题: ...CHK_IMAGE_PC_PIC_STEAL...CHK_SKU_PARAM_ENUM_ERROR...')
+    assert not is_image_only_failure('PIC_STEAL 视频比例错误')
+    assert not is_image_only_failure('PIC_STEAL 尺码表数据缺失')
 
 
 def test_sku_value_for():
@@ -101,6 +105,17 @@ def test_sku_value_for_options():
     # 是否加绒: 标题派生, 与 options 无关
     assert sku_value_for('是否加绒', '加绒保暖卫裤', ['是', '否']) == '是'
     assert sku_value_for('是否加绒', '薄款冰丝裤', ['是', '否']) == '否'
+
+
+def test_sku_value_for_unknown_fields():
+    from compliance_filler import sku_value_for
+    # F-B: 未知字段(裤型/裤长等)标题公共子串(≥2 连续中文)匹配优先, 无匹配返回 None 绝不写首项猜测值
+    assert sku_value_for('裤长', '春秋九分牛仔裤', ['超短裤', '短裤', '九分裤', '长裤']) == '九分裤'
+    assert sku_value_for('裤型', '无关标题', ['短裤', '阔腿裤']) is None
+    assert sku_value_for('裤型', '无关标题', []) is None
+    assert sku_value_for('裤长', '无关标题', ['超短裤', '短裤', '九分裤', '长裤']) is None
+    # 命名字段回归: 是否加绒 标题派生不受影响
+    assert sku_value_for('是否加绒', '冬季加绒裤') == '是'
 
 
 def test_prop_values():
@@ -126,5 +141,6 @@ if __name__ == '__main__':
     test_image_only()
     test_sku_value_for()
     test_sku_value_for_options()
+    test_sku_value_for_unknown_fields()
     test_prop_values()
     print('PASS: compliance filler pure logic')
