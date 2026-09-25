@@ -99,3 +99,108 @@ async def fill_extract_way(page):
     if checked:
         return True, 'CHECKED'
     return False, 'CLICK_NO_EFFECT'
+
+
+SKU_DEFAULTS = {'厚薄': '常规', '是否加绒': '否'}
+JIA_RONG_KW = ('加绒', '绒')
+
+
+def sku_value_for(field, title, options=None):
+    """SKU 属性取值. options: 面板内可选项(款式等无默认值字段取第一项)."""
+    if field == '是否加绒':
+        return '是' if any(k in (title or '') for k in JIA_RONG_KW) else '否'
+    if field in SKU_DEFAULTS:
+        v = SKU_DEFAULTS[field]
+        if options:
+            for o in options:
+                if o == v:
+                    return v
+            return options[0]
+        return v
+    return (options or [''])[0] if options else ''
+
+
+# 「去填写」面板实测(compliance_ui_notes.md 末尾 task3 补记): 非批量弹层, 而是 SKU 表格内联下拉列——
+# 表头 .sell-sku-table-header-common-new 文本=字段名, 数据行单元格 id={行号}-skuParam_p-{propId}
+# (propId 随类目变, 由表头文本反查列号取行内 propId); 行内选值即时写回主表单态, 无需确认。
+# 抽屉路径(行内「去填写」→ 右侧抽屉)的「确定」会被该行其他未知必填字段(长裤实测: 裤型/裤长)拦死, 不可用。
+SKU_PANEL = {
+    'header': '.sell-sku-table-header-common-new',          # 表头单元格, 文本=字段名
+    'row': '#sell-field-sku tr',                            # SKU 数据行(tr)
+    'trigger': 'span.next-select',                          # 单元格内下拉 trigger
+    'option': '.next-overlay-wrapper.opened .options-item',  # 下拉选项, title=值
+}
+
+_PROP_CELL_JS = """(field) => {
+  const hs = [...document.querySelectorAll('.sell-sku-table-header-common-new')];
+  const idx = hs.findIndex(e => (e.innerText || '').trim() === field);
+  if (idx < 0) return {err: 'NO_HEADER'};
+  const tr = document.querySelector('#sell-field-sku tr');
+  if (!tr) return {err: 'NO_ROWS'};
+  const td = tr.children[idx];
+  if (!td) return {err: 'NO_CELL'};
+  const m = (td.id || '').match(/skuParam_p-(\\d+)$/);
+  if (!m || !td.querySelector('span.next-select')) return {err: 'NOT_PARAM_SELECT', id: td.id};
+  return {prop: m[1], nRows: document.querySelectorAll('#sell-field-sku tr').length};
+}"""
+
+_READ_OPTIONS_JS = """() => {
+  const wraps = [...document.querySelectorAll('.next-overlay-wrapper.opened')];
+  if (!wraps.length) return [];
+  const w = wraps[wraps.length - 1];
+  return [...w.querySelectorAll('.options-item')]
+      .map(e => e.getAttribute('title') || (e.innerText || '').trim())
+      .filter(Boolean).slice(0, 30);
+}"""
+
+
+async def fill_sku_gaps(page, gaps, title):
+    """SKU 级缺失填充: SKU 表格内联下拉列逐行选值(表头文本定位列, 单元格 id 定位行),
+    选值即时写回表单态无需确认; 填充后 re-detect 由调用方负责."""
+    sku_gaps = [g for g in gaps if g['zone'] == ZONE_SKU]
+    if not sku_gaps:
+        return True, 'no sku gaps'
+    done = []
+    for g in sku_gaps:
+        field = g['name']
+        try:
+            info = await page.evaluate(_PROP_CELL_JS, field)
+            if 'err' in info:
+                return False, f'{field}: {info["err"]}'
+            prop, n_rows = info['prop'], info['nRows']
+            value, filled = None, 0
+            for i in range(n_rows):
+                trig = page.locator(
+                    f'#sell-field-sku [id="{i}-skuParam_p-{prop}"] span.next-select').first
+                if await trig.count() == 0:
+                    continue
+                cur = (await trig.inner_text()).strip()
+                if cur:  # 已有值: 不覆盖(重跑幂等)
+                    filled += 1
+                    value = value or cur
+                    continue
+                await trig.click(timeout=8000)
+                await asyncio.sleep(1.0)
+                options = await page.evaluate(_READ_OPTIONS_JS)
+                value = sku_value_for(field, title, options)
+                opt = page.locator(SKU_PANEL['option'] + f'[title="{value}"]').last
+                if await opt.count() == 0:  # 取值不在选项(虚拟滚动等)兜底第一项
+                    opt = page.locator(SKU_PANEL['option']).last
+                if await opt.count() == 0:
+                    return False, f'{field}: 行{i}下拉无选项'
+                await opt.click(timeout=8000)
+                ok = False
+                for _ in range(4):  # 选值写回校验
+                    await asyncio.sleep(0.5)
+                    if (await trig.inner_text()).strip() == value:
+                        ok = True
+                        break
+                if not ok:
+                    return False, f'{field}: 行{i}选值未生效'
+                filled += 1
+            if filled == 0:
+                return False, f'{field}: 0行填充(prop={prop})'
+            done.append(f'{field}={value}({filled}行)')
+        except Exception as e:
+            return False, f'{field}: {str(e)[:60]}'
+    return True, 'filled ' + ','.join(done)

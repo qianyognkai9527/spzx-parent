@@ -83,9 +83,31 @@ def test_image_only():
     assert not is_image_only_failure('提交失败: 数据问题: 商品发布 错误(4) 销售规格 必填项未填')
 
 
+def test_sku_value_for():
+    from compliance_filler import sku_value_for
+    assert sku_value_for('是否加绒', '冬季加绒加厚卫裤') == '是'
+    assert sku_value_for('是否加绒', '夏季薄款牛仔裤') == '否'
+    assert sku_value_for('厚薄', '任意标题') == '常规'
+    assert sku_value_for('款式', '任意标题') is not None   # 面板第一项, 运行时取
+
+
+def test_sku_value_for_options():
+    from compliance_filler import sku_value_for
+    # 厚薄: options 含'常规'用'常规', 不含回落第一项(选项以面板实况为准)
+    assert sku_value_for('厚薄', 't', ['薄款', '常规', '厚款']) == '常规'
+    assert sku_value_for('厚薄', 't', ['薄款', '适中']) == '薄款'
+    # 款式: 无默认值, options 第一项
+    assert sku_value_for('款式', 't', ['A款', 'B款']) == 'A款'
+    # 是否加绒: 标题派生, 与 options 无关
+    assert sku_value_for('是否加绒', '加绒保暖卫裤', ['是', '否']) == '是'
+    assert sku_value_for('是否加绒', '薄款冰丝裤', ['是', '否']) == '否'
+
+
 if __name__ == '__main__':
     test_parse_gaps_known_fields()
     test_parse_gaps_no_false_positive()
     test_parse_gaps_inline_separate()
     test_image_only()
+    test_sku_value_for()
+    test_sku_value_for_options()
     print('PASS: compliance filler pure logic')

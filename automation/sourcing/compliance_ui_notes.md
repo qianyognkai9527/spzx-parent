@@ -205,3 +205,41 @@
 - 全程 `connect_cdp(9222, keep_urls=["myseller.taobao.com","item.upload.taobao.com"])`，每样本 `ctx.new_page()` 新 tab 用完即关，Escape 关面板；结束时 tab 数与开跑前一致（零泄漏）。
 - 误判教训：`.next-menu` 扫描会命中页面吸顶导航（基础信息/销售信息/物流服务/图文描述），真下拉在 `.next-select-popup-wrap`；`wrapper_content_panel`/`panel_edit`（图文详情编辑器）是页面常驻大面板，勿当弹层处理。
 - probe5 证实材质编辑为内联展开（字段 outerHTML 2495→3466 字节，浮层数不变）。
+
+---
+
+# Task 3 补记 (2026-09-25 下午, SKU 填充实测, 样本=长裤 1058428800598)
+
+## 1. 「去填写」→ 右侧抽屉（每行一个，非批量面板）
+
+点击行内「去填写」开 `.next-drawer.next-drawer-right.sku-component-sku-detail-drawer`：
+
+- title：`.sku-detail-title` "详情 SKU ID: xxx"
+- body `.drawer-inner`：顶部 `.next-message.next-message-error`（该行**全部**缺失字段，如 "黑灰色【高品质】 - L：是否加绒不能为空。 裤型不能为空。 裤长不能为空。"）+ 属性块（label `.sell-component-info-wrapper-label` + trigger `span.next-select`，字段**异步加载**，trigger 带 `sell-component-sku-asyn` class）
+- 按钮在抽屉 body 底部（无 `.next-drawer-footer`）：确定 `button.confirm-button-first` + 取消 `button.confirm-button`
+- ⚠️ **抽屉「确定」会被该行其他必填字段拦死**：长裤实测只填「是否加绒」点确定 → 抽屉不关，msg 停留在 "裤型不能为空。 裤长不能为空。"。→ 抽屉路径无法"只填已知字段"，**不可用作填充器通道**
+- ⚠️ 「取消」会弹 `.next-dialog` 确认框（`.next-overlay-wrapper.opened` 内、带 backdrop 拦截一切后续点击），行为未验证，勿依赖
+- 抽屉内选值**即时同步主表单态**（抽屉未关、主页面错误行已消失）
+
+## 2. 真正的填充面 = SKU 表格内联下拉列（无任何确认）
+
+- 表头：18 个 `DIV.sell-sku-table-header-common-new`（容器 `.sell-sku-thead.sell-sku-div-head`，**div 表格、无 thead/th**），文本=列名，**顺序与数据行 TD 一一对应**
+- 数据行：`#sell-field-sku tr`（TBODY 内 `.sku-table-row`），TD id=`{行号}-skuParam_p-{propId}`（如 `0-skuParam_p-573740654`）；非属性列 id：`{行号}-skuPicture / -p-1627207 / -p-20518 / -skuPrice / -skuStock / -skuQuality / -skuPostCouponPrice / -skuOuterId / -skuBarcode / -sellPointCollection / -skuTitle / -skuStatus / -action`
+- 缺失单元格 class 含 `has-error`（首个缺失另有 `focused`）
+- **定位法（propId 不硬编码）**：表头文本 === 字段名 → 列号 → 首行该列 TD id 反解 propId → 逐行 `[id="{i}-skuParam_p-{propId}"] span.next-select` 点击 → 选项 `.next-overlay-wrapper.opened .options-item[title=值]`（与属性区下拉同构，选项少时无搜索框）→ 点选后 trigger 的 innerText 即已选值
+- **选值即时写回表单态、无确认按钮**（表格单元格与价格输入同级，是主表单一部分）
+
+## 3. 错误行来源（detect_gaps 的 SKU 信号）
+
+`.sell-sku-table-wrapper-new` 内 `.msg-bar > .next-message.next-message-error.next-inline`，文本如 "黑灰色【高品质】 - L：是否加绒不能为空。"（首个/focused 缺失行）；该行填完后消失。
+
+## 4. 长裤样本列身份 + 未知必填字段警告
+
+- 是否加绒=p-573740654 / 裤型=p-122276315 / 厚薄=p-122216507（与属性区「厚薄」id 同源）/ 适用体型=p-574077433 / 裤长=p-122276111
+- ⚠️ 抽屉报该行 **裤型/裤长 必填缺失**，但主页面错误行只报「是否加绒」——提交校验是否卡裤型/裤长未知，探路提交时观察（影响 design 里"长裤样本完整成功"预期）
+
+## 5. 工程坑
+
+- ⚠️ **抽屉/弹窗未关时 `page.close()` 会泄漏 tab**（实测漏 3 个 item.upload tab，keep_urls 含 item.upload 时启动清理不回收；已全部清理并补守卫 tab）。脚本收尾先 Escape 关浮层再关 page。
+- 表头是 div 表格，`querySelectorAll('thead')`/`th` 全部落空（Task 1 首轮 `thead: null` 的真正原因）。
+- 本节全部探查只读+单行选值，**未提交表单、未保存草稿**（页面关闭即弃）。
