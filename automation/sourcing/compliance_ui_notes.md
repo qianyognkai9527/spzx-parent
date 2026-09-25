@@ -243,3 +243,42 @@
 - ⚠️ **抽屉/弹窗未关时 `page.close()` 会泄漏 tab**（实测漏 3 个 item.upload tab，keep_urls 含 item.upload 时启动清理不回收；已全部清理并补守卫 tab）。脚本收尾先 Escape 关浮层再关 page。
 - 表头是 div 表格，`querySelectorAll('thead')`/`th` 全部落空（Task 1 首轮 `thead: null` 的真正原因）。
 - 本节全部探查只读+单行选值，**未提交表单、未保存草稿**（页面关闭即弃）。
+
+---
+
+# Task 4 补记 (2026-09-25 下午, 属性级填充实测, 样本=连衣裙 888970440898 + 秋冬款 1071720043442)
+
+## 1. 「面料」≠「材质成分」组合（brief 假设修正）
+
+brief 把 面料/材质成分 合并走「添加材质成分」组合路径——**实测两者是独立字段**：
+
+- **面料** = 普通属性单选下拉（长裤/连衣裙=p-20551，家居服=p-587227907），选项如 牛仔布/聚酯纤维，走通用下拉路径即可。
+- **材质成分组合 UI 只属于「面料材质成分/材质成分」字段**（服装类 p-149422948）；`prop_value_for('材质成分')` 保持 `'材质:含量'` 格式，`prop_value_for('面料')` 返回普通下拉候选。
+
+## 2. ⚠️ 深坑：选值已生效但校验读到 detach 节点 → 30s 假失败
+
+`_set_next_select` 首版在**点击选项之后**才 `opt.get_attribute('title')`——单选点选项**弹层立即关闭、选项节点 detach**，locator 自动重解析等默认 30s 后抛 TimeoutError，被逐候选 except 吞掉 → 返回 None 报「候选值均未命中」，**但值实际已写入**（re-detect gap 已消失，消息却是失败，且早退跳过后续字段）。两样本均 33s/字段 假失败实锤。
+
+- **修法**：选项 `title` **必须点击前取**；所有 locator 动作显式 `timeout=3000~8000`，`inner_text` 包 try/except；搜索框先 `is_visible()` 再 fill（`next-no-search` 的 trigger 弹层可能无/藏搜索框）。
+- 教训：Playwright locator 默认 30s 超时在「点击后读弹层内元素」场景必踩，凡跨弹层生命周期读属性都要前置或加短超时。
+
+## 3. 属性下拉交互实测（两样本 5 字段全通过）
+
+- 定位：`.sell-component-info-wrapper-label` 文本（去 `*`/空白/重要/必填）**精确匹配** → `closest('[id^="sell-field-p-"]')`（排除 `.next-drawer` 内同构壳）；「上市年份季节」美甲类 label=「上市时间」按别名次序优先匹配。
+- 单选（上市年份季节/是否商场同款）：点 trigger → `.next-overlay-wrapper.opened .next-select-popup-wrap` → 点 `.options-item[title=值]` → **弹层自动关**，trigger innerText 即写回值；上市年份季节弹层选项全量直出（2026年冬季/2026年秋季/2012年春季…），无需搜索。
+- 多选（功能/适用场景，秋冬款 multiple）：点选项**弹层不自动关**，需 Escape；trigger 写回态 = 「已选择 X/Y 项」(compact) 或 tag 文本，两者都要认。
+- 搜索框：是否商场同款弹层 `.options-search input` 存在且可见；fill 过滤后再点精确 title，匹配不到清空搜索回落首个可见选项（合规目标=非空）。
+- 每字段填充前须重调 `clear_overlays`（React 重渲染复位隐藏，继承提示属实）。
+
+## 4. 未覆盖/遗留
+
+- **tag-select 路径仍未实测**：连衣裙适用场景(`next-select-tag`)有值(citywalk)未成 gap，本轮没遇到 tag gap；`_set_next_select` 对 tag 按单选弹层路径尝试，真遇到需现场 dump（继承提示的「再探一步」仍欠着）。
+- **fill_extract_way 在两样本均返回 `(False,'CLICK_NO_EFFECT')`**（Task 2 函数，长裤样本曾 CHECKED）：两页面 extract 无 gap（detect 不报），点击后 checked 仍 falsy，疑因运费模板子状态不同；不影响本轮（AFTER 无 extract gap），Task 5 集成时若遇 extract gap 需注意此返回值。
+- 验证值来源：功能=保暖、适用场景=居家 均为标题关键词命中（标题含 保暖/睡衣/家居服），非兜底回落。
+
+## 5. 验证记录（12:24，未提交、页面关闭即弃，无风控）
+
+```
+888970440898: gaps BEFORE=[上市年份季节] → filled 上市年份季节=2026年秋季 → gaps AFTER=[]
+1071720043442: gaps BEFORE=[是否商场同款,功能,适用场景] → filled 是否商场同款=否,功能=保暖,适用场景=居家 → gaps AFTER=[]
+```

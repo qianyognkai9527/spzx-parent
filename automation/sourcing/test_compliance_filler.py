@@ -103,6 +103,22 @@ def test_sku_value_for_options():
     assert sku_value_for('是否加绒', '薄款冰丝裤', ['是', '否']) == '否'
 
 
+def test_prop_values():
+    from compliance_filler import prop_value_for, season_value
+    s = season_value()
+    assert '年' in s and '季' in s            # 如 2026年秋季
+    assert prop_value_for('是否商场同款', 'x') == ['否']
+    # notes 差异: 面料=普通属性下拉(p-20551/p-587227907, 实值 牛仔布/聚酯纤维), 非材质成分组合
+    assert prop_value_for('面料', 'x') == ['聚酯纤维']
+    assert prop_value_for('面料', '牛仔短裤女夏') == ['牛仔布', '聚酯纤维']
+    # 材质成分=组合 UI, 取值格式 '材质:含量'
+    assert prop_value_for('材质成分', 'x') == ['聚酯纤维:100']
+    assert prop_value_for('上市年份季节', 'x') == [season_value()]
+    assert prop_value_for('功能', '保暖加绒外套')[0] == '保暖'   # 标题关键词命中优先
+    assert '居家' in prop_value_for('适用场景', '珊瑚绒睡衣家居服')
+    assert prop_value_for('功能', '纯棉T恤')          # 推不出时仍有默认候选
+
+
 if __name__ == '__main__':
     test_parse_gaps_known_fields()
     test_parse_gaps_no_false_positive()
@@ -110,4 +126,5 @@ if __name__ == '__main__':
     test_image_only()
     test_sku_value_for()
     test_sku_value_for_options()
+    test_prop_values()
     print('PASS: compliance filler pure logic')
