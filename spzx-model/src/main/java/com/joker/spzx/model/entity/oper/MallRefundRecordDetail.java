@@ -98,4 +98,8 @@ public class MallRefundRecordDetail extends Model<MallRefundRecordDetail> {
     @Schema(description = "平台类型：1-淘宝, 2-抖音")
     @TableField("platform_type")
     private Integer platformType;
+
+    @Schema(description = "所属店铺")
+    @TableField("shop_id")
+    private Long shopId;
 }

@@ -64,6 +64,10 @@ public class MallProduct extends Model<MallProduct> {
     @TableField("platform_type")
     private Integer platformType;
 
+    @Schema(description = "所属店铺")
+    @TableField("shop_id")
+    private Long shopId;
+
     @Schema(description = "定价")
     @TableField("pricing")
     private java.math.BigDecimal pricing;

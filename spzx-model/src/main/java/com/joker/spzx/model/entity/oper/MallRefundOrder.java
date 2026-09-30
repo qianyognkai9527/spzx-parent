@@ -56,6 +56,10 @@ public class MallRefundOrder extends Model<MallRefundOrder> {
     @TableField("platform_type")
     private Integer platformType;
 
+    @Schema(description = "所属店铺")
+    @TableField("shop_id")
+    private Long shopId;
+
     @Override
     public Serializable pkVal() {
         return this.id;

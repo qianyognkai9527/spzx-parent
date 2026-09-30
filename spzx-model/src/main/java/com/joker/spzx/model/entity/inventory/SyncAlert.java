@@ -40,6 +40,13 @@ public class SyncAlert {
 
     private Integer status;
 
+    /** 外部告警通道（钉钉 webhook）是否已推送，由 SyncAlertNotifyTask 维护 */
+    private Integer notified;
+
+    /** 所属店铺 */
+    @TableField("shop_id")
+    private Long shopId;
+
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @TableField("create_time")
     private LocalDateTime createTime;

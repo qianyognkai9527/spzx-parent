@@ -83,6 +83,9 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
     private MallRefundRecordDetailMapper mallRefundRecordDetailMapper;
 
     @Autowired
+    private com.joker.spzx.manager.service.platform.PlatformRegistryService platformRegistryService;
+
+    @Autowired
     private OrderSourceRelationMapper orderSourceRelationMapper;
 
     @SneakyThrows
@@ -95,6 +98,14 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
         }
         List<OrderSimpleExcelBo> list = orderSimpleExcelBoExcelResult.getList();
 
+        // 报表必须带平台，否则整条链路（报表/批次明细/分析明细）的 platform_type 与 shop_id 全是 NULL，
+        // 平台与店铺维度就永久缺失。历史数据由 sql/backfill_platform_type_taobao.sql 回填。
+        Integer platformType = mallRefundRecord.getPlatformType();
+        if (platformType == null) {
+            throw new ServiceException(500, "请选择报表所属平台");
+        }
+        Long shopId = platformRegistryService.defaultShopId(platformType);
+
         Snowflake snowflake = new Snowflake(1L, 1L);
         String orderCode = snowflake.nextIdStr();
         List<MallRefundOrder> collect = list.stream().map(bo -> {
@@ -104,6 +115,8 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
             mallRefundOrder.setRefundMoney(new BigDecimal(bo.getRefundMoney()));
             mallRefundOrder.setOrderStatus(bo.getOrderStatus());
             mallRefundOrder.setCode(orderCode);
+            mallRefundOrder.setPlatformType(platformType);
+            mallRefundOrder.setShopId(shopId);
 
             return mallRefundOrder;
         }).collect(Collectors.toList());
@@ -115,6 +128,7 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
         mallRefundRecord.setEndTime(newEndTime);
         mallRefundRecord.setCode(snowflake.nextIdStr());
         mallRefundRecord.setOrderDataCode(orderCode);
+        mallRefundRecord.setShopId(shopId);
         mallRefundRecord.setState(1);
         mallRefundRecord.setCreateTime(LocalDateTime.now());
         mallRefundRecord.setCreateBy(AuthContextUtil.getUser().getId());
@@ -323,6 +337,9 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
                 .subtract(nvl(mallRefundRecord.getSmartPromotion()));
         mallRefundRecordDetail.setProfitAmount(subtract);
         mallRefundRecordDetail.setRecordId(mallRefundRecord.getId());
+        // 分析明细的归属跟随报表，重新生成时顺带修正历史 NULL 行
+        mallRefundRecordDetail.setPlatformType(mallRefundRecord.getPlatformType());
+        mallRefundRecordDetail.setShopId(mallRefundRecord.getShopId());
         mallRefundRecordDetail.insertOrUpdate();
         mallRefundRecord.setState(3);
         mallRefundRecord.updateById();
