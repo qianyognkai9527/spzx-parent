@@ -44,6 +44,9 @@ public class ExpenseOrderService extends ServiceImpl<ExpenseOrderMapper, Expense
     @Autowired
     private ExpenseGroupOrderMapper expenseGroupOrderMapper;
 
+    @Autowired
+    private ExpensePeriodService periodService;
+
     private final AlipayBillCsvParser parser = new AlipayBillCsvParser();
 
     /** 手工录入 DTO */
@@ -100,6 +103,9 @@ public class ExpenseOrderService extends ServiceImpl<ExpenseOrderMapper, Expense
 
     @Transactional
     public Long createManual(OrderDto dto) {
+        if (dto.expenseDate != null) {
+            requireOpen(dto.expenseDate, "录入");
+        }
         ExpenseOrder row = new ExpenseOrder();
         applyDto(row, dto);
         row.setSource(2);
@@ -114,6 +120,7 @@ public class ExpenseOrderService extends ServiceImpl<ExpenseOrderMapper, Expense
         if (row == null) {
             throw new IllegalArgumentException("记录不存在: " + id);
         }
+        requireOpen(row.getExpenseDate(), "修改");
         applyDto(row, dto);
         row.setId(id);
         expenseOrderMapper.updateById(row);
@@ -124,6 +131,10 @@ public class ExpenseOrderService extends ServiceImpl<ExpenseOrderMapper, Expense
 
     @Transactional
     public void delete(Long id) {
+        ExpenseOrder row = expenseOrderMapper.selectById(id);
+        if (row != null) {
+            requireOpen(row.getExpenseDate(), "删除");
+        }
         expenseOrderMapper.deleteById(id);
         expenseOrderTagMapper.delete(new LambdaQueryWrapper<ExpenseOrderTag>()
                 .eq(ExpenseOrderTag::getOrderId, id));
@@ -135,6 +146,9 @@ public class ExpenseOrderService extends ServiceImpl<ExpenseOrderMapper, Expense
     public int batchDelete(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return 0;
+        }
+        for (ExpenseOrder row : expenseOrderMapper.selectBatchIds(ids)) {
+            requireOpen(row.getExpenseDate(), "删除");
         }
         int n = expenseOrderMapper.deleteByIds(ids);
         expenseOrderTagMapper.delete(new LambdaQueryWrapper<ExpenseOrderTag>()
@@ -176,7 +190,13 @@ public class ExpenseOrderService extends ServiceImpl<ExpenseOrderMapper, Expense
         }
 
         List<ExpenseOrder> buffer = new ArrayList<>();
+        Set<String> closed = periodService.closedPeriods();
         for (AlipayBillCsvParser.ParsedRow r : pr.rows) {
+            String period = ExpensePeriodService.monthOf(r.expenseDate);
+            if (period != null && closed.contains(period)) {
+                out.setSkippedClosedPeriod(out.getSkippedClosedPeriod() + 1);
+                continue;
+            }
             if (existing.contains(r.tradeNo)) {
                 out.setSkippedDuplicate(out.getSkippedDuplicate() + 1);
                 continue;
@@ -268,6 +288,14 @@ public class ExpenseOrderService extends ServiceImpl<ExpenseOrderMapper, Expense
             link.setOrderId(orderId);
             link.setTagId(tid);
             expenseOrderTagMapper.insert(link);
+        }
+    }
+
+    /** 关账月护栏：动作（修改/删除/录入）落在已关账月份时拒绝 */
+    private void requireOpen(LocalDate date, String action) {
+        String period = ExpensePeriodService.monthOf(date);
+        if (period != null && periodService.isClosed(period)) {
+            throw new IllegalArgumentException(period + " 已关账，禁止" + action + "该月账单");
         }
     }
 

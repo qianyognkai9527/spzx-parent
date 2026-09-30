@@ -26,6 +26,9 @@ public class ImportResultVo {
     /** 金额为 0 的支出行跳过 */
     private int skippedZero;
 
+    /** 已关账月份跳过（先关账再导新账单时，旧月行不再写入） */
+    private int skippedClosedPeriod;
+
     /** 解析失败明细（行号+原因） */
     private List<String> errors = new ArrayList<>();
 }
