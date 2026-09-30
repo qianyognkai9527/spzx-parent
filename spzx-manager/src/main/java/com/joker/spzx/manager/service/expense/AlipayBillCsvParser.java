@@ -52,25 +52,15 @@ public class AlipayBillCsvParser {
         public final List<ParsedRow> rows = new ArrayList<>();
     }
 
-    /** 解析入口。BOM→utf-8；先严格试 utf-8，失败回退 gb18030（新 String(bytes,"gb18030") 对畸形字节只替换不抛异常，不能作为探测手段） */
+    /** 解析入口。编码与记录切分复用 CsvText（推广报表导出是同一类脏活） */
     public ParseResult parse(byte[] bytes) {
-        String text = decode(bytes);
-        List<List<String>> records = splitRecords(text);
+        String text = com.joker.spzx.manager.util.CsvText.decode(bytes);
+        List<List<String>> records = com.joker.spzx.manager.util.CsvText.splitRecords(text);
         return parseRecords(records);
     }
 
     static String decode(byte[] bytes) {
-        if (bytes.length >= 3 && (bytes[0] & 0xFF) == 0xEF && (bytes[1] & 0xFF) == 0xBB && (bytes[2] & 0xFF) == 0xBF) {
-            return new String(bytes, 3, bytes.length - 3, java.nio.charset.StandardCharsets.UTF_8);
-        }
-        try {
-            return java.nio.charset.StandardCharsets.UTF_8.newDecoder()
-                    .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
-                    .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
-                    .decode(java.nio.ByteBuffer.wrap(bytes)).toString();
-        } catch (java.nio.charset.CharacterCodingException e) {
-            return new String(bytes, java.nio.charset.Charset.forName("gb18030"));
-        }
+        return com.joker.spzx.manager.util.CsvText.decode(bytes);
     }
 
     public ParseResult parseRecords(List<List<String>> records) {
@@ -160,75 +150,17 @@ public class AlipayBillCsvParser {
         return result;
     }
 
-    /**
-     * RFC4180 风格记录切分：双引号包裹的字段内支持逗号/换行/转义双引号；兼容 \r\n 与 \n。
-     */
     static List<List<String>> splitRecords(String text) {
-        List<List<String>> records = new ArrayList<>();
-        List<String> cur = new ArrayList<>();
-        StringBuilder field = new StringBuilder();
-        boolean inQuotes = false;
-        boolean fieldStarted = false;
-
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            if (inQuotes) {
-                if (c == '"') {
-                    if (i + 1 < text.length() && text.charAt(i + 1) == '"') {
-                        field.append('"');
-                        i++;
-                    } else {
-                        inQuotes = false;
-                    }
-                } else {
-                    field.append(c);
-                }
-            } else {
-                if (c == '"' && field.isEmpty()) {
-                    inQuotes = true;
-                    fieldStarted = true;
-                } else if (c == ',') {
-                    cur.add(field.toString());
-                    field.setLength(0);
-                    fieldStarted = false;
-                } else if (c == '\r' || c == '\n') {
-                    if (c == '\r' && i + 1 < text.length() && text.charAt(i + 1) == '\n') {
-                        i++;
-                    }
-                    cur.add(field.toString());
-                    field.setLength(0);
-                    records.add(cur);
-                    cur = new ArrayList<>();
-                    fieldStarted = false;
-                } else {
-                    field.append(c);
-                    fieldStarted = true;
-                }
-            }
-        }
-        if (field.length() > 0 || fieldStarted || !cur.isEmpty()) {
-            cur.add(field.toString());
-            records.add(cur);
-        }
-        return records;
+        return com.joker.spzx.manager.util.CsvText.splitRecords(text);
     }
 
     private static boolean isBlankRow(List<String> rec) {
-        for (String cell : rec) {
-            if (!cell.trim().isEmpty()) {
-                return false;
-            }
-        }
-        return true;
+        return com.joker.spzx.manager.util.CsvText.isBlankRow(rec);
     }
 
     /** 取单元格并 trim（支付宝导出常带尾部 \t 与空格） */
     private static String cell(List<String> rec, int idx) {
-        if (idx < 0 || idx >= rec.size()) {
-            return "";
-        }
-        String v = rec.get(idx);
-        return v == null ? "" : v.trim();
+        return com.joker.spzx.manager.util.CsvText.cell(rec, idx);
     }
 
     private static String nullToNull(String s) {
