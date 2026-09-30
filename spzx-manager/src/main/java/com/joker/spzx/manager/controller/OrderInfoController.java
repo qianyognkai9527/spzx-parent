@@ -30,14 +30,15 @@ public class OrderInfoController {
         return Result.build(orderStatisticsVo, ResultCodeEnum.SUCCESS);
     }
 
-    @Operation(summary = "订单分页列表(统一视图,含平台/状态/订单号筛选)")
+    @Operation(summary = "订单分页列表(统一视图,含平台/店铺/状态/订单号筛选)")
     @GetMapping("/findByPage/{pageNum}/{pageSize}")
     public Result findByPage(@PathVariable Integer pageNum,
                              @PathVariable Integer pageSize,
                              @RequestParam(required = false) Integer platformType,
+                             @RequestParam(required = false) Long shopId,
                              @RequestParam(required = false) Integer orderStatus,
                              @RequestParam(required = false) String orderNo) {
-        return Result.build(orderInfoService.findByPage(pageNum, pageSize, platformType, orderStatus, orderNo));
+        return Result.build(orderInfoService.findByPage(pageNum, pageSize, platformType, shopId, orderStatus, orderNo));
     }
 
     @Operation(summary = "订单详情")

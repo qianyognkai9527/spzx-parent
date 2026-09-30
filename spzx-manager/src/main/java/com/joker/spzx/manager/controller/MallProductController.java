@@ -31,10 +31,11 @@ public class MallProductController {
     @GetMapping("/pageList/{pageNum}/{pageSize}")
     public Result<IPage<MallProduct>> page(@PathVariable Integer pageNum, @PathVariable Integer pageSize,
                                            @RequestParam Integer platformType,
+                                           @RequestParam(required = false) Long shopId,
                                            @RequestParam(required = false) String keyword,
                                            @RequestParam(required = false) String createTimeBegin,
                                            @RequestParam(required = false) String createTimeEnd) {
-        IPage<MallProduct> page = mallProductService.pageList(pageNum, pageSize, platformType, keyword, createTimeBegin, createTimeEnd);
+        IPage<MallProduct> page = mallProductService.pageList(pageNum, pageSize, platformType, shopId, keyword, createTimeBegin, createTimeEnd);
         return Result.build(page);
     }
 

@@ -18,5 +18,5 @@ public interface OrderInfoService extends IService<OrderInfo> {
 
     OrderStatisticsVo getOrderStatisticsData(OrderStatisticsDto orderStatisticsDto);
 
-    IPage<OrderInfo> findByPage(Integer pageNum, Integer pageSize, Integer platformType, Integer orderStatus, String orderNo);
+    IPage<OrderInfo> findByPage(Integer pageNum, Integer pageSize, Integer platformType, Long shopId, Integer orderStatus, String orderNo);
 }

@@ -29,9 +29,10 @@ import java.util.List;
 public class MallProductServiceImpl extends ServiceImpl<MallProductMapper, MallProduct> implements MallProductService {
 
     @Override
-    public IPage<MallProduct> pageList(Integer pageNum, Integer pageSize, Integer platformType, String keyword, String createTimeBegin, String createTimeEnd) {
+    public IPage<MallProduct> pageList(Integer pageNum, Integer pageSize, Integer platformType, Long shopId, String keyword, String createTimeBegin, String createTimeEnd) {
         LambdaQueryWrapper<MallProduct> wrapper = new LambdaQueryWrapper<MallProduct>()
                 .eq(MallProduct::getPlatformType, platformType)
+                .eq(shopId != null, MallProduct::getShopId, shopId)
                 .like(StringUtils.isNotBlank(keyword), MallProduct::getTitle, keyword)
                 .ge(StringUtils.isNotBlank(createTimeBegin), MallProduct::getCreateTime, createTimeBegin)
                 .le(StringUtils.isNotBlank(createTimeEnd), MallProduct::getCreateTime, createTimeEnd)

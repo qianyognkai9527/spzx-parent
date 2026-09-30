@@ -14,4 +14,8 @@ public class RefundReportPageDto extends PageParam {
 
     private String code;
 
+    private Integer platformType;
+
+    private Long shopId;
+
 }

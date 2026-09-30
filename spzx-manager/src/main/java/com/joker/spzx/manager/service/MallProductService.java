@@ -16,7 +16,7 @@ import java.util.List;
  */
 public interface MallProductService extends IService<MallProduct> {
 
-    IPage<MallProduct> pageList(Integer pageNum, Integer pageSize, Integer platformType, String keyword, String createTimeBegin, String createTimeEnd);
+    IPage<MallProduct> pageList(Integer pageNum, Integer pageSize, Integer platformType, Long shopId, String keyword, String createTimeBegin, String createTimeEnd);
 
     List<MallProduct> listByPlatformType(Integer platformType);
 

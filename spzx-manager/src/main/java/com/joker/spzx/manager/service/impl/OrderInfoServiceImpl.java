@@ -58,9 +58,10 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
     }
 
     @Override
-    public IPage<OrderInfo> findByPage(Integer pageNum, Integer pageSize, Integer platformType, Integer orderStatus, String orderNo) {
+    public IPage<OrderInfo> findByPage(Integer pageNum, Integer pageSize, Integer platformType, Long shopId, Integer orderStatus, String orderNo) {
         LambdaQueryWrapper<OrderInfo> wrapper = new LambdaQueryWrapper<OrderInfo>()
                 .eq(platformType != null, OrderInfo::getPlatformType, platformType)
+                .eq(shopId != null, OrderInfo::getShopId, shopId)
                 .eq(orderStatus != null, OrderInfo::getOrderStatus, orderStatus)
                 .like(StringUtils.hasText(orderNo), OrderInfo::getOrderNo, orderNo)
                 .orderByDesc(OrderInfo::getCreateTime);

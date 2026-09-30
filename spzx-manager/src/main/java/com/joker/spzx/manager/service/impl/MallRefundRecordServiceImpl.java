@@ -155,6 +155,9 @@ public class MallRefundRecordServiceImpl extends ServiceImpl<MallRefundRecordMap
             lambdaQueryWrapper.le(MallRefundRecord::getCreateTime, dateTime);
         }
         lambdaQueryWrapper.eq(StringUtils.isNotBlank(refundReportPageDto.getCode()), MallRefundRecord::getCode, refundReportPageDto.getCode());
+        // 前端的平台 Tab 一直在传 platformType，但 DTO 里没这个字段，切 Tab 等于没筛
+        lambdaQueryWrapper.eq(refundReportPageDto.getPlatformType() != null, MallRefundRecord::getPlatformType, refundReportPageDto.getPlatformType());
+        lambdaQueryWrapper.eq(refundReportPageDto.getShopId() != null, MallRefundRecord::getShopId, refundReportPageDto.getShopId());
         this.baseMapper.selectPage(page, lambdaQueryWrapper);
 
         return page;
