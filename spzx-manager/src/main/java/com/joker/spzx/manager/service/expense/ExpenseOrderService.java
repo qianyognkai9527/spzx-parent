@@ -158,6 +158,42 @@ public class ExpenseOrderService extends ServiceImpl<ExpenseOrderMapper, Expense
         return n;
     }
 
+    /**
+     * 批量打标：给选中的多笔账单一次打上同样的标签。
+     * replace=true 时先抹掉这些账单原有的标签再打新的（否则旧的还留着，统计会双计）；
+     * replace=false 只追加，人工已经打好的不受影响。
+     */
+    @Transactional
+    public int batchTag(List<Long> ids, List<Long> tagIds, boolean replace) {
+        if (ids == null || ids.isEmpty() || tagIds == null || tagIds.isEmpty()) {
+            return 0;
+        }
+        Set<Long> distinctTags = new HashSet<>(tagIds);
+        // 以查出来的行为准：传进来的 id 若不存在，直接按 (order_id, tag_id) 插会留下孤儿关联
+        List<ExpenseOrder> targets = expenseOrderMapper.selectBatchIds(ids);
+        for (ExpenseOrder row : targets) {
+            requireOpen(row.getExpenseDate(), "打标");
+        }
+        List<Long> existingIds = targets.stream().map(ExpenseOrder::getId).toList();
+        if (existingIds.isEmpty()) {
+            return 0;
+        }
+        if (replace) {
+            expenseOrderTagMapper.delete(new LambdaQueryWrapper<ExpenseOrderTag>()
+                    .in(ExpenseOrderTag::getOrderId, existingIds));
+        }
+        List<ExpenseOrderTag> links = new ArrayList<>();
+        for (Long orderId : existingIds) {
+            for (Long tagId : distinctTags) {
+                ExpenseOrderTag link = new ExpenseOrderTag();
+                link.setOrderId(orderId);
+                link.setTagId(tagId);
+                links.add(link);
+            }
+        }
+        return expenseOrderTagMapper.insertIgnoreBatch(links);
+    }
+
     /** 支付宝 CSV 导入：口径过滤在解析器；交易号 DB 唯一键去重（预查 + INSERT IGNORE 兜底），幂等。
      *  解析在事务外；写入按 500 行/批的多值语句，避免长事务与逐行往返 */
     public ImportResultVo importAlipayCsv(MultipartFile file) {

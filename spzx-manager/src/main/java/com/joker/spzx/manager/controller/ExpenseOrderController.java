@@ -97,6 +97,30 @@ public class ExpenseOrderController {
         return Result.build(expenseOrderService.batchDelete(ids));
     }
 
+    /** 批量打标：body { ids, tagIds, replace } */
+    @PostMapping("/batchTag")
+    public Result<Integer> batchTag(@RequestBody Map<String, Object> body) {
+        List<Long> ids = asLongList(body.get("ids"));
+        List<Long> tagIds = asLongList(body.get("tagIds"));
+        boolean replace = Boolean.TRUE.equals(body.get("replace"));
+        try {
+            return Result.build(expenseOrderService.batchTag(ids, tagIds, replace));
+        } catch (IllegalArgumentException e) {
+            return Result.build(null, 204, e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Long> asLongList(Object raw) {
+        if (!(raw instanceof List<?> list)) {
+            return List.of();
+        }
+        return ((List<Object>) list).stream()
+                .filter(java.util.Objects::nonNull)
+                .map(v -> v instanceof Number n ? n.longValue() : Long.parseLong(v.toString().trim()))
+                .toList();
+    }
+
     private static LocalDate parseDate(String s) {
         if (s == null || s.isBlank()) {
             return null;
