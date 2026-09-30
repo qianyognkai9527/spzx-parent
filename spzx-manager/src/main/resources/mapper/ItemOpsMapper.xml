@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joker.spzx.manager.mapper.ItemOpsMapper">
+
+    <!--
+      商品运营台一条 SQL 拼齐三件事：平台商品本身、生意参谋近7日效果、绑定货源的成本与库存。
+
+      几个必须留痕的坑：
+      - 这四张表字符集排序规则各不相同（platform_product=utf8mb4_unicode_ci、
+        sycm_item_effect_history/source_product=utf8mb4_0900_ai_ci、fee_benchmark=utf8mb4_general_ci），
+        跨表比文本必须显式 COLLATE，否则 MySQL 直接报 Illegal mix of collations。
+        COLLATE 加在哪一侧不是风格问题：把 e.item_id 转成 unicode_ci 会让物化临时表的自动索引失效，
+        4679×442 退化成逐行全扫，实测 1.14s；改成把 p.code 转成 0900_ai_ci 只要 0.047s。
+      - 一个平台商品可以绑多条货源，所以货源侧先按 product_id 聚合成一行再 join，
+        否则分页行数会被绑定关系放大。
+      - 筛选项作用在派生表的外层 WHERE，而不是本层 HAVING：分页插件会自动生成 count SQL，
+        它会剥掉 select 列表，别名（margin/minStock/effectAt）在里面直接变成 Unknown column。
+      - 效果数据取"每个商品最后一次快照"，同一商品每天一行，不按天累加。
+      - 抖店商品没有生意参谋采集（只覆盖淘宝），visitors 等一律为 null，前端必须显示"未采"而不是 0。
+      - margin 在 pricing 为 NULL 或 0 时判为不可算：库里 1115 个商品还没定价，
+        若不排除，"毛利为负"会报出 1118 条、其中 1100 条是假亏本。
+    -->
+    <sql id="itemOpsBase">
+        SELECT p.id,
+               p.code,
+               p.title,
+               p.platform_type           AS platformType,
+               p.shop_id                 AS shopId,
+               p.pricing,
+               p.freight,
+               e.visitors,
+               e.pay_amt                 AS payAmount,
+               e.pay_byrs                AS payBuyers,
+               e.cart_users              AS cartUsers,
+               DATE_FORMAT(e.snapshot_time, '%Y-%m-%d %H:%i') AS effectAt,
+               IFNULL(s.source_count, 0) AS sourceCount,
+               s.source_price            AS sourcePrice,
+               s.min_stock               AS minStock,
+               s.category_name           AS categoryName,
+               f.commission_rate         AS commissionRate,
+               f.payment_fee_rate        AS paymentFeeRate,
+               CASE
+                   WHEN p.pricing IS NULL OR p.pricing = 0 OR s.source_price IS NULL OR f.commission_rate IS NULL THEN NULL
+                   ELSE ROUND(p.pricing - s.source_price - p.pricing * (f.commission_rate + f.payment_fee_rate) / 100, 2)
+               END                       AS margin,
+               CASE
+                   WHEN p.pricing IS NULL OR p.pricing = 0 OR s.source_price IS NULL OR f.commission_rate IS NULL THEN NULL
+                   ELSE ROUND((p.pricing - s.source_price - p.pricing * (f.commission_rate + f.payment_fee_rate) / 100) / p.pricing * 100, 1)
+               END                       AS marginRate
+        FROM platform_product p
+                 LEFT JOIN (SELECT s1.item_id,
+                                   s1.visitors,
+                                   s1.pay_amt,
+                                   s1.pay_byrs,
+                                   s1.cart_users,
+                                   s1.snapshot_time
+                            FROM sycm_item_effect_history s1
+                                     JOIN (SELECT item_id, MAX(id) AS max_id
+                                           FROM sycm_item_effect_history
+                                           GROUP BY item_id) s2 ON s2.max_id = s1.id) e
+                           ON e.item_id = p.code COLLATE utf8mb4_0900_ai_ci
+                 LEFT JOIN (SELECT br.product_id,
+                                   COUNT(*)                                AS source_count,
+                                   MIN(COALESCE(sk.min_price, sp.source_price)) AS source_price,
+                                   MIN(COALESCE(sk.min_stock, 999999))     AS min_stock,
+                                   MAX(sp.category_name)                   AS category_name
+                            FROM product_bind_relation br
+                                     JOIN source_product sp
+                                         ON sp.id = br.source_productId AND sp.is_deleted = 0
+                                     LEFT JOIN (SELECT source_product_id,
+                                                       MIN(CASE WHEN status = 1 THEN price END) AS min_price,
+                                                       MIN(CASE WHEN status = 1 THEN stock END) AS min_stock
+                                                FROM source_sku
+                                                WHERE is_deleted = 0
+                                                GROUP BY source_product_id) sk
+                                               ON sk.source_product_id = sp.id
+                            WHERE br.is_deleted = 0
+                            GROUP BY br.product_id) s ON s.product_id = p.id
+                 LEFT JOIN (SELECT platform_type,
+                                   ROUND(AVG(commission_rate), 2)  AS commission_rate,
+                                   ROUND(AVG(payment_fee_rate), 3) AS payment_fee_rate
+                            FROM fee_benchmark
+                            WHERE is_deleted = 0
+                            GROUP BY platform_type) f ON f.platform_type = p.platform_type
+        <where>
+            <if test="platformType != null">AND p.platform_type = #{platformType}</if>
+            <if test="shopId != null">AND p.shop_id = #{shopId}</if>
+            <if test="keyword != null and keyword != ''">
+                AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.code = #{keyword})
+            </if>
+        </where>
+    </sql>
+
+    <select id="pageItems" resultType="com.joker.spzx.model.vo.mall.ItemOpsVo">
+        SELECT * FROM (
+        <include refid="itemOpsBase"/>
+        ) t
+        <choose>
+            <when test="facet == 'noSale'">
+                <!-- 有流量没成交：详情页/价格/评价出了问题，是最该动手的一批 -->
+                WHERE t.visitors &gt; IFNULL(#{uvFrom}, 0) AND IFNULL(t.payAmount, 0) = 0
+            </when>
+            <when test="facet == 'negativeMargin'">
+                WHERE t.margin IS NOT NULL AND t.margin &lt; 0
+            </when>
+            <when test="facet == 'lowStock'">
+                WHERE t.minStock IS NOT NULL AND t.minStock &lt;= IFNULL(#{stock}, 10)
+            </when>
+            <when test="facet == 'noEffect'">
+                <!-- 采集没覆盖到的商品：运营上等于盲飞，不能因为"没数据"就当它不存在 -->
+                WHERE t.effectAt IS NULL
+            </when>
+            <when test="facet == 'noSource'">
+                WHERE t.sourceCount = 0
+            </when>
+            <when test="facet == 'unpriced'">
+                <!-- 挂在架却没定价：既下不了单也进不了任何以定价为基础的估算 -->
+                WHERE t.pricing IS NULL OR t.pricing = 0
+            </when>
+            <otherwise/>
+        </choose>
+        <!-- MySQL 不支持 NULLS LAST，用 IS NULL 把空值排到最后 -->
+        <choose>
+            <when test="facet == 'negativeMargin'">
+                ORDER BY t.margin ASC, t.visitors IS NULL, t.visitors DESC
+            </when>
+            <when test="facet == 'lowStock'">
+                ORDER BY t.minStock ASC, t.visitors IS NULL, t.visitors DESC
+            </when>
+            <otherwise>
+                ORDER BY t.visitors IS NULL, t.visitors DESC, t.id DESC
+            </otherwise>
+        </choose>
+    </select>
+    <!-- 一次算出所有筛选项的商品数，供筛选项上直接标数字。
+         分 7 次跑 pageItems 取 total 会把这条 join 做七遍，不值得。 -->
+    <select id="selectFacetCounts" resultType="java.util.Map">
+        SELECT COUNT(*)                                                        AS total,
+               SUM(CASE WHEN t.visitors &gt; IFNULL(#{uvFrom}, 0)
+                             AND IFNULL(t.payAmount, 0) = 0 THEN 1 ELSE 0 END)  AS noSale,
+               SUM(CASE WHEN t.margin IS NOT NULL AND t.margin &lt; 0 THEN 1 ELSE 0 END) AS negativeMargin,
+               SUM(CASE WHEN t.minStock IS NOT NULL
+                             AND t.minStock &lt;= IFNULL(#{stock}, 10) THEN 1 ELSE 0 END) AS lowStock,
+               SUM(CASE WHEN t.effectAt IS NULL THEN 1 ELSE 0 END)             AS noEffect,
+               SUM(CASE WHEN t.sourceCount = 0 THEN 1 ELSE 0 END)              AS noSource,
+               SUM(CASE WHEN t.pricing IS NULL OR t.pricing = 0 THEN 1 ELSE 0 END) AS unpriced
+        FROM (
+        <include refid="itemOpsBase"/>
+        ) t
+    </select>
+
+</mapper>
