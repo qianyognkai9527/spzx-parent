@@ -9,6 +9,7 @@ import com.joker.spzx.model.enums.PlatformTypeEnum;
 import com.joker.spzx.model.vo.common.Result;
 import com.joker.spzx.model.vo.common.ResultCodeEnum;
 import com.joker.spzx.model.vo.product.ProductPageVo;
+import com.joker.spzx.model.vo.product.Source1688Vo;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -64,6 +65,13 @@ public class ProductController {
     public Result<ProductPageVo> getDetail(@RequestParam Long id) {
         ProductPageVo byId = productService.getDataById(id);
         return Result.build(byId, ResultCodeEnum.SUCCESS);
+    }
+
+    @Operation(summary = "按 offerId 回读已采集的 1688 货源行情",
+            description = "只读库不抓取：数据由 automation/sourcing/collect_1688_full.py 每周六全量写入")
+    @GetMapping("/parse1688")
+    public Result<Source1688Vo> parse1688(@RequestParam String offerId) {
+        return Result.build(productService.find1688ByOfferId(offerId), ResultCodeEnum.SUCCESS);
     }
 
     @Operation(summary = "查询所有货源商品")
