@@ -33,7 +33,8 @@ from assign_shop_category import (
 )
 from compliance_filler import (
     clear_overlays, detect_gaps, fill_extract_way, fill_sku_gaps,
-    fill_prop_gaps, is_image_only_failure, ZONE_EXTRACT,
+    fill_prop_gaps, is_image_only_failure, clean_sku_color_brackets,
+    sku_colors_dirty, ensure_no_overlay, ZONE_EXTRACT,
 )
 
 CDP_PORT = 9222
@@ -296,6 +297,38 @@ PRICE_CATS = ("家居服/睡衣", "美甲")   # 用户指令: 调价(货源价+1
 LISTING_OK_STATES = ('放入仓库', '立刻上架')   # 仓库商品维持待上架; 在售商品维持出售中(用户指令 2026-09-24)
 
 
+async def run_compliance_fill(page, title_txt):
+    """detect→fill 迭代填净(msg-bar 一次只报行内首缺字段, 裤型/裤长式级联; 有效填充 3 轮成功上限).
+    返回 (残留gaps, filled_msgs, err): err 非 None = 硬失败(提取方式 DISABLED / 填充异常)."""
+    filled_msgs = []
+    gaps = await detect_gaps(page)
+    for _round in range(MAX_FILL_ROUNDS + 1):
+        if not gaps:
+            break
+        await clear_overlays(page)
+        await ensure_no_overlay(page)   # 残留下拉弹层拦一切点击(2026-09-26 裤长/提取方式超时根因)
+        if any(g['zone'] == ZONE_EXTRACT for g in gaps):
+            # 前置修正(审查裁决): fill_extract_way 必须由 detect gap 门控, 无 gap 页面点击必 CLICK_NO_EFFECT
+            eok, emsg = await fill_extract_way(page)
+            if eok:
+                log(f"  · 提取方式: {emsg}")
+            elif emsg.startswith('DISABLED'):
+                return gaps, filled_msgs, f'提取方式需人工: {emsg}'
+            else:
+                log(f"  ⚠ 提取方式: {emsg}")
+        sok1, smsg1 = await fill_sku_gaps(page, gaps, title_txt)
+        if not sok1:
+            return gaps, filled_msgs, f'合规SKU填充失败: {smsg1}'
+        pok1, pmsg1 = await fill_prop_gaps(page, gaps, title_txt)
+        if not pok1:
+            return gaps, filled_msgs, f'合规属性填充失败: {pmsg1}'
+        for m in (smsg1, pmsg1):
+            if m and not m.startswith('no '):
+                filled_msgs.append(m)
+        gaps = await detect_gaps(page)
+    return gaps, filled_msgs, None
+
+
 async def process_one(ctx, rec, source_price):
     """处理单个商品: 归类+调价. 返回 (status, msg, extra) status: ok/fail/risk"""
     item_id = rec['itemId']
@@ -322,6 +355,27 @@ async def process_one(ctx, rec, source_price):
         if not any(s in lm.get('txt', '') for s in LISTING_OK_STATES):
             return 'fail', f'上架状态异常: {lm.get("txt")}', None
         await ensure_extract_way(page)
+        title_txt = title or ''
+        # 穿戴甲脏色(【】=1688元数据, 淘宝拒收「颜色分类填写错误」)处理顺序(2026-09-26 探针实证):
+        # 「编辑规格」确认创建重建后错误检测被遮蔽 → 必须先在原表填好必填列再清色重建
+        # (重建实测保留已填参数值/价格/库存; 最小必需集=仅款式, 走现有首项兜底规则)
+        try:
+            dirty = await sku_colors_dirty(page)
+        except Exception:
+            dirty = False
+        if dirty:
+            gaps0, _m0, err0 = await run_compliance_fill(page, title or '')
+            if err0:
+                return 'fail', f'清色前{err0}', None
+            if gaps0:
+                return 'fail', f'清色前合规未清零: {[g["name"] for g in gaps0]}', None
+            log("  · 清色前预填完成(款式等必填列)")
+        ck, cmsg2 = await clean_sku_color_brackets(page)
+        if ck:
+            log(f"  · 颜色清洗: {cmsg2}")
+            await clear_overlays(page)   # 重建后浮层可能重现
+        elif not cmsg2.startswith('no dirty'):
+            return 'fail', f'颜色清洗需人工: {cmsg2}', None
         # 调价(仅 家居服/睡衣+美甲; 其他类目不动价格, 失败不阻塞归类)
         if category in PRICE_CATS:
             pok, pmsg, new_min, disabled = await update_prices(page, item_id, source_price)
@@ -340,31 +394,9 @@ async def process_one(ctx, rec, source_price):
         if rh3:
             log(f"  · {rmsg3}")
         title_txt = title or ''
-        filled_msgs = []
-        gaps = await detect_gaps(page)
-        for _round in range(MAX_FILL_ROUNDS + 1):   # msg-bar 一次只报行内首缺字段(裤型/裤长级联), 须迭代填净; 有效填充 3 轮成功上限, 末轮清零放行
-            if not gaps:
-                break
-            await clear_overlays(page)
-            if any(g['zone'] == ZONE_EXTRACT for g in gaps):
-                # 前置修正(审查裁决): fill_extract_way 必须由 detect gap 门控, 无 gap 页面点击必 CLICK_NO_EFFECT
-                eok, emsg = await fill_extract_way(page)
-                if eok:
-                    log(f"  · 提取方式: {emsg}")
-                elif emsg.startswith('DISABLED'):
-                    return 'fail', f'提取方式需人工: {emsg}', None
-                else:
-                    log(f"  ⚠ 提取方式: {emsg}")
-            sok1, smsg1 = await fill_sku_gaps(page, gaps, title_txt)
-            if not sok1:
-                return 'fail', f'合规SKU填充失败: {smsg1}', None
-            pok1, pmsg1 = await fill_prop_gaps(page, gaps, title_txt)
-            if not pok1:
-                return 'fail', f'合规属性填充失败: {pmsg1}', None
-            for m in (smsg1, pmsg1):
-                if m and not m.startswith('no '):
-                    filled_msgs.append(m)
-            gaps = await detect_gaps(page)
+        gaps, filled_msgs, err1 = await run_compliance_fill(page, title_txt)
+        if err1:
+            return 'fail', err1, None
         if gaps:   # 去掉 for-else(off-by-one): 末轮填充才清零时循环自然耗尽, 不得误报失败
             return 'fail', f'合规字段{MAX_FILL_ROUNDS}轮成功上限未清零: {[g["name"] for g in gaps]}', None
         if filled_msgs:
@@ -521,6 +553,11 @@ async def main():
                     prog['skipped'].append(item_id)
                 prog['failed'].pop(item_id, None)
                 log(f"  ⏭ 仅剩盗图(PIC_STEAL), 转 skipped 待换图")
+            elif msg.startswith('颜色清洗需人工:'):
+                if item_id not in prog['skipped']:
+                    prog['skipped'].append(item_id)
+                prog['failed'].pop(item_id, None)
+                log(f"  ⏭ {msg}, 转 skipped")
             else:
                 prog['failed'][item_id] = {'category': category, 'error': msg}
                 log(f"  ✗ {msg}")

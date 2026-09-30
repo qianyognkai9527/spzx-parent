@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -19,16 +20,19 @@ import java.util.Map;
 @Service
 public class FanqiePublishServiceImpl implements FanqiePublishService {
 
-    @Value("${fanqie-publish.python-path:/Users/qyk9527/tb-auto/venv/bin/python}")
+    @Value("${fanqie-publish.python-path:${user.dir}/automation/venv/bin/python}")
     private String pythonPath;
 
-    @Value("${fanqie-publish.script-path:/Users/qyk9527/fanqie-publish/publish_fanqie.py}")
+    @Value("${fanqie-publish.script-path:${user.dir}/automation/fanqie-publish/publish_fanqie.py}")
     private String scriptPath;
 
-    @Value("${fanqie-publish.state-file:/Users/qyk9527/fanqie-publish/fanqie_publish_state.json}")
+    @Value("${fanqie-publish.state-file:${user.dir}/automation/fanqie-publish/fanqie_publish_state.json}")
     private String stateFile;
 
-    @Value("${fanqie-publish.log-file:/Users/qyk9527/fanqie-publish/fanqie-publish.log}")
+    @Value("${fanqie-publish.progress-file:${user.dir}/automation/fanqie-publish/publish_progress.json}")
+    private String progressFile;
+
+    @Value("${fanqie-publish.log-file:${user.dir}/automation/fanqie-publish/fanqie-publish.log}")
     private String logFile;
 
     @Override
@@ -87,6 +91,91 @@ public class FanqiePublishServiceImpl implements FanqiePublishService {
             log.warn("读取番茄发布状态失败: {}", e.getMessage());
             return Collections.emptyMap();
         }
+    }
+
+    @Override
+    public Map<String, Object> summary() {
+        Map<String, Object> out = new HashMap<>();
+        int published = 0, pending = 0, failed = 0;
+        try {
+            JSONObject root = JSONUtil.parseObj(Files.readString(Path.of(stateFile), StandardCharsets.UTF_8));
+            JSONObject chapters = root.getJSONObject("chapters");
+            if (chapters != null) {
+                for (String k : chapters.keySet()) {
+                    switch (chapters.getJSONObject(k).getStr("status", "")) {
+                        case "published" -> published++;
+                        case "failed" -> failed++;
+                        default -> pending++;
+                    }
+                }
+            }
+            out.put("updatedAt", root.getStr("updatedAt"));
+            out.put("fanqieMax", root.get("fanqieMax"));
+        } catch (Exception e) {
+            log.warn("统计番茄发布回执失败: {}", e.getMessage());
+        }
+        out.put("published", published);
+        out.put("pending", pending);
+        out.put("failed", failed);
+        return out;
+    }
+
+    /**
+     * 失败章节退回待发：清 publish_progress.json 的 failed 记录 + 状态文件该章置 pending，
+     * 下一轮发布脚本会重新拾取它。发布进程正在跑时拒绝，避免和脚本互相覆盖。
+     */
+    @Override
+    public Map<String, Object> requeue(int chapterNum) {
+        Map<String, Object> res = new HashMap<>();
+        String pid = checkRunning();
+        if (pid != null) {
+            res.put("ok", false);
+            res.put("message", "发布任务正在运行 (PID " + pid + ")，请等本轮结束再重发");
+            return res;
+        }
+        try {
+            Path state = Path.of(stateFile);
+            JSONObject root = JSONUtil.parseObj(Files.readString(state, StandardCharsets.UTF_8));
+            JSONObject chapters = root.getJSONObject("chapters");
+            if (chapters == null || !chapters.containsKey(String.valueOf(chapterNum))) {
+                res.put("ok", false);
+                res.put("message", "状态文件里没有第 " + chapterNum + " 章，无法重发");
+                return res;
+            }
+            JSONObject entry = chapters.getJSONObject(String.valueOf(chapterNum));
+            if ("published".equals(entry.getStr("status"))) {
+                res.put("ok", false);
+                res.put("message", "第 " + chapterNum + " 章已发布成功，无需重发");
+                return res;
+            }
+            entry.set("status", "pending").set("error", null);
+            writeAtomic(state, root.toStringPretty());
+
+            Path prog = Path.of(progressFile);
+            if (Files.exists(prog)) {
+                JSONObject pj = JSONUtil.parseObj(Files.readString(prog, StandardCharsets.UTF_8));
+                cn.hutool.json.JSONArray failed = pj.getJSONArray("failed");
+                if (failed != null) {
+                    failed.removeIf(o -> ((JSONObject) o).getInt("chapterNum", -1) == chapterNum);
+                    pj.set("failed", failed);
+                    writeAtomic(prog, pj.toStringPretty());
+                }
+            }
+            log.info("番茄发布重发已排队 chapter={}", chapterNum);
+            res.put("ok", true);
+            res.put("message", "第 " + chapterNum + " 章已退回待发，下一轮发布会重投");
+        } catch (Exception e) {
+            log.error("番茄发布重发失败 chapter={}", chapterNum, e);
+            res.put("ok", false);
+            res.put("message", "操作失败: " + e.getMessage());
+        }
+        return res;
+    }
+
+    private void writeAtomic(Path target, String content) throws Exception {
+        Path tmp = target.resolveSibling(target.getFileName() + ".tmp");
+        Files.writeString(tmp, content, StandardCharsets.UTF_8);
+        Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
     }
 
     private String checkRunning() {

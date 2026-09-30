@@ -10,6 +10,7 @@ import com.joker.spzx.manager.mapper.KwProviderMapper;
 import com.joker.spzx.manager.mapper.KwSelectTaskMapper;
 import com.joker.spzx.manager.service.kw.KwConfigService;
 import com.joker.spzx.manager.service.kw.KwProviderService;
+import com.joker.spzx.manager.util.VideoPricing;
 import com.joker.spzx.model.entity.kw.KwProvider;
 import com.joker.spzx.model.entity.kw.KwSelectTask;
 import com.joker.spzx.model.vo.common.Result;
@@ -40,6 +41,7 @@ public class KwProviderController {
     /** name 唯一标识；编辑时 name 不可改；apiKey 为空/缺失 = 保留原值 */
     public record SaveDto(String name, String baseUrl, String apiKey,
                           String visionModel, String textModel, String imageModel,
+                          String videoModel, String videoPrice,
                           Integer maxTokens, String extraBody, String remark) {
     }
 
@@ -69,6 +71,10 @@ public class KwProviderController {
         if (extraErr != null) {
             return Result.build(null, 204, extraErr);
         }
+        String priceErr = priceError(dto.videoPrice());
+        if (priceErr != null) {
+            return Result.build(null, 204, priceErr);
+        }
         KwProvider row = new KwProvider();
         applyDto(row, dto, null);
         row.setStatus(1);
@@ -89,6 +95,10 @@ public class KwProviderController {
         if (extraErr != null) {
             return Result.build(null, 204, extraErr);
         }
+        String priceErr = priceError(dto.videoPrice());
+        if (priceErr != null) {
+            return Result.build(null, 204, priceErr);
+        }
         applyDto(row, dto, row.getApiKey());
         LambdaUpdateWrapper<KwProvider> uw = new LambdaUpdateWrapper<KwProvider>()
                 .eq(KwProvider::getId, row.getId())
@@ -97,6 +107,8 @@ public class KwProviderController {
                 .set(KwProvider::getVisionModel, row.getVisionModel())
                 .set(KwProvider::getTextModel, row.getTextModel())
                 .set(KwProvider::getImageModel, row.getImageModel())
+                .set(KwProvider::getVideoModel, row.getVideoModel())
+                .set(KwProvider::getVideoPrice, row.getVideoPrice())
                 .set(KwProvider::getMaxTokens, row.getMaxTokens())
                 .set(KwProvider::getExtraBody, row.getExtraBody())
                 .set(KwProvider::getRemark, row.getRemark());
@@ -210,6 +222,45 @@ public class KwProviderController {
         return Result.build(out);
     }
 
+    /** 视频单价：空=未配置（不计费不拦截）；非空须为 ≥0 数字，如 "7.67" 或 "0.8" */
+    public record VideoPriceDto(String videoPrice) {
+    }
+
+    @GetMapping("/video-price")
+    public Result<Map<String, Object>> videoPrice() {
+        String name = kwConfigService.getProvider(KwConfigService.KEY_VIDEO);
+        KwProvider row = kwProviderService.getEntity(name);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("provider", name);
+        out.put("model", row == null ? null : row.getVideoModel());
+        out.put("videoPrice", row == null ? null : row.getVideoPrice());
+        out.put("dailyBudget", kwConfigService.getValue(KwConfigService.KEY_VIDEO_BUDGET));
+        return Result.build(out);
+    }
+
+    /** 改当前视频 provider 的 5秒档单价。日预算不在此接口，走 /kw/config 的 videoDailyBudget */
+    @PutMapping("/video-price")
+    public Result<Void> setVideoPrice(@RequestBody VideoPriceDto dto) {
+        boolean hasPrice = dto != null && dto.videoPrice() != null;
+        if (!hasPrice) {
+            return Result.build(null, 204, "videoPrice 不能为空");
+        }
+        String err = priceError(dto.videoPrice());
+        if (err != null) {
+            return Result.build(null, 204, err);
+        }
+        String name = kwConfigService.getProvider(KwConfigService.KEY_VIDEO);
+        KwProvider row = kwProviderService.getEntity(name);
+        if (row == null) {
+            return Result.build(null, 204, "provider 不存在: " + name);
+        }
+        java.math.BigDecimal price = VideoPricing.parse(dto.videoPrice());
+        kwProviderMapper.update(null, new LambdaUpdateWrapper<KwProvider>()
+                .eq(KwProvider::getId, row.getId())
+                .set(KwProvider::getVideoPrice, price));
+        return Result.build(null);
+    }
+
     /** 当前主用（text/vision 任一命中）→ 返回拒绝消息，否则 null */
     private String mainEngineGuard(String name, String action) {
         if (name.equals(kwConfigService.getProvider(KwConfigService.KEY_TEXT))) {
@@ -241,6 +292,8 @@ public class KwProviderController {
         row.setVisionModel(blankToNull(dto.visionModel()));
         row.setTextModel(blankToNull(dto.textModel()));
         row.setImageModel(blankToNull(dto.imageModel()));
+        row.setVideoModel(blankToNull(dto.videoModel()));
+        row.setVideoPrice(VideoPricing.parse(dto.videoPrice()));
         row.setMaxTokens(dto.maxTokens());
         row.setExtraBody(dto.extraBody() == null || dto.extraBody().isBlank()
                 ? null : dto.extraBody().trim());
@@ -264,6 +317,15 @@ public class KwProviderController {
         }
     }
 
+    /** 视频单价：可空；非空须为 ≥0 数字 */
+    private String priceError(String videoPrice) {
+        if (videoPrice == null || videoPrice.isBlank()) {
+            return null;
+        }
+        return VideoPricing.parse(videoPrice) == null
+                ? "视频单价必须是不小于 0 的数字，如 7.67（5秒档单价，留空=不计费）" : null;
+    }
+
     private Map<String, Object> toMap(KwProvider row) {
         Map<String, Object> p = new LinkedHashMap<>();
         p.put("id", row.getId());
@@ -272,6 +334,8 @@ public class KwProviderController {
         p.put("visionModel", row.getVisionModel());
         p.put("textModel", row.getTextModel());
         p.put("imageModel", row.getImageModel());
+        p.put("videoModel", row.getVideoModel());
+        p.put("videoPrice", row.getVideoPrice());
         p.put("maxTokens", row.getMaxTokens());
         boolean hasKey = row.getApiKey() != null && !row.getApiKey().isBlank();
         p.put("hasKey", hasKey);

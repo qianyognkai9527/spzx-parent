@@ -13,6 +13,7 @@ import re
 import sys
 import time
 import pymysql
+from shop_ref import default_shop_id, PLATFORM_DOUYIN
 
 CDP = "http://127.0.0.1:9223"
 ORDER_URL = "https://fxg.jinritemai.com/ffa/morder/order/list"
@@ -113,6 +114,7 @@ async def crawl(test_mode=False):
             conn = pymysql.connect(**DB)
             cur = conn.cursor()
             ins = 0
+            shop_id = default_shop_id(cur, PLATFORM_DOUYIN)
             for o in all_orders:
                 order_no = o["orderNo"]
                 cur.execute("SELECT id FROM order_info WHERE order_no=%s AND platform_type=2", (order_no,))
@@ -121,9 +123,9 @@ async def crawl(test_mode=False):
                 status = STATUS_MAP.get(o["status"], 0)
                 amt = float(o["amount"]) if o["amount"] else 0
                 cur.execute("""INSERT INTO order_info
-                    (order_no, order_status, total_amount, platform_type, is_deleted, create_time, update_time)
-                    VALUES (%s,%s,%s,2,0,NOW(),NOW())""",
-                            (order_no, status, amt))
+                    (order_no, order_status, total_amount, platform_type, shop_id, is_deleted, create_time, update_time)
+                    VALUES (%s,%s,%s,2,%s,0,NOW(),NOW())""",
+                            (order_no, status, amt, shop_id))
                 ins += 1
             conn.commit()
             cur.close()

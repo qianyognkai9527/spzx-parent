@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -46,6 +47,29 @@ public class KwAiClient {
     }
 
     private String call(String providerName, String kind, JSONArray messages) {
+        List<String> tried = new ArrayList<>();
+        tried.add(providerName);
+        RuntimeException last = null;
+        try {
+            return callOnce(providerName, kind, messages);
+        } catch (RuntimeException e) {
+            last = e;
+        }
+        // 主用引擎两次都失败 → 依次尝试其它配了该 kind 模型的启用引擎，避免单引擎故障卡死整批任务
+        for (KwProviderService.ProviderDef alt : kwProviderService.alternatives(kind, tried)) {
+            tried.add(alt.name());
+            log.warn("kw降级到备用引擎: {} -> {} (kind={})", providerName, alt.name(), kind);
+            try {
+                return callOnce(alt.name(), kind, messages);
+            } catch (RuntimeException e) {
+                last = e;
+            }
+        }
+        throw last;
+    }
+
+    /** 单引擎最多两次尝试，仍失败则抛出最后一次异常 */
+    private String callOnce(String providerName, String kind, JSONArray messages) {
         KwProviderService.ProviderDef p = kwProviderService.requireActive(providerName, kind);
         String model = p.modelFor(kind);
         RuntimeException last = null;

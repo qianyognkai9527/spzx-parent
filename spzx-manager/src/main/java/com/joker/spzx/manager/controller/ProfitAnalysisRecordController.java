@@ -1,6 +1,7 @@
 package com.joker.spzx.manager.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.joker.spzx.manager.service.ProfitAnalysisExportService;
 import com.joker.spzx.manager.service.ProfitAnalysisRecordService;
 import com.joker.spzx.model.entity.oper.FeeBenchmark;
 import com.joker.spzx.model.entity.oper.ProfitAnalysisRecord;
@@ -19,6 +20,9 @@ public class ProfitAnalysisRecordController {
 
     @Autowired
     private ProfitAnalysisRecordService profitAnalysisRecordService;
+
+    @Autowired
+    private ProfitAnalysisExportService profitAnalysisExportService;
 
     @PostMapping("/save")
     @Operation(summary = "保存分析记录")
@@ -73,5 +77,11 @@ public class ProfitAnalysisRecordController {
             @RequestParam Integer platformType,
             @RequestParam(required = false) String category) {
         return Result.build(profitAnalysisRecordService.getFeeBenchmark(platformType, category));
+    }
+
+    @GetMapping("/export/{productId}")
+    @Operation(summary = "导出商品全部利润分析记录(xlsx)")
+    public void export(@PathVariable Long productId, jakarta.servlet.http.HttpServletResponse response) throws Exception {
+        profitAnalysisExportService.export(productId, response);
     }
 }

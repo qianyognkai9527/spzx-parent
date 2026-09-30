@@ -43,4 +43,10 @@ public class SysDictDataController {
         return Result.build(null);
     }
 
+    @DeleteMapping("/delete/{id}")
+    public Result<String> deleteData(@PathVariable Long id) {
+        sysDictDataService.removeById(id);
+        return Result.build(null);
+    }
+
 }

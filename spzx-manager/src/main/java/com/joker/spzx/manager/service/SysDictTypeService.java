@@ -21,4 +21,6 @@ public interface SysDictTypeService extends IService<SysDictType> {
 
     void updateData(SysDictType sysDictType);
 
+    void removeData(Long id);
+
 }

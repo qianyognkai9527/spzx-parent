@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.extension.activerecord.Model;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -36,6 +37,9 @@ public class KwProvider extends Model<KwProvider> {
 
     @TableField("video_model")
     private String videoModel;
+
+    @TableField("video_price")
+    private BigDecimal videoPrice;
 
     @TableField("max_tokens")
     private Integer maxTokens;

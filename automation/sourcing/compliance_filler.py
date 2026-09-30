@@ -3,6 +3,7 @@
 """合规填充器: 淘宝 2026-09 新必填字段自动填充. spec: docs/superpowers/specs/2026-09-25-shop-cat-compliance-filler-design.md"""
 import asyncio
 import datetime
+import re
 
 OVERLAY_SELECTORS = (
     '.sku-preview-drag-wrapper',   # SKU 预览浮窗(内嵌 iframe, 拦截页面点击)
@@ -20,6 +21,20 @@ async def clear_overlays(page):
     await asyncio.sleep(0.3)
 
 
+async def ensure_no_overlay(page):
+    """关闭残留的 next-overlay 下拉弹层. 2026-09-26 根因实证: 上一列选值/页面自带弹层
+    未关(单选残留无 Escape)时 'next-overlay-wrapper opened' 挡住后续一切点击,
+    裤长/提取方式/属性选择 全部 8s 超时(牛仔短裤 3 样本 + 秋冬款/连衣裙/半身裙)."""
+    for _ in range(3):
+        opened = await page.evaluate(
+            "() => [...document.querySelectorAll('.next-overlay-wrapper.opened')]"
+            ".filter(o => o.getClientRects().length > 0).length")
+        if not opened:
+            return
+        await page.keyboard.press('Escape')
+        await asyncio.sleep(0.4)
+
+
 SKU_FIELDS = ('厚薄', '是否加绒', '款式')          # SKU 级(每行)字段
 ZONE_EXTRACT, ZONE_SKU, ZONE_PROP = 'extract', 'sku', 'prop'
 FIELD_ZONE = {'厚薄': ZONE_SKU, '是否加绒': ZONE_SKU, '款式': ZONE_SKU,
@@ -27,7 +42,11 @@ FIELD_ZONE = {'厚薄': ZONE_SKU, '是否加绒': ZONE_SKU, '款式': ZONE_SKU,
               '是否商场同款': ZONE_PROP, '功能': ZONE_PROP, '适用场景': ZONE_PROP,
               '提取方式': ZONE_EXTRACT,
               # 长裤/牛仔短裤实测必填 SKU 列(探路 2026-09-25): msg-bar 报缺但平台必填清单未列
-              '裤型': ZONE_SKU, '裤长': ZONE_SKU}
+              '裤型': ZONE_SKU, '裤长': ZONE_SKU,
+              # 内衣/家居服类新必填属性(探路 2026-09-26 深夜): 内联报错但面板分节不列名
+              '适用人群': ZONE_PROP, '风格': ZONE_PROP, '是否带胸垫': ZONE_PROP,
+              # 连衣裙/半身裙/秋冬裤类新必填 SKU 列(探路 2026-09-26 深夜)
+              '裙长': ZONE_SKU, '适用体型': ZONE_SKU, '图案': ZONE_SKU}
 KNOWN_FIELDS = tuple(FIELD_ZONE)  # 对外接口别名, 与 FIELD_ZONE 声明同序
 IMAGE_FAIL_MARK = 'PIC_STEAL'
 IMAGE_FAIL_CODE = 'CHK_IMAGE_PC_PIC_STEAL'  # 盗图完整错误码自带 CHK_ 前缀, 排除集检查前须抹掉防自伤
@@ -135,6 +154,7 @@ async def fill_extract_way(page):
     lbl = zone.locator('label', has_text='使用物流配送').first
     if await lbl.count() == 0:
         return False, 'NO_LABEL'
+    await ensure_no_overlay(page)
     await lbl.click(timeout=8000)
     await asyncio.sleep(0.8)
     if await page.evaluate(_EXTRACT_CHECKED_JS):
@@ -189,6 +209,20 @@ def _share_cn_sub2(a, b):
     return False
 
 
+def _opt_match(opts, title, fallback=None, extra_kw=(), first_fallback=True):
+    """选项取值: 标题含选项名(长优先) > 别名关键词命中 > 指定兜底 > 首项(可关). 纯函数."""
+    opts = [o for o in (opts or []) if o]
+    hits = [o for o in opts if o in (title or '')]
+    if hits:
+        return max(hits, key=len)
+    for val, kws in extra_kw:
+        if val in opts and any(k in (title or '') for k in kws):
+            return val
+    if fallback and fallback in opts:
+        return fallback
+    return opts[0] if (opts and first_fallback) else ''
+
+
 def sku_value_for(field, title, options=None):
     """SKU 属性取值. 命名字段(厚薄/是否加绒/款式)规则不变; 未知字段(裤型/裤长等)标题匹配优先——
     取与 title 有公共子串(≥2 连续中文)的首个选项, 无匹配返回 None(F-B: 绝不写首项猜测值)."""
@@ -209,6 +243,20 @@ def sku_value_for(field, title, options=None):
             hits = [o for o in opts if o in title]
             return max(hits, key=len) if hits else opts[0]
         return ''
+    if field == '裙长':   # 2026-09-26 探路: 半身裙/连衣裙必填, 中裙兜底(最中性)
+        return _opt_match(opts, title, fallback='中裙')
+    if field == '图案':   # 半身裙/牛仔类必填 SKU 列: 标题图案词命中, 纯色兜底
+        return _opt_match(opts, title, fallback='纯色')
+    if field == '适用体型':   # 连衣裙必填, 通用型兜底
+        return _opt_match(opts, title, fallback='通用型')
+    if field == '裤长':   # 公共子串匹配(九分牛→九分裤) > 语义别名(直筒→长裤) > 留人工(禁首项兜底)
+        hits = [o for o in opts if _share_cn_sub2(o, title)]
+        if hits:
+            return max(hits, key=len)
+        for val, kws in (('长裤', ('直筒', '阔腿', '小脚', '拖地', '垂感')),):
+            if val in opts and any(k in title for k in kws):
+                return val
+        return None
     for o in opts:  # 未知字段: 公共子串匹配优先
         if _share_cn_sub2(o, title):
             return o
@@ -280,6 +328,7 @@ async def fill_sku_gaps(page, gaps, title):
                     filled += 1
                     value = value or cur
                     continue
+                await ensure_no_overlay(page)
                 await trig.click(timeout=8000)
                 options = None
                 for _ in range(8):  # async-select 弹层延迟出现, 0.5s x8 轮询
@@ -308,11 +357,13 @@ async def fill_sku_gaps(page, gaps, title):
                 if is_multi:  # 多选弹层不自动关, 且挡下一行 trigger, 必须关
                     await page.keyboard.press('Escape')
                 ok = False
-                for _ in range(4):  # 选值写回校验: 多选='… '+tag 文本, 须按含值/标签判定
+                for _ in range(4):  # 选值写回校验: 多选='… '+tag 文本; combobox=内部 input.value(裤长实证), 按含值判定
                     await asyncio.sleep(0.5)
                     ok = await page.evaluate("""(a) => {
                         const td = document.getElementById(a[0]);
                         if (!td) return false;
+                        const inp = td.querySelector('input');
+                        if (inp && (inp.value||'').trim() === a[1]) return true;
                         const sel = td.querySelector('span.next-select');
                         if (sel && (sel.innerText||'').includes(a[1])) return true;
                         return [...td.querySelectorAll('.next-tag-body')].some(
@@ -349,6 +400,14 @@ PROP_KEYWORDS = {
     '功能': (('保暖', ('保暖', '加绒', '加厚', '毛绒', '羽绒')), ('透气', ())),
     '适用场景': (('居家', ('睡衣', '睡裙', '家居服', '居家')), ('日常', ())),
     '面料': (('牛仔布', ('牛仔',)), ('聚酯纤维', ())),
+    # 2026-09-26 探路新增(内衣/家居服新必填属性; 选项已实地核读):
+    '是否带胸垫': (('是', ('胸垫', '聚拢')), ('否', ())),
+    '适用人群': (('特殊体型女性', ('大码', '胖', '微胖', '加大')),
+                 ('运动爱好者', ('运动', '瑜伽', '健身', '跑步')),
+                 ('青少年女性', ('青少年', '学生', '初中', '高中')),
+                 ('成年女性', ('女',))),
+    '风格': (('优雅风', ('优雅', '温柔', '轻奢', '法式')), ('可爱风', ('可爱', '卡通', '甜美', '公主')),
+             ('休闲风', ('休闲', '慵懒', '宽松', '简约', '百搭', '基础'))),
 }
 PROP_CONST = {'是否商场同款': ['否'], '材质成分': ['聚酯纤维:100']}
 PROP_UI = {
@@ -517,6 +576,7 @@ async def fill_prop_gaps(page, gaps, title):
                     continue   # notes 差异#7: 仅部分类目有, 无此字段=无校验, 跳过
                 return False, f'{field}: 表单项未找到'
             box = page.locator(f'#{cid}')
+            await ensure_no_overlay(page)
             cands = prop_value_for(field, title)
             picked = None
             for v in cands:
@@ -534,3 +594,98 @@ async def fill_prop_gaps(page, gaps, title):
     if not done:
         return True, 'no prop gaps'
     return True, 'filled ' + ','.join(done)
+
+
+# ============ SKU 颜色【】清洗 (2026-09-26) ============
+# 穿戴甲 SKU 颜色值带 1688 元数据【甲型】(如 'XS 黑粉千金【细狗尖】'), 淘宝校验拒绝【】→ 颜色分类填写错误
+# (08-29 ISV 铺货 32 个同因)。08-29 试单元格点击/fiber 直改均不可写; 2026-09-26 发现「编辑规格」
+# 对话框主色 input 可编辑, 确认创建重建 SKU 表实测 3 样本(含 8 SKU 双甲型)价格/库存/行结构原样保留。
+# 规则: 【x】→-x (保留甲型文本防重名, 只去被拒括号); 清洗后重名/空值 → 留人工(CLEAN_MANUAL)。
+
+_COLOR_READ_JS = """() => {
+  const hs = [...document.querySelectorAll('.sell-sku-table-header-common-new')];
+  let idx = hs.findIndex(e => (e.innerText||'').trim() === '颜色分类');
+  if (idx < 0) idx = 1;
+  const vals = [];
+  for (const tr of document.querySelectorAll('#sell-field-sku tr')) {
+    const td = tr.children[idx];
+    if (!td) continue;
+    const sp = td.querySelector('span[title]');
+    const v = sp ? (sp.getAttribute('title')||'') : (td.innerText||'').trim();
+    if (v) vals.push(v);
+  }
+  return vals;
+}"""
+
+
+def clean_color_value(v):
+    """纯函数: 颜色值清洗. 'XS 薄荷绿【细狗尖】' -> 'XS 薄荷绿-细狗尖'."""
+    out = re.sub(r'\s*【([^】]*)】', r'-\1', v or '').strip()
+    return re.sub(r' {2,}', ' ', out)
+
+
+async def clean_sku_color_brackets(page):
+    """颜色值含【】时经「编辑规格」对话框清洗并确认创建重建 SKU 表。
+    返回 (changed, msg): True=已重建(调用方须重新 clear_overlays, 且重建可能清掉已填参数列,
+    故必须在调价/合规填充之前跑); False+'no dirty'=无脏值零开销; False+'CLEAN_MANUAL:'=留人工。"""
+    try:
+        vals = await page.evaluate(_COLOR_READ_JS)
+    except Exception as e:
+        return False, f'读取颜色失败: {str(e)[:50]}'
+    if not vals:
+        return False, 'no dirty'
+    dirty = [v for v in vals if '【' in v]
+    if not dirty:
+        return False, 'no dirty'
+    cleaned = [clean_color_value(v) for v in vals]
+    dups = sorted({c for c in cleaned if cleaned.count(c) > 1})
+    if dups:
+        return False, f'CLEAN_MANUAL: 清洗后重名{dups[:2]}'
+    if any(not c for c in cleaned):
+        return False, 'CLEAN_MANUAL: 清洗后出现空值'
+    btn = page.locator('#sell-field-sku button:has-text("编辑规格")').first
+    if await btn.count() == 0:
+        return False, 'CLEAN_MANUAL: 无编辑规格按钮'
+    await btn.click(timeout=8000)
+    # 可能的警告确认框(实测通常无); 只点 .next-dialog 层确定, 最多 2 轮
+    for _ in range(2):
+        await asyncio.sleep(1)
+        dlg = page.locator('.next-dialog:visible button:has-text("确定"), .next-dialog:visible button:has-text("继续")').first
+        if await dlg.count() > 0:
+            await dlg.click(timeout=5000)
+        else:
+            break
+    inputs = page.locator('.next-overlay-wrapper.opened input[placeholder="主色(必选)"]')
+    n = await inputs.count()
+    if n != len(vals):
+        await page.keyboard.press('Escape')
+        return False, f'CLEAN_MANUAL: 主色输入框{n}!=SKU行{len(vals)}'
+    changed = 0
+    for i in range(n):
+        el = inputs.nth(i)
+        v = (await el.input_value()).strip()
+        c = clean_color_value(v)
+        if c != v:
+            await el.fill(c)
+            changed += 1
+            await asyncio.sleep(0.2)
+    await page.locator('button:has-text("确认创建")').first.click(timeout=8000)
+    await asyncio.sleep(2.5)
+    guard = page.locator('.next-dialog:visible button:has-text("确定")').first
+    if await guard.count() > 0:
+        await guard.click(timeout=5000)
+        await asyncio.sleep(1.5)
+    after = await page.evaluate(_COLOR_READ_JS)
+    if any('【' in v for v in after):
+        return False, f'重建后仍有【】{after[:2]}'
+    if len(after) != len(vals):
+        return False, f'重建后行数变化 {len(vals)}->{len(after)}'
+    if not changed:
+        return False, 'no dirty'
+    return True, f'清洗 {changed} 个颜色值并重建SKU表(价格/库存保留)'
+
+
+async def sku_colors_dirty(page):
+    """SKU 颜色列是否含【】(穿戴甲 1688 元数据, 淘宝校验拒绝). 零交互快速探测."""
+    vals = await page.evaluate(_COLOR_READ_JS)
+    return any('【' in v for v in vals)

@@ -12,6 +12,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -32,15 +33,25 @@ public class KwProviderService implements ApplicationRunner {
     public record ProviderDef(
             String name, String baseUrl, String apiKey,
             String visionModel, String textModel, String videoModel,
+            java.math.BigDecimal videoPrice,
             Integer maxTokens, Map<String, Object> extraBody) {
 
         public String modelFor(String kind) {
-            return switch (kind) {
-                case "vision" -> visionModel;
-                case "video" -> videoModel;
-                default -> textModel;
-            };
+            return modelOf(visionModel, textModel, videoModel, kind);
         }
+    }
+
+    /** kind → 模型列的映射只此一处；新增 kind（如 image）改这里，别再抄 switch */
+    public static String modelOf(String visionModel, String textModel, String videoModel, String kind) {
+        return switch (kind) {
+            case "vision" -> visionModel;
+            case "video" -> videoModel;
+            default -> textModel;
+        };
+    }
+
+    public static String modelOf(KwProvider row, String kind) {
+        return modelOf(row.getVisionModel(), row.getTextModel(), row.getVideoModel(), kind);
     }
 
     /** 启动播种：SpringApplication.callRunners 强制实例化 runner，不受 lazy-initialization 影响 */
@@ -102,11 +113,7 @@ public class KwProviderService implements ApplicationRunner {
         if (row.getApiKey() == null || row.getApiKey().isBlank()) {
             throw new RuntimeException("AI provider 未配置 key: " + name);
         }
-        String model = switch (kind) {
-            case "vision" -> row.getVisionModel();
-            case "video" -> row.getVideoModel();
-            default -> row.getTextModel();
-        };
+        String model = modelOf(row, kind);
         if (model == null || model.isBlank()) {
             throw new RuntimeException("provider " + name + " 未配置 " + kind + " 模型");
         }
@@ -116,6 +123,21 @@ public class KwProviderService implements ApplicationRunner {
     public List<KwProvider> listAll() {
         return kwProviderMapper.selectList(new LambdaQueryWrapper<KwProvider>()
                 .orderByAsc(KwProvider::getId));
+    }
+
+    /** 备用引擎：启用中、配了该 kind 模型、有 key，排除主用与 alreadyTried，按 id 升序 */
+    public List<ProviderDef> alternatives(String kind, List<String> alreadyTried) {
+        List<ProviderDef> out = new java.util.ArrayList<>();
+        for (KwProvider row : listAll()) {
+            if (alreadyTried != null && alreadyTried.contains(row.getName())) continue;
+            if (row.getStatus() == null || row.getStatus() != 1) continue;
+            if (row.getApiKey() == null || row.getApiKey().isBlank()) continue;
+            if (row.getBaseUrl() == null || row.getBaseUrl().isBlank()) continue;
+            String model = modelOf(row, kind);
+            if (model == null || model.isBlank()) continue;
+            out.add(toDef(row));
+        }
+        return out;
     }
 
     public ProviderDef toDef(KwProvider row) {
@@ -128,6 +150,7 @@ public class KwProviderService implements ApplicationRunner {
             }
         }
         return new ProviderDef(row.getName(), row.getBaseUrl(), row.getApiKey(),
-                row.getVisionModel(), row.getTextModel(), row.getVideoModel(), row.getMaxTokens(), extra);
+                row.getVisionModel(), row.getTextModel(), row.getVideoModel(), row.getVideoPrice(),
+                row.getMaxTokens(), extra);
     }
 }

@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.extension.activerecord.Model;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -36,6 +37,9 @@ public class VideoGenTask extends Model<VideoGenTask> {
 
     @TableField("ratio")
     private String ratio;
+
+    @TableField("est_cost")
+    private BigDecimal estCost;
 
     @TableField("status")
     private Integer status;

@@ -61,8 +61,9 @@ public class NovelController {
             @RequestParam(defaultValue = "20") Integer pageSize,
             @RequestParam(required = false) Long novelId,
             @RequestParam(required = false) String title,
-            @RequestParam(required = false) Integer status) {
-        return Result.build(novelChapterService.findByPage(pageNum, pageSize, novelId, title, status));
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String fanqieStatus) {
+        return Result.build(novelChapterService.findByPage(pageNum, pageSize, novelId, title, status, fanqieStatus));
     }
 
     @Operation(summary = "章节详情(含正文)")
@@ -108,6 +109,18 @@ public class NovelController {
     @PostMapping("/publish/start")
     public Result<Map<String, Object>> startFanqiePublish() {
         return Result.build(fanqiePublishService.start(), ResultCodeEnum.SUCCESS);
+    }
+
+    @Operation(summary = "发布回执汇总（published/pending/failed 章数）")
+    @GetMapping("/publish/summary")
+    public Result<Map<String, Object>> publishSummary() {
+        return Result.build(fanqiePublishService.summary(), ResultCodeEnum.SUCCESS);
+    }
+
+    @Operation(summary = "失败章节退回待发（下一轮发布重投）")
+    @PostMapping("/publish/retry/{chapterNum}")
+    public Result<Map<String, Object>> publishRetry(@PathVariable Integer chapterNum) {
+        return Result.build(fanqiePublishService.requeue(chapterNum), ResultCodeEnum.SUCCESS);
     }
 
     @Operation(summary = "停止番茄发布")

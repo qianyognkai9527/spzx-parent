@@ -7,8 +7,8 @@ import com.joker.spzx.manager.service.videogen.VideoGenTaskService;
 import com.joker.spzx.manager.service.videogen.VideoPromptService;
 import com.joker.spzx.model.entity.videogen.VideoGenTask;
 import com.joker.spzx.model.vo.common.Result;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,6 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/admin/videogen")
 public class VideoGenController {
@@ -40,12 +41,6 @@ public class VideoGenController {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    @Value("${minio.endpoint:http://127.0.0.1:9000}")
-    private String minioEndpoint;
-
-    @Value("${minio.bucket:spzx-manager}")
-    private String minioBucket;
-
     @PostMapping("/prompt")
     public Result<Map<String, Object>> prompt(@RequestBody Map<String, Long> body) {
         Long productId = body == null ? null : body.get("productId");
@@ -61,6 +56,16 @@ public class VideoGenController {
     public record TaskDto(Long productId, String prompt, Integer promptSource, Integer duration, String ratio) {
     }
 
+    /** 计费预览：当前视频模型 5秒档单价 + 按预计时长折算的本单费用 + 日预算执行情况（不落库） */
+    @GetMapping("/cost-estimate")
+    public Result<Map<String, Object>> costEstimate(@RequestParam(required = false, defaultValue = "5") Integer duration) {
+        try {
+            return Result.build(taskService.costEstimate(duration));
+        } catch (RuntimeException e) { // provider 未配置等
+            return Result.build(null, 204, e.getMessage());
+        }
+    }
+
     @PostMapping("/task")
     public Result<Long> createTask(@RequestBody TaskDto dto) {
         if (dto == null) return Result.build(null, 204, "请求体不能为空");
@@ -72,8 +77,21 @@ public class VideoGenController {
         }
     }
 
-    @GetMapping("/task/list/{pageNum}/{pageSize}")
-    public Result<Page<Map<String, Object>>> taskList(@PathVariable long pageNum,
+    public record BatchDto(List<Long> productIds, Integer duration, String ratio) {
+    }
+
+    /** 批量生成：提示词由工作线程逐个生成；返回 {created, skipped, estCostTotal} */
+    @PostMapping("/task/batch")
+    public Result<Map<String, Object>> createBatch(@RequestBody BatchDto dto) {
+        if (dto == null) return Result.build(null, 204, "请求体不能为空");
+        try {
+            return Result.build(taskService.createBatch(dto.productIds(), dto.duration(), dto.ratio()));
+        } catch (RuntimeException e) { // 校验 IAE / provider 未配置 / 超预算
+            return Result.build(null, 204, e.getMessage());
+        }
+    }
+
+    @GetMapping("/task/list/{pageNum}/{pageSize}")    public Result<Page<Map<String, Object>>> taskList(@PathVariable long pageNum,
                                                       @PathVariable long pageSize,
                                                       @RequestParam(required = false) Integer status,
                                                       @RequestParam(required = false) Long productId) {
@@ -105,6 +123,16 @@ public class VideoGenController {
         }
     }
 
+    /** 成片挂回商品媒体（file_type=2，remark 带 AI 生成标识）；返回媒体行 id */
+    @PostMapping("/task/{id}/attach")
+    public Result<Long> attachTask(@PathVariable Long id) {
+        try {
+            return Result.build(taskService.attachToProductMedia(id));
+        } catch (RuntimeException e) { // 未生成成功 / 商品无媒体
+            return Result.build(null, 204, e.getMessage());
+        }
+    }
+
     @DeleteMapping("/task/{id}")
     public Result<Void> taskDelete(@PathVariable Long id) {
         taskService.delete(id);
@@ -121,11 +149,12 @@ public class VideoGenController {
         row.put("model", t.getModel());
         row.put("duration", t.getDuration());
         row.put("ratio", t.getRatio());
+        row.put("estCost", t.getEstCost());
         row.put("status", t.getStatus());
         row.put("remoteTaskId", t.getRemoteTaskId());
         row.put("errorMsg", t.getErrorMsg());
         boolean hasKey = t.getObjectKey() != null && !t.getObjectKey().isBlank();
-        row.put("videoUrl", hasKey ? minioEndpoint + "/" + minioBucket + "/" + t.getObjectKey() : null);
+        row.put("videoUrl", hasKey ? taskService.objectUrl(t.getObjectKey()) : null);
         row.put("downloadUrl", hasKey
                 ? fileService.presignedDownloadUrl(t.getObjectKey(), downloadFilename(t)) : null);
         row.put("createTime", t.getCreateTime());
@@ -142,7 +171,8 @@ public class VideoGenController {
             if (!codes.isEmpty() && codes.get(0) != null) {
                 code = codes.get(0).replaceAll("[^A-Za-z0-9._-]", "");
             }
-        } catch (Exception ignore) { // 编码查询失败退回默认命名，不阻塞列表
+        } catch (Exception e) { // 编码查询失败退回默认命名，不阻塞列表
+            log.warn("videogen 下载名查询商品编码失败 product_id={}: {}", t.getProductId(), e.getMessage());
         }
         return (code == null || code.isBlank() ? "videogen_" + t.getId() : code + "_" + t.getId()) + ".mp4";
     }

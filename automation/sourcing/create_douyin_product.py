@@ -18,6 +18,7 @@ import sys
 import time
 import pymysql
 from playwright.async_api import async_playwright
+from shop_ref import default_shop_id, PLATFORM_DOUYIN
 
 CDP = "http://127.0.0.1:9223"
 DATA = "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/douyin_product_data.jsonl"
@@ -176,15 +177,16 @@ def bind_source(rec, title, price, category, product_id):
                 ((rec.get('title') or '')[:200], offer, rec.get('source_price') or 0, category))
             sp_id = cur.lastrowid
         # 2. platform_product: code=抖音 product_id 唯一
+        shop_id = default_shop_id(cur, PLATFORM_DOUYIN)
         cur.execute("SELECT id FROM platform_product WHERE code=%s", (product_id,))
         pp = cur.fetchone()
         if pp:
             pp_id = pp[0]
-            cur.execute("UPDATE platform_product SET title=%s, pricing=%s, platform_type=2, update_time=NOW() WHERE id=%s",
-                        (title[:100], price, pp_id))
+            cur.execute("UPDATE platform_product SET title=%s, pricing=%s, platform_type=2, shop_id=%s, update_time=NOW() WHERE id=%s",
+                        (title[:100], price, shop_id, pp_id))
         else:
-            cur.execute("INSERT INTO platform_product (code, title, pricing, platform_type, create_time) VALUES (%s,%s,%s,2,NOW())",
-                        (product_id, title[:100], price))
+            cur.execute("INSERT INTO platform_product (code, title, pricing, platform_type, shop_id, create_time) VALUES (%s,%s,%s,2,%s,NOW())",
+                        (product_id, title[:100], price, shop_id))
             pp_id = cur.lastrowid
         # 3. product_bind_relation: 平台商品<->货源商品
         cur.execute("SELECT id FROM product_bind_relation WHERE product_id=%s AND source_productId=%s AND is_deleted=0", (pp_id, sp_id))

@@ -10,6 +10,7 @@ import time
 from datetime import datetime
 
 import pymysql
+from shop_ref import shop_id_of_product
 
 DB_CONFIG = {
     "host": "localhost", "port": 3306, "user": "root",
@@ -43,12 +44,14 @@ def has_unread(cur, alert_type, source_product_id=None, source_sku_id=None):
 def insert_alert(cur, alert_type, message, source_product_id=None, source_sku_id=None,
                  platform_product_id=None, platform_sku_id=None, old_value=None, new_value=None):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # 货源侧告警没有对应平台商品，shop_id 留空表示归属未知
+    shop_id = shop_id_of_product(cur, platform_product_id)
     cur.execute(
         "INSERT INTO sync_alert (alert_type, source_product_id, source_sku_id, platform_product_id, "
-        "platform_sku_id, old_value, new_value, message, status, create_time) "
-        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,0,%s)",
+        "platform_sku_id, shop_id, old_value, new_value, message, status, create_time) "
+        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,0,%s)",
         (alert_type, source_product_id, source_sku_id, platform_product_id,
-         platform_sku_id, old_value, new_value, message, now))
+         platform_sku_id, shop_id, old_value, new_value, message, now))
 
 
 def detect_product_down(conn):
