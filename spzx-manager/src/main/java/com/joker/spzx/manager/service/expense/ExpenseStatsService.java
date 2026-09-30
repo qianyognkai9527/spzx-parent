@@ -89,6 +89,13 @@ public class ExpenseStatsService {
         return list == null ? List.of() : list;
     }
 
+    /** 按交易分类拆分：经营成本与个人消费目前只能靠这个维度先分层，店铺归属派生不出（见 spec §21） */
+    public List<Map<String, Object>> byCounterparty(int days) {
+        LocalDate begin = LocalDate.now().minusDays(days - 1L);
+        List<Map<String, Object>> list = expenseOrderMapper.sumByCounterpartySince(begin);
+        return list == null ? List.of() : list;
+    }
+
     public List<Map<String, Object>> monthly(Integer year) {
         int y = year == null || year < 1970 || year > 2100 ? LocalDate.now().getYear() : year;
         List<Map<String, Object>> list = expenseOrderMapper.sumMonthly(

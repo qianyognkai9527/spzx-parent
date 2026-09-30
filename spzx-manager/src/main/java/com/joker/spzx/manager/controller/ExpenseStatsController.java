@@ -40,6 +40,11 @@ public class ExpenseStatsController {
         return Result.build(expenseStatsService.byChannel(safeDays(days)));
     }
 
+    @GetMapping("/byCounterparty")
+    public Result<List<Map<String, Object>>> byCounterparty(@RequestParam(defaultValue = "30") int days) {
+        return Result.build(expenseStatsService.byCounterparty(safeDays(days)));
+    }
+
     @GetMapping("/monthly")
     public Result<List<Map<String, Object>>> monthly(@RequestParam(required = false) Integer year) {
         return Result.build(expenseStatsService.monthly(year));

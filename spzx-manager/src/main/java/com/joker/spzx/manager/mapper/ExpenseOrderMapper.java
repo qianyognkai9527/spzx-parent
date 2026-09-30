@@ -51,6 +51,15 @@ public interface ExpenseOrderMapper extends BaseMapper<ExpenseOrder> {
             "WHERE expense_date >= #{begin} GROUP BY channel ORDER BY amount DESC")
     List<Map<String, Object>> sumByChannelSince(@Param("begin") LocalDate begin);
 
+    /**
+     * 按交易分类（支付宝「交易分类」列）聚合。channel 只有一个值（支付宝账单统一记为支付宝），
+     * 交易分类是当前唯一能把 9 万支出拆开的维度；手工录入无该列，归入「未分类」。
+     */
+    @Select("SELECT COALESCE(counterparty, '未分类') AS name, SUM(amount) AS amount, COUNT(*) AS cnt " +
+            "FROM expense_order WHERE expense_date >= #{begin} " +
+            "GROUP BY COALESCE(counterparty, '未分类') ORDER BY amount DESC")
+    List<Map<String, Object>> sumByCounterpartySince(@Param("begin") LocalDate begin);
+
     @Select("SELECT DATE_FORMAT(expense_date, '%Y-%m') AS name, SUM(amount) AS amount " +
             "FROM expense_order WHERE expense_date >= #{begin} AND expense_date < #{end} " +
             "GROUP BY DATE_FORMAT(expense_date, '%Y-%m') ORDER BY name")
