@@ -40,16 +40,16 @@ public class DashboardServiceImpl implements DashboardService {
     @Autowired
     private TaskProgressService taskProgressService;
 
-    @Value("${dashboard.puhuo-progress-path:/Users/qyk9527/tb-auto/progress.json}")
+    @Value("${dashboard.puhuo-progress-path:/Users/qyk9527/ideaProject/spzx-parent/automation/tb-auto/progress.json}")
     private String puhuoProgressPath;
 
-    @Value("${dashboard.meijia-progress-path:/Users/qyk9527/sourcing/output/meijia/progress.json}")
+    @Value("${dashboard.meijia-progress-path:/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/output/meijia/progress.json}")
     private String meijiaProgressPath;
 
-    @Value("${dashboard.douyin-progress-path:/Users/qyk9527/sourcing/douyin_create_progress.json}")
+    @Value("${dashboard.douyin-progress-path:/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/douyin_create_progress.json}")
     private String douyinProgressPath;
 
-    @Value("${dashboard.sourcing-progress-path:/Users/qyk9527/sourcing/sourcing_progress.json}")
+    @Value("${dashboard.sourcing-progress-path:/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/sourcing_progress.json}")
     private String sourcingProgressPath;
 
     @Override

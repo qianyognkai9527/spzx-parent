@@ -36,10 +36,10 @@ public class VisualScoreServiceImpl implements VisualScoreService {
     @Autowired
     private VisualScoreMapper visualScoreMapper;
 
-    @Value("${visual.python-bin:/Users/qyk9527/tb-auto/venv/bin/python}")
+    @Value("${visual.python-bin:${user.dir}/automation/venv/bin/python}")
     private String pythonBin;
 
-    @Value("${visual.script-dir:/Users/qyk9527/sourcing}")
+    @Value("${visual.script-dir:${user.dir}/automation/sourcing}")
     private String scriptDir;
 
     private static final Pattern SCORE_PATTERN = Pattern.compile("SCORE:(\\d+)");
