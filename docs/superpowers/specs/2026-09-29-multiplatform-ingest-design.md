@@ -827,3 +827,221 @@ UPDATE 只匹配 `status=0`，无匹配即空操作，每轮跑是幂等的。�
 你自己的在途改动（novel / kw / videogen / sysdict / 关账 / detect_alerts.py / probe_*.py /
 AGENTS.md 等）一笔没动、一笔没带。§25 这份修复（`sync_alert_dataset_code.sql` + 实体 + 服务）
 按你的指示先做完未提交。
+
+---
+
+## 26. 转向业务功能：店铺维度、费用自动打标、首页换真数据源、商品运营台（2026-09-30）
+
+### 26.0 为什么转向
+
+你说"钉钉就不需要了，把一个正常的电商运营管理系统的功能做好就可以"。§22-§25 那条线（跑批台账、
+告警闭环）到此收口，`spzx.alert.dingtalk-webhook` 不再作为待办。这一节起，做的是后台本身的功能缺口。
+
+先做了缺口盘点，不猜。结论：**货源侧（1688）已经结实，平台经营侧基本是空壳**。
+
+| 环节 | 库里真实数据 | 有无页面 | 判定 |
+|---|---|---|---|
+| 1688 货源 | 5369 商品 / 12380 SKU / 1299 厂家 / 质量分级 / 运费 | ✅ | 完整 |
+| 平台在售商品 | 4679（淘宝 3110 / 抖店 1569），有定价运费；**表里没有上下架状态、没有库存、没有销量列** | ✅ | 字段残缺 |
+| 平台 SKU | `platform_sku` **14 行**，`sku_bind_relation` 9 条 | ✅ | 几乎没采 |
+| 平台订单 | `order_info` **43 行，全是 2023-06 联调数据**，真实成交 0 单入库 | ✅ | 空壳 |
+| 商品经营效果 | 生意参谋快照 290~442 商品/次（09-30 那份：UV 14966、成交 0） | ⚠️ 只有 salesRanking 一个入口 | 数据富、UI 穷 |
+| 费用对账 | 1908 笔 / 9.2 万 / 2026-01~09，**打标 0 笔** | ✅ 三页 | 闭环断了 |
+| 店铺 | `shop` 3 行，`order_info`/`refund_*` 的 shop_id 100% 回填 | ❌ 无维护页、全站无店铺筛选 | 半成品 |
+| 后端全 CRUD、前端零入口 | 规格 / 单位 / 品牌 / 类目 / 人力成本 / 推广计划 / Farm单 / 商品链接 / 订单货源 | ❌ | 建了没人用 |
+
+四个当场指认的缺陷：首页 KPI 用 `COUNT(*)/SUM(total_amount) FROM order_info` 算"订单数/销售额"
+（读到的是 2023 年那 43 条）；`expense_order_tag` 0 行导致「标签管理」「按标签统计」两页全空；
+`RefundReportPageDto` 没有 `platformType` 字段，退款报表页的平台 Tab 一直在传但被丢弃（切 Tab 等于没筛）；
+`orderList.vue` 的 `searchForm` 声明了 platformType/orderStatus/orderNo 却没有任何输入控件，是死状态。
+
+你选了"四块都做"，顺序 D→B→A→C。
+
+### 26.1 D 店铺维度
+
+`PlatformRegistryService.listShops` 是采集用的只读注册表，会抹掉 `credential_ref` 与 `cdp_port`。
+维护页必须看到并编辑这两个字段，所以**新开一条写入路径**而不是把只读接口改成"既隐藏又展示"：
+
+- `ShopService`（校验 / 同名冲突 / 默认店互斥 / 引用计数）+ `ShopController` `/admin/shop/{list,usage,POST,PUT,DELETE}`
+- 默认店按平台唯一：设新默认时清同平台其它 `is_default`，否则 `defaultShopId` 在两店之间摇摆，采集落到哪个店不确定
+- 停用店不得为默认（`shop` 表里 id=3 拼多多默认店原本就是 `is_default=1 + status=0` 的非法组合，保留原值未改）
+- 删除保护：被 `platform_product`/`order_info`/`refund_import_order`/`sync_alert` 引用即拒绝（店 1 实测 3373 条）
+- 编辑走 `ShopService.mergeEditable` 纯函数：文本 `null` 表示"不改"、`""` 表示"清空"，所以只切启停的 PATCH
+  不会把凭据引用和 CDP 端口抹掉（这条最容易写错，单测 `ShopFieldMergeTest` 5 例锁住）
+- 前端 `views/mall/shopManage.vue`（菜单 id=74）+ 复用组件 `components/ShopSelect/index.vue`
+- **shop_id 覆盖范围实测**：`order_info`、`platform_product`、`refund_analysis_*`、`refund_import_order`、
+  `sync_alert`、`ingest_batch` 有；`expense_order`、`source_product`、`source_sku` **没有** →
+  费用不能按店分，只在有列的域加筛选（商品 / 订单 / 售后三处）
+
+### 26.2 B 费用自动打标
+
+`expense_order_tag` 是 `(order_id, tag_id)` 联合主键，一笔可多标；标签筛选、`/stats/byTag`、
+`assembleVos` 早就写好了，**缺的从来不是管道，是没人往里写**。
+
+- 新表 `expense_tag_rule(tag_id, match_field, match_type, keyword, min/max_amount, status)`，
+  种子 13 条把支付宝「交易分类」逐项映射到已有 8 个标签（按标签名反查 id，不写死）
+- `ExpenseTagRuleMatcher` 纯函数（eq 忽略首尾空格与大小写、like 子串不区分大小写、金额闭区间、
+  未知字段不命中而不抛异常）→ 单测 10 例
+- `POST /admin/expense/rule/autoTag?dryRun=&onlyUntagged=`：**默认 dryRun=true 先给命中预览**，
+  确认了再实写；只新增关联从不删除，人工打过/改过的不会被跑批抹掉；已关账月份跳过
+- 预览结果带 `uncovered`（还没被任何规则覆盖的分类 + 笔数 + 金额 + 一键"加规则"），
+  不替你做经营口径的分类决定
+- `POST /admin/expense/order/batchTag {ids, tagIds, replace}`：人工多选批量补打，replace 才清旧标
+- 实跑结果：**1908 笔中 927 笔打上标签**（购物 387 / 饮食 287 / 交通 227 / 娱乐 12 / 通讯 10 / 医疗 4），
+  `/stats/byTag` 从空数组变成有数；重跑一次 scanned 981 / matched 0 / created 0（幂等 + onlyUntagged 生效）
+- 未覆盖的 981 笔集中在：商业服务 533、其他 343、**转账红包 56 笔 ¥25498.65**、保险 30、教育培训 4。
+  这几类是经营支出，现有 8 个个人消费标签装不下 —— 要新增"推广费用/采购进货/人情往来"这类标签的话，
+  在页面上加规则即可，我没有替你建 taxonomy
+
+### 26.3 A 首页驾驶舱
+
+`DashboardMapper` 的 `countOrders`/`sumOrderAmount`/`selectOrderTrend` 全部来自 `order_info`（2023 假数据），
+换成唯一真实的平台经营源 —— 生意参谋商品效果快照：
+
+- KPI 六张卡：近7日成交 ¥0 / 近7日访客 14,966（+14,832，+11068.7%）/ 本月支出 ¥4,505（99 笔）/
+  未读提醒 0 / 平台商品 4,679 / 货源商品 5,369
+- `/orderTrend` → `/effectTrend`：**按 snapshot_time 而不是按天分组**，同一天跑两次会被日期分组加成两倍 GMV；
+  每个点是"那次快照覆盖的近 7 日汇总"，点与点之间是重叠窗口，不是当日新增
+- `DashboardServiceImpl.buildKpi` / `toChronological` 是纯函数（单测 7 例）。关键一条：
+  **没有快照时经营指标返回 null 让前端显示"暂无"，而不是 0** —— 显示 0 会被读成"今天一单没出"
+- 界面必须挂口径说明（"生意参谋近 7 日滚动汇总，不是当日流水" + 快照时间 + 覆盖商品数），
+  否则只是换了个方式骗人
+- `order_info` 那 43 条种子数据我没动，`orderList` 页保留
+
+顺带发现（未处理，供你判断）：09-22~09-28 那份快照 UV 14966、成交 0，而 09-19~09-25 只有 UV 134。
+`visitors`/`page_views`/`extra_json` 三者自洽，不是采集解析错，是真实的一百倍流量跳变 + 零成交。
+这正好是商品运营台"有流量没成交"筛出来的 84 个商品。
+
+### 26.4 C 商品运营台
+
+`/admin/mall/itemOps/{page,facetCounts}`：`platform_product` × 最新效果快照 × 绑定货源成本 × `fee_benchmark` 费率。
+只读页，改价/绑货源仍在平台商品页做（带 `platformType+keyword` 跳过去，`mallProduct` 现在会读这两个 query）。
+
+- 毛利口径：`定价 - 货源最低进价 - 定价×(技术服务费+支付费)/100`，进价取已绑定货源里在售 SKU 的最低价，
+  费率取该平台各类目均值（当前 5 个类目都是 4.00% + 0.60%，均值即精确值）
+- 七个筛选项一次 SQL 算齐数量（`facetCounts`），实测与分页 total 逐项一致：
+  全部 4679 / 有流量没成交 84 / 毛利为负 18 / 库存告急 2 / 未定价 1115 / 没绑货源 728 / 没效果数据 4364
+- 抖店 1569 个商品完全没有效果数据（sycm 只覆盖淘宝），淘宝也只有 315 个对得上 →
+  效果列显示"未采"而不是 0
+
+### 26.5 这一节里踩到的六个坑（都值得留字）
+
+1. **MyBatis-Plus 的 count 优化器会剥掉 join 和 select 列表**。`HAVING effectAt IS NULL` 被优化成
+   `SELECT COUNT(*) AS total FROM platform_product p HAVING effectAt IS NULL` → Unknown column。
+   改法：筛选项作用在派生表的外层 `WHERE`，并 `page.setOptimizeCountSql(false)`。
+2. **COLLATE 加在哪一侧不是风格问题，是 24 倍性能差**。四张表排序规则三样（unicode_ci / 0900_ai_ci / general_ci）。
+   把 `e.item_id` 转成 unicode_ci 会让物化临时表的自动索引失效，4679×442 退化成逐行全扫，实测 **1.14s**；
+   改成把被扫描侧 `p.code` 转成 0900_ai_ci，**0.047s**（整页 2.3s → 0.11s）。
+3. **`pricing = 0` 不是"卖不过成本"，是"还没定价"**。库里 1115 个商品定价为 0，不排除的话
+   「毛利为负」会报 1118 条、其中 1100 条是假亏本。现在 margin 在 pricing 为 NULL/0 时判不可算，
+   另开「未定价」档，真亏本 18 条。
+4. **ProTable 自己占了 `#title` 作为卡片标题插槽**。我给"标题"列写 `tdSlot: 'title'`，单元格模板被当成
+   卡片标题渲染，`row` 是 undefined → 整页白屏 + `Cannot read properties of undefined (reading 'title')`。
+   截图上看是"数据错位"（定价显示 149、接口返回 156），逐格比对 DOM 才定位到插槽冲突。
+5. **`batchTag` 传不存在的订单号会插出孤儿关联**。第一次测试用 `ids:[0]` 试出库里多了一条 `order_id=0`。
+   改成以 `selectBatchIds` 查出来的行为准生成关联，并补了回归用例。
+6. **新表默认排序规则会跟邻居不一致**。`expense_tag_rule` 建表时不写 COLLATE 就继承服务器默认
+   `utf8mb4_0900_ai_ci`，而整个 expense 域是 `utf8mb4_general_ci`，自检 SQL 当场报 Illegal mix of collations。
+   DDL 已显式 `COLLATE = utf8mb4_general_ci`，线上表 `ALTER ... CONVERT TO` 对齐。
+
+### 26.6 验证
+
+- `mvn test`（13 个纯单测类）**61 tests，BUILD SUCCESS**；`mvn compile -pl spzx-manager` rc=0
+- 后端接口实测（真 token、真库）：店铺 CRUD 11 例（含 5 条校验拒绝、默认店互斥、只读注册表抹字段 vs
+  维护页露字段、删除保护 3373 条）、shopId 筛选 5 例（含跨店应为 0）、自动打标（预览 927/实写 927/重跑 0）、
+  batchTag 6 例（孤儿 id / 追加 / 重复追加 / 替换 / 关账拒绝 / 清理）、itemOps 七档 + 乱写 facet + 平台店铺关键词组合
+- 前端 `npx eslint` 全部改动文件 0 error（mallProduct 6 条 unused-var 警告是改造前就有的死代码）
+- 浏览器实测（登录态 + 截图 + DOM 逐格比对）：首页六卡与口径说明、商品运营台（筛选项数量与接口逐项一致）、
+  店铺管理（拼多多平台名修复后）、标签管理（预览命中面板含 9 条未覆盖分类）、账单记录（标签列已落标 +
+  批量打标签对话框真实写入 2 笔后回滚）、平台订单（新筛选栏 + 店铺列）
+- 测试数据全部清理：探针店铺 4/5 已删、店 3 的 `is_default` 还原为 1、`expense_order_tag` 回到 927 行、
+  验证用的 2 条「日用」标签已删、无孤儿关联
+
+### 26.7 仍然弱的地方（不粉饰）
+
+- 平台订单真实入库没做 —— 这是唯一能补上真实 GMV / 退款率的路，需要你的浏览器在线 + 抖店/淘宝采集，单独排期
+- `platform_sku` 14 行、SKU 级绑定 9 条：库存/断货/变价提醒在平台侧的作用域只有这 9 个 SKU，
+  所以"库存告急"筛出来只有 2 条不是好消息，是覆盖面问题
+- 商品运营台只覆盖淘宝 315/3110 个商品；另有 127 个 `item_id` 在 `platform_product` 里查无此品（已下架或没采全）
+- `platform_product` 表**没有上下架状态列**，所以这一页无法回答"这个商品还在不在架"
+- 费用打标覆盖率 48.6%（927/1908），剩下 981 笔集中在经营支出，要新标签才能装
+- §25 那句"按你的指示先做完未提交"已过期：§25 与本轮之前的改动都已提交并 ff 到 main（`41df49e`），
+  **本轮 §26 的改动按你的习惯先不提交，等你说提交**。前端远程是 Gitee，同样未推。
+
+---
+
+## 27. 淘宝付费推广日报导入骨架（2026-09-30，真实导出文件到手前先立骨架）
+
+用户开了「关键词推广标准计划」与「人群推广标准计划」，要把每日数据导进来分析。
+真实导出文件晚上才有，所以这一节的判断标准是：**在没见过列名的前提下，搭一个不会因为列名不对就丢数据、
+也不需要改代码重发版的骨架。**
+
+### 27.1 现状盘点（先查再动手）
+
+- `ingest_dataset` id=7 早就登记了 `promo_cost`「推广花费」契约：`target_table=promo_cost_daily`、
+  `required=campaign_id,stat_date`、`sla=30h`、`monitor=0`、remark「目标表尚未建」。**表没建、没有写入方。**
+- `sycm_sy_ztkb` / `sycm_sy_llkb`：一天一行的**店铺级**宽表，字段里已经有 `keyword_fee`（关键词推广花费）、
+  `exact_crowd_fee`（精准人群推广花费）、`full_site_fee`、`intelli_scence_fee`、`taobao_customer_commison`。
+  但全仓 **0 引用 0 写入**（Java 无实体无 mapper、Python 不写、前端不读），是上一套系统的遗骸。
+- `keyword_plan_product` / `keyword_plan_product_word` / `keyword_plan_crowd` / `oper_promotion_plan`：
+  计划**配置**侧（单元、关键词出价、人群溢价/规模），同样 0 引用；AI 选词 spec 已写明"不复用现有空表 keyword_plan_*"。
+- 判断：店铺级日汇总答不了"哪个词/哪个人群在烧钱不出单"，所以按契约新建 campaign/item 两级事实表，
+  **不去改那批遗骸**（改一张没人用也没人验证过的表，风险大于收益）。
+
+### 27.2 三条设计约束（都源于"列名还不知道"）
+
+1. **列名映射是数据不是代码**：`promo_import_map(report_level, source_column → target_column)`，
+   解析器 `PromoReportCsvParser` 里一个中文列名都不写。猜错的代价从"改代码重新发版"降成"改一行数据"。
+   预置 49 条常见列名，全部 `verified=0`，等真实文件核对。
+2. **未映射的列必须报出来，绝不静默丢**：预览结果返回 `headers / matched / unmapped / unknownTargets /
+   missingRequired`。第一次拿到真实文件时，靠 `unmapped` 补映射即可。
+3. **整行原始值留在 `raw_json`**：映射以后怎么改，历史行都能重放，不用重新导出。
+
+另外两条口径决定：
+- 百分比按报表原样的百分数存（`ctr_percent=12.34` 表示 12.34%），**不在导入阶段猜**导出给的是
+  `12.34%` 还是 `0.1234`；配合 `raw_json` 事后能判断也能重算。
+- 所有指标列可空。空=报表没给，0=报表给了 0，两者不能混（`-`、`--`、`/`、`暂无`、`N/A` 一律归 null）。
+
+### 27.3 落地的东西
+
+| 对象 | 说明 |
+|---|---|
+| `promo_cost_daily` | 计划粒度日报，唯一键 `(shop_id, plan_type, campaign_id, stat_date)` |
+| `promo_cost_item_daily` | 明细粒度（关键词/人群/创意/宝贝/地域），唯一键含 `dimension+entity_key` |
+| `promo_import_map` | 列名映射，49 条预置，`verified` 标记是否已用真实文件核对 |
+| `CsvText` | 从 `AlipayBillCsvParser` 提出的共享件：utf-8/gb18030/BOM 探测 + RFC4180 切分 |
+| `PromoReportCsvParser` | 纯函数：表头定位、列映射体检、值归一化（¥/千分位/万/亿/%/多格式日期） |
+| `PromoRowConverter` | 纯函数：按 DDL 精度收窄，单行字段坏只报这一行，不整批回滚 |
+| `PromoCostService` | preview/commit 同一入口（`dryRun`），自然键 upsert，按批次号整批回滚 |
+| `/admin/promo/*` | mapping CRUD + `import/preview` + `import/commit` + `import/batch/{batch}` |
+
+契约同步更新：`promo_cost` 的 `natural_key_cols` 改成 `shop_id,plan_type,campaign_id,stat_date`
+（原登记的三列不够——同一天的同一计划在关键词报表和人群报表里会各出一行），
+并新增 `promo_cost_detail` 数据集。两者 `monitor` 先留 0：**首次成功导入前开监控必然产生一条假过期告警**（§24 的 bootstrap 规则）。
+
+### 27.4 端到端验证（造了一份 gb18030、带标题块、含未映射列的假报表）
+
+- 表头自动定位到第 3 行，标题块跳过；`"¥1,234.50"` → 1234.50、`2.17%` → 2.17、`-` → NULL
+- `unmapped` 如实报出 `['平均展现排名','总收藏加购数']`，没有静默丢
+- commit 3 行 → 重导同一份 `inserted=0 / overwritten=3`（upsert 生效，MySQL 9.6 接受 `AS new` 行别名语法）
+- 按批次回滚返回 3，表清空
+- 映射校验：非法目标字段列出白名单、同列名重复拒绝
+- 明细层 join 验证：`item_id → platform_product.code` 命中真实商品（88 / 2924），
+  关键词花费 + 商品定价同表可查 —— 这是"把推广费摊到商品算真实 ROI"的桥，通了
+- `mvn test` 全量 **93 tests BUILD SUCCESS**（新增 `PromoReportCsvParserTest` 25 例、`CsvTextTest` 8 例）
+- 探针数据与临时文件已清理，两张事实表留空，49 条映射留着待核对
+
+### 27.5 测试暴露的一个真设计缺口
+
+第一版明细表只有一套 `entity_*` 标识。造关键词维度的假报表一跑就露馅：
+真实报表的一行是 **(关键词, 该词投在哪个宝贝)** 的配对，`关键词` 和 `宝贝ID` 挤进同一个 entity 字段后，
+要么关键词文本被宝贝 id 顶掉，要么 `dimension` 认成 `other` —— 而宝贝 id 正是后面 join 商品的唯一桥梁。
+补了独立的 `item_id` / `item_name` 两列，`关键词→entity_keyword`、`宝贝ID→item_id` 各归各位，
+并把「明细必须至少映射一个实体列」的校验从"必须叫 entity_name"改成"六个候选列任一命中"。
+
+### 27.6 还没做
+
+- 前端上传/映射页（今晚把 CSV 给我或给路径，我用接口导；页面等你确认列名后再做更省事）
+- 推广费进商品维度后，把 `itemOps` 的毛利改成**扣掉推广费**的真实毛利
+- 开放平台 API 路线未探（个人店大概率没有阿里妈妈报表接口权限，未核实）
+- 成交归因窗口（累计成交 vs 当天成交）在真实文件里怎么体现，等文件到了再定列
