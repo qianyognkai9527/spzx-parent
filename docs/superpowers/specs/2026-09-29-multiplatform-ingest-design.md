@@ -760,3 +760,70 @@ lastWrite=05:30 / 6668 行；`source_stock_change` 05:00；`source_alert_detect`
 5 条测试提醒（含 ui_probe / probe_bad / alert_detect）全删，终态 `ingest_batch` 5 行全为真实执行、
 `sync_alert` 只剩 id=4 那条（即 §24.5 的证据），/tmp 探针脚本与两个服务日志、token 文件已删，
 8501 与 3001 已停。
+
+## 25. 过期告警自动关闭：dataset_code 外键 + 已恢复终态（2026-09-30，§24.5 的收口）
+
+### 25.1 问题
+
+§24.4 的截图就是活证据：同一面板上并存着「淘宝商品日效果快照 最后写入 09-30 06:03 · 批次 success 290 行」
+和未读提醒「已 59 小时没有成功采集…最后写入 2026-09-27 06:03」。扫描恢复新鲜时只清
+`ingest_dataset.stale_since`，不动已经写出去的 `sync_alert` 行，于是那条提醒永久挂着，
+只能靠人点"已读"。根因是 `insertAlert` 没写数据集标识（`old_value` 存最后写入时刻、
+`new_value` 存 SLA），Java 侧想关也**认不出哪条告警属于哪个数据集**。
+
+### 25.2 落地（方案 ①+② 一起做）
+
+- ① `sync_alert.dataset_code VARCHAR(32) NULL`（迁移 `sql/sync_alert_dataset_code.sql`），
+  `insertAlert` 写入；只给契约类告警用，其他类型保持 NULL。
+- ② `SyncAlert.STATUS_RESOLVED = 2`：条件自愈由系统关闭，行留在表里可审计，
+  不再进未读列表。前端提醒条请求的是 `status: 0`，所以无需改前端就能消失；
+  整条提醒带 `v-if="alerts.length"`，清空后连 error 呼吸灯一起隐藏，不会留下"红灯但没内容"。
+- 关闭时同时置 `notified=1`。`SyncAlertNotifyTask` 只按 `notified` 过滤、不看 status，
+  现在 webhook 没配 → 这条历史欠账会等你哪天配上钉钉就一次性推出去，推的是一句已经假了的"59 小时没采集"。
+  推一条自愈的假警报比不推更糟。
+- 不加索引：`sync_alert` 是几百行量级的小表，每小时按 `(alert_type, dataset_code, status)`
+  更新个位数行；表长到万行再回来加。
+
+### 25.3 不只关在"过期→新鲜"的转换瞬间
+
+初版把关闭挂在 `stale_since != null` 那个分支里，实测立刻漏：本机 `item_daily_sycm` 的
+`stale_since` 早在 09:15 那轮就被清了（那时还没有关闭逻辑），转换已经发生完毕，
+按"只认转换"的写法这条历史行永远不会被关。改成**只要判到新鲜就扫一遍**——
+UPDATE 只匹配 `status=0`，无匹配即空操作，每轮跑是幂等的。这样应用停机期间发生的转换也能补上，
+而应用停着不动正是这台机器的常态。
+
+### 25.4 历史行回填
+
+`message` 由 `insertAlert` 固定生成，开头是「<数据集名>」，所以回填只能靠名称映射：
+`UPDATE ... JOIN ingest_dataset ON message LIKE CONCAT('「', d.name, '」%')`。
+不把中文名写死在脚本里，否则哪天改数据集名就回填不上。迁移自带的自检
+`unresolved_ingest_stale` 实测 = 0。
+
+### 25.5 验证
+
+- 迁移执行后 `id=4` 拿到 `dataset_code=item_daily_sycm`，自检 0 行未回填。
+- 临时把扫描参数压到 initial-delay 4s / interval 20s（只改命令行，不动 yml）实跑：
+  日志 `ingest 数据集 item_daily_sycm 已新鲜，自动关闭 1 条过期告警`，
+  库里该行变 `status=2 / notified=1`；随后 3 轮扫描"自动关闭"日志计数仍为 1（幂等成立），
+  调度任务错误 0 次；`sync_alert` status 分布只剩 `2=1`，未读列表为空。
+- `mvn test`（8 个纯单测类）32 tests 全绿 BUILD SUCCESS；`mvn compile` 干净。
+- **未做**：没为关闭逻辑补单测。它是 `sync_alert` 上的一条 UPDATE，纯单测要么 mock mapper
+  只断言"我调用了自己"，要么得拉 Spring 上下文（`EmailTest` 那类，本机环境不全必挂），
+  两条都不值；上面已经有真环境的行为证据。
+
+### 25.6 两个自己造的坑（记下来免得再踩）
+
+- 改了 `spzx-model` 的实体却不 `mvn install -pl spzx-model`，`spring-boot:run` 会用 `~/.m2`
+  里的旧 jar，运行期报 `NoSuchFieldError: SyncAlert.STATUS_RESOLVED`——编译期完全看不出来。
+  AGENTS.md 第一行构建命令就写着这个顺序，是我跳过了它。
+- `-Dspring-boot.run.arguments` 的分隔是**空格**不是逗号：写成 `--a=4000,--b=20000` 会让
+  第一个属性拿到整串值，`@Scheduled` 的 `initialDelayString` 解析失败直接把应用启动顶掉。
+
+### 25.7 本轮 git
+
+后端 7 笔（`feat(platform)` P0 / `feat(ingest)` 契约与新鲜度 / `feat(cron)` 台账与告警 /
+`feat(expense)` byCounterparty / `feat(product)` parse1688 / `fix(config)` 路径 / `docs(spec)`），
+前端 3 笔（看板新鲜度与运维提醒 / 对账分类图 / parse1688 调用点）。**未 push**。
+你自己的在途改动（novel / kw / videogen / sysdict / 关账 / detect_alerts.py / probe_*.py /
+AGENTS.md 等）一笔没动、一笔没带。§25 这份修复（`sync_alert_dataset_code.sql` + 实体 + 服务）
+按你的指示先做完未提交。

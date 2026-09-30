@@ -167,6 +167,13 @@ public class IngestFreshnessService {
                         .eq(IngestDataset::getId, d.getId()));
                 log.info("ingest 数据集 {} 恢复新鲜（最后写入 {}）", d.getCode(), lw.at());
             }
+            // 不只在"过期→新鲜"的转换瞬间关：应用停着的那段时间里发生的转换没人处理，
+            // 只认转换会让历史未读行永久挂着（本机 09-30 就是这么漏掉 item_daily_sycm 的）。
+            // 这条 UPDATE 只匹配 status=0，无匹配即空操作，每轮扫一遍是幂等的。
+            int closed = closeOpenAlerts(d);
+            if (closed > 0) {
+                log.info("ingest 数据集 {} 已新鲜，自动关闭 {} 条过期告警", d.getCode(), closed);
+            }
             return false;
         }
 
@@ -186,9 +193,24 @@ public class IngestFreshnessService {
         return true;
     }
 
+    /**
+     * 恢复新鲜后关闭该数据集仍未读的过期告警。
+     * 同时置 notified=1：钉钉推送任务只按 notified 过滤，一条已经自愈的「已 59 小时没采集」
+     * 之后再推给人是纯噪音（webhook 现在没配，一旦配上就会把历史欠账全推出去）。
+     */
+    private int closeOpenAlerts(IngestDataset d) {
+        return syncAlertMapper.update(null, Wrappers.<SyncAlert>lambdaUpdate()
+                .set(SyncAlert::getStatus, SyncAlert.STATUS_RESOLVED)
+                .set(SyncAlert::getNotified, 1)
+                .eq(SyncAlert::getAlertType, ALERT_TYPE)
+                .eq(SyncAlert::getDatasetCode, d.getCode())
+                .eq(SyncAlert::getStatus, SyncAlert.STATUS_UNREAD));
+    }
+
     private void insertAlert(IngestDataset d, LocalDateTime lastWriteAt, long ageHours) {
         SyncAlert alert = new SyncAlert();
         alert.setAlertType(ALERT_TYPE);
+        alert.setDatasetCode(d.getCode());
         alert.setMessage(truncate(alertMessage(d, lastWriteAt, ageHours), MESSAGE_MAX));
         alert.setOldValue(lastWriteAt == null ? "无" : lastWriteAt.format(TS));
         alert.setNewValue("SLA " + slaOf(d) + "h");
