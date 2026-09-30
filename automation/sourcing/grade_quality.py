@@ -5,8 +5,15 @@
 
 幂等: 重复执行会用 CASE WHEN 全量重算覆盖。每次抓取/导入后跑一次即可。
 用法: automation/venv/bin/python grade_quality.py
+
+台账: crontab 每天 05:30 直调本脚本(没有 bash 包装层), 所以批次由脚本自己写 ingest_batch、
+异常由脚本自己写 sync_alert。分级结果被 5 处 Java 读路径当筛选/排序条件
+(SalesRankingMapper 直接 quality_grade IN ('A','B')), 静默跑挂会让榜单与看板一起失真。
 """
 import pymysql
+
+import cron_alert
+from cron_batch import begin_batch, end_batch
 from source_config import (
     PRODUCT_GRADE_A, PRODUCT_GRADE_B, PRODUCT_GRADE_C,
     FACTORY_GRADE_A, FACTORY_GRADE_B,
@@ -16,6 +23,8 @@ DB_CONFIG = {
     "host": "localhost", "port": 3306, "user": "root",
     "password": "root123456", "database": "db_spzx", "charset": "utf8mb4",
 }
+DATASET = "source_quality_grade"
+ALERT_KEY = "grade_quality"
 
 
 def grade_product(trust, repurchase, sales):
@@ -71,25 +80,52 @@ def _counts(cur, table, grade_col="quality_grade"):
     return cur.fetchall()
 
 
+def _split(rows):
+    """_counts 结果 -> (总行数, 有等级行数)。"""
+    total = sum(n for _g, n in rows)
+    graded = sum(n for g, n in rows if g != "NULL")
+    return total, graded
+
+
 def main():
-    conn = pymysql.connect(**DB_CONFIG)
-    cur = conn.cursor()
+    batch_id = begin_batch(DATASET, channel="derived")
+    conn = cur = None
+    try:
+        conn = pymysql.connect(**DB_CONFIG)
+        cur = conn.cursor()
 
-    print("== 分级前 ==")
-    print("source_product:", _counts(cur, "source_product"))
-    print("source_factory:", _counts(cur, "source_factory"))
+        print("== 分级前 ==")
+        before_p, before_f = _counts(cur, "source_product"), _counts(cur, "source_factory")
+        print("source_product:", before_p)
+        print("source_factory:", before_f)
 
-    cur.execute(_PRODUCT_SQL)
-    cur.execute(_FACTORY_SQL)
-    conn.commit()
+        cur.execute(_PRODUCT_SQL)
+        cur.execute(_FACTORY_SQL)
+        conn.commit()
 
-    print("\n== 分级后 ==")
-    print("source_product:", _counts(cur, "source_product"))
-    print("source_factory:", _counts(cur, "source_factory"))
+        print("\n== 分级后 ==")
+        after_p, after_f = _counts(cur, "source_product"), _counts(cur, "source_factory")
+        print("source_product:", after_p)
+        print("source_factory:", after_f)
 
-    cur.close()
-    conn.close()
-    print("\n🎉 分级完成")
+        # 幂等重算的"改动行数"永远接近 0，报它等于报"什么都没干"；台账记覆盖行数与出等级行数
+        total = _split(before_p)[0] + _split(before_f)[0]
+        graded = _split(after_p)[1] + _split(after_f)[1]
+        end_batch(batch_id, "success", rows_total=total, rows_ok=graded)
+        print("\n🎉 分级完成")
+    except Exception as exc:
+        end_batch(batch_id, "failed", error=f"{type(exc).__name__}: {exc}")
+        # 跑挂和"守卫主动跳过"要分开报：前者是要修的 bug，后者可能只是机器没开
+        cron_alert.write_alert(
+            ALERT_KEY,
+            f"货源质量分级未重算: {type(exc).__name__}: {str(exc)[:180]}",
+            alert_type=cron_alert.FAILED_TYPE)
+        raise
+    finally:
+        if cur is not None:
+            cur.close()
+        if conn is not None:
+            conn.close()
 
 
 if __name__ == "__main__":

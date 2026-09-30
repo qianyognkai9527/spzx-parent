@@ -45,7 +45,7 @@ public class TaskProgressServiceImpl implements TaskProgressService {
             "detail.1688.com"
     );
 
-    @Value("${task-progress.config-path:/Users/qyk9527/sourcing/task-progress-config.json}")
+    @Value("${task-progress.config-path:${user.dir}/automation/sourcing/task-progress-config.json}")
     private String configPath;
 
     @Value("${task-progress.cdp-base-url:http://127.0.0.1}")
@@ -351,12 +351,13 @@ public class TaskProgressServiceImpl implements TaskProgressService {
         return out;
     }
 
-    /** 读取 JSON 进度字段, 兼容 int 与数组 */
+    /** 读取 JSON 进度字段, 兼容 int、数组与对象（进度文件里 failed 常是 id→详情的 dict，长度即条数） */
     private int jsonIntOrLen(JSONObject data, String key) {
         Object v = data.get(key);
         if (v == null) return 0;
         if (v instanceof JSONArray arr) return arr.size();
         if (v instanceof List list) return list.size();
+        if (v instanceof Map map) return map.size();
         return data.getInt(key, 0);
     }
 

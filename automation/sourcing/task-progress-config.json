@@ -14,7 +14,8 @@
    "script": "cron_collect_full.sh",
    "logPath": "/tmp/cron_collect_full.log",
    "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing && /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python collect_1688_full.py --limit 100",
-   "doneKey": "done"
+   "doneKey": "done",
+   "schedule": "每周六 03:00"
   },
   {
    "key": "guiruo_douyin",
@@ -100,7 +101,8 @@
    "progressFile": "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/freight_progress.json",
    "script": "cron_freight.sh",
    "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing && /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python fetch_freight.py --limit 100",
-   "logPath": "/tmp/cron_freight.log"
+   "logPath": "/tmp/cron_freight.log",
+   "schedule": "每周六 03:30"
   },
   {
    "key": "collect_source_sku",
@@ -126,7 +128,8 @@
    "type": "process_only",
    "script": "inventory_cron.sh",
    "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing && /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python detect_stock_change.py --pool",
-   "logPath": "/tmp/inventory_weekly.log"
+   "logPath": "/tmp/inventory_weekly.log",
+   "schedule": "每日 05:00"
   },
   {
    "key": "guess_sku_bind",
@@ -178,7 +181,23 @@
    "type": "process_only",
    "script": "grade_quality.py",
    "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing && /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python grade_quality.py",
-   "logPath": "/tmp/cron_grades.log"
+   "logPath": "/tmp/cron_grades.log",
+   "schedule": "每日 05:30"
+  },
+  {
+   "key": "sycm_snapshot",
+   "name": "生意参谋商品快照",
+   "category": "scheduled",
+   "tags": [
+    "淘宝",
+    "9222"
+   ],
+   "port": 9222,
+   "schedule": "每日 06:00",
+   "type": "process_only",
+   "script": "sycm_item_snapshot.py",
+   "logPath": "/tmp/sycm_daily_cron.log",
+   "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing && /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python sycm_item_snapshot.py --date-type recent7"
   },
   {
    "key": "taobao_cat_v2",
@@ -195,7 +214,11 @@
    "script": "assign_shop_category_v2.py",
    "logPath": "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/cat_v2_run.log",
    "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing && nohup bash run_cat_v2.sh --retry-failed >> /dev/null 2>&1 &",
-   "doneKey": "done"
+   "doneKey": "done",
+   "fields": {
+    "processed": "done",
+    "failed": "failed"
+   }
   }
  ]
 }
