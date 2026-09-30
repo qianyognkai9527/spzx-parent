@@ -99,9 +99,18 @@ app:
 
 # 任务进度看板配置
 task-progress:
-  config-path: /Users/qyk9527/sourcing/task-progress-config.json
+  config-path: /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/task-progress-config.json
 
-# 主图质量分重算配置
+# 主图质量分重算配置（assess_visual.py 现归档于 automation/sourcing/_archive_20260906/）
 visual:
-  python-bin: /Users/qyk9527/tb-auto/venv/bin/python
-  script-dir: /Users/qyk9527/sourcing
+  python-bin: /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python
+  script-dir: /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing
+
+# 外部告警通道：钉钉自定义机器人 webhook，留空=不推送（真实地址放 application-local.yml）
+spzx:
+  alert:
+    dingtalk-webhook: ""
+  # 采集新鲜度扫描：采集调度在系统 cron，这里只判定「该写的有没有写进来」并写 sync_alert
+  ingest:
+    scan-interval-ms: 3600000
+    scan-initial-delay-ms: 90000
