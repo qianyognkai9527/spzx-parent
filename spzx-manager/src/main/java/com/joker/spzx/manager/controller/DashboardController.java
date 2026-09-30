@@ -28,9 +28,10 @@ public class DashboardController {
         return Result.build(dashboardService.getKpiCards(), ResultCodeEnum.SUCCESS);
     }
 
-    @GetMapping("/orderTrend")
-    public Result<List<OrderTrendVo>> getOrderTrend() {
-        return Result.build(dashboardService.getOrderTrend(), ResultCodeEnum.SUCCESS);
+    /** 商品效果趋势：按生意参谋快照，每个点的值是那次快照覆盖的近7日汇总 */
+    @GetMapping("/effectTrend")
+    public Result<List<EffectTrendVo>> getEffectTrend() {
+        return Result.build(dashboardService.getEffectTrend(), ResultCodeEnum.SUCCESS);
     }
 
     @GetMapping("/platformDist")

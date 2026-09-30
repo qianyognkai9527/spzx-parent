@@ -34,6 +34,9 @@ import java.util.Set;
 @Service
 public class DashboardServiceImpl implements DashboardService {
 
+    /** 趋势图取最近多少次快照 */
+    private static final int TREND_POINTS = 30;
+
     @Autowired
     private DashboardMapper dashboardMapper;
 
@@ -54,17 +57,59 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public DashboardKpiVo getKpiCards() {
+        return buildKpi(
+                dashboardMapper.selectEffectSnapshots(TREND_POINTS),
+                dashboardMapper.countFactories(),
+                dashboardMapper.countProducts(),
+                dashboardMapper.countPlatformProducts(),
+                dashboardMapper.countUnreadAlerts(),
+                dashboardMapper.sumMonthExpense(),
+                dashboardMapper.countMonthExpense());
+    }
+
+    /**
+     * KPI 组装（纯函数，便于脱库脱 Spring 单测）。
+     *
+     * @param snapshots 生意参谋快照序列，快照时间倒序；空列表代表还没采过效果数据，
+     *                  此时经营指标全部留 null 让前端显示"暂无"，而不是显示 0 让人以为今天没卖动
+     */
+    public static DashboardKpiVo buildKpi(List<EffectTrendVo> snapshots, Long factoryCount, Long productCount,
+                                          Long platformProductCount, Long unreadAlerts,
+                                          java.math.BigDecimal monthExpense, Long monthExpenseCount) {
         DashboardKpiVo vo = new DashboardKpiVo();
-        vo.setOrderCount(dashboardMapper.countOrders());
-        vo.setOrderTotalAmount(dashboardMapper.sumOrderAmount());
-        vo.setFactoryCount(dashboardMapper.countFactories());
-        vo.setProductCount(dashboardMapper.countProducts());
+        vo.setFactoryCount(factoryCount);
+        vo.setProductCount(productCount);
+        vo.setPlatformProductCount(platformProductCount);
+        vo.setUnreadAlerts(unreadAlerts);
+        vo.setMonthExpense(monthExpense);
+        vo.setMonthExpenseCount(monthExpenseCount);
+        if (snapshots == null || snapshots.isEmpty()) {
+            return vo;
+        }
+        EffectTrendVo latest = snapshots.get(0);
+        vo.setSnapshotAt(latest.getSnapshotTime());
+        vo.setEffectItems(latest.getItems());
+        vo.setVisitors7d(latest.getVisitors());
+        vo.setPayAmount7d(latest.getPayAmount());
+        vo.setCartUsers7d(latest.getCartUsers());
+        if (snapshots.size() > 1) {
+            EffectTrendVo prev = snapshots.get(1);
+            vo.setVisitorsPrev7d(prev.getVisitors());
+            vo.setPayAmountPrev7d(prev.getPayAmount());
+        }
         return vo;
     }
 
     @Override
-    public List<OrderTrendVo> getOrderTrend() {
-        return dashboardMapper.selectOrderTrend();
+    public List<EffectTrendVo> getEffectTrend() {
+        return toChronological(dashboardMapper.selectEffectSnapshots(TREND_POINTS));
+    }
+
+    /** mapper 按快照时间倒序取最近 N 次，折线要按时间正序画。纯函数，便于单测 */
+    public static List<EffectTrendVo> toChronological(List<EffectTrendVo> descOrder) {
+        List<EffectTrendVo> out = new ArrayList<>(descOrder == null ? List.of() : descOrder);
+        java.util.Collections.reverse(out);
+        return out;
     }
 
     @Override

@@ -13,7 +13,7 @@ public interface DashboardService {
 
     DashboardKpiVo getKpiCards();
 
-    List<OrderTrendVo> getOrderTrend();
+    List<EffectTrendVo> getEffectTrend();
 
     List<PlatformDistVo> getPlatformDistribution();
 
