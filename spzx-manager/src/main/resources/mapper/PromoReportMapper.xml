@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joker.spzx.manager.mapper.PromoReportMapper">
+
+    <!--
+      推广日报只读聚合。三个必须留痕的点：
+
+      1. 比率一律用「汇总后的分子/分母」重算，绝不 AVG(ctr_percent)。
+         各天/各计划流量能差一个数量级，平均百分比会被小流量那天带偏。
+      2. 分母为 0 或 NULL 时用 NULLIF 让它出 NULL，不出 0。
+         0 = "算出来是零"，NULL = "分母不存在，无从算"，混起来就会把"没人点"读成"CPC 为零"。
+      3. 与 platform_product join 时 COLLATE 加在推广侧、p.code 保持裸列 ——
+         p.code 上有唯一索引 mobile_unique，把 p.code 转排序规则会让索引失效（同一套坑在
+         商品运营台实测过：转错一侧 0.047s → 1.14s）。
+    -->
+
+    <select id="selectSummary" resultType="com.joker.spzx.model.vo.promo.PromoSummaryVo">
+        SELECT MIN(stat_date)                                                        AS dateFrom,
+               MAX(stat_date)                                                        AS dateTo,
+               COUNT(DISTINCT stat_date)                                             AS days,
+               COUNT(DISTINCT CASE WHEN charge &gt; 0 THEN campaign_id END)           AS planCount,
+               ROUND(SUM(charge), 2)                                                 AS charge,
+               SUM(ad_pv)                                                            AS adPv,
+               SUM(click)                                                            AS click,
+               ROUND(SUM(click) / NULLIF(SUM(ad_pv), 0) * 100, 4)                     AS ctrPercent,
+               ROUND(SUM(charge) / NULLIF(SUM(click), 0), 4)                          AS cpc,
+               ROUND(SUM(charge) / NULLIF(SUM(ad_pv), 0) * 1000, 4)                   AS cpm,
+               ROUND(SUM(gmv_total), 2)                                              AS gmvTotal,
+               ROUND(SUM(gmv_direct), 2)                                             AS gmvDirect,
+               SUM(order_total)                                                      AS orderTotal,
+               ROUND(SUM(gmv_total) / NULLIF(SUM(charge), 0), 2)                      AS roi,
+               SUM(cart_count)                                                       AS cartCount,
+               SUM(collect_total)                                                    AS collectTotal,
+               DATE_FORMAT(MAX(update_time), '%Y-%m-%d %H:%i')                       AS lastCollectedAt
+        FROM promo_cost_daily
+        <where>
+            stat_date BETWEEN #{dateFrom} AND #{dateTo}
+            <if test="planType != null and planType != '' and planType != 'all'">
+                AND plan_type = #{planType}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectTrend" resultType="com.joker.spzx.model.vo.promo.PromoDailyVo">
+        SELECT stat_date                                                             AS statDate,
+               ROUND(SUM(charge), 2)                                                 AS charge,
+               SUM(ad_pv)                                                            AS adPv,
+               SUM(click)                                                            AS click,
+               ROUND(SUM(click) / NULLIF(SUM(ad_pv), 0) * 100, 4)                     AS ctrPercent,
+               ROUND(SUM(charge) / NULLIF(SUM(click), 0), 4)                          AS cpc,
+               ROUND(SUM(gmv_total), 2)                                              AS gmvTotal,
+               ROUND(SUM(gmv_total) / NULLIF(SUM(charge), 0), 2)                      AS roi,
+               SUM(cart_count)                                                       AS cartCount,
+               COUNT(DISTINCT CASE WHEN charge &gt; 0 THEN campaign_id END)           AS planCount
+        FROM promo_cost_daily
+        <where>
+            stat_date BETWEEN #{dateFrom} AND #{dateTo}
+            <if test="planType != null and planType != '' and planType != 'all'">
+                AND plan_type = #{planType}
+            </if>
+        </where>
+        GROUP BY stat_date
+        ORDER BY stat_date
+    </select>
+
+    <select id="selectPlans" resultType="com.joker.spzx.model.vo.promo.PromoPlanVo">
+        SELECT campaign_id                                                           AS campaignId,
+               MAX(campaign_name)                                                    AS campaignName,
+               plan_type                                                             AS planType,
+               MAX(bid_type)                                                         AS bidType,
+               COUNT(DISTINCT stat_date)                                             AS days,
+               ROUND(SUM(charge), 2)                                                 AS charge,
+               SUM(ad_pv)                                                            AS adPv,
+               SUM(click)                                                            AS click,
+               ROUND(SUM(click) / NULLIF(SUM(ad_pv), 0) * 100, 4)                     AS ctrPercent,
+               ROUND(SUM(charge) / NULLIF(SUM(click), 0), 4)                          AS cpc,
+               ROUND(SUM(gmv_total), 2)                                              AS gmvTotal,
+               ROUND(SUM(gmv_direct), 2)                                             AS gmvDirect,
+               SUM(order_total)                                                      AS orderTotal,
+               ROUND(SUM(gmv_total) / NULLIF(SUM(charge), 0), 2)                      AS roi,
+               SUM(cart_count)                                                       AS cartCount,
+               SUM(collect_total)                                                    AS collectTotal,
+               DATE_FORMAT(MAX(update_time), '%Y-%m-%d %H:%i')                       AS lastCollectedAt
+        FROM promo_cost_daily
+        <where>
+            stat_date BETWEEN #{dateFrom} AND #{dateTo}
+            <if test="planType != null and planType != '' and planType != 'all'">
+                AND plan_type = #{planType}
+            </if>
+        </where>
+        GROUP BY campaign_id, plan_type
+        <!-- ONLY_FULL_GROUP_BY 下不能写 ORDER BY charge：裸列名会被认成分组外的列而不是别名，
+             必须重复聚合表达式本身 -->
+        ORDER BY SUM(charge) IS NULL, SUM(charge) DESC
+    </select>
+
+    <!-- 宝贝维度：先聚合再 join 商品表，否则 4679 行商品表会参与分组 -->
+    <select id="selectItems" resultType="com.joker.spzx.model.vo.promo.PromoItemVo">
+        SELECT t.* FROM (
+            SELECT i.item_id                                                         AS itemId,
+                   MAX(i.item_name)                                                  AS itemName,
+                   p.title                                                           AS productTitle,
+                   (p.id IS NOT NULL)                                                AS platformProduct,
+                   p.pricing                                                         AS pricing,
+                   MAX(i.plan_type)                                                  AS planType,
+                   <!-- 一个宝贝可以同时投在两个计划里（实测 225 个有 8 个），
+                        取 MAX 会让"这条投放属于哪个计划"变成一个瞎猜的答案：
+                        计划数与计划名/ID 一律按去重后的全量给，多计划由前端标出来 -->
+                   COUNT(DISTINCT i.campaign_id)                                     AS campaignCount,
+                   GROUP_CONCAT(DISTINCT i.campaign_id)                              AS campaignId,
+                   GROUP_CONCAT(DISTINCT i.campaign_name ORDER BY i.campaign_name SEPARATOR '、') AS campaignName,
+                   COUNT(DISTINCT i.stat_date)                                       AS days,
+                   ROUND(SUM(i.charge), 2)                                           AS charge,
+                   SUM(i.ad_pv)                                                      AS adPv,
+                   SUM(i.click)                                                      AS click,
+                   ROUND(SUM(i.click) / NULLIF(SUM(i.ad_pv), 0) * 100, 4)             AS ctrPercent,
+                   ROUND(SUM(i.charge) / NULLIF(SUM(i.click), 0), 4)                  AS cpc,
+                   ROUND(SUM(i.gmv_total), 2)                                        AS gmvTotal,
+                   ROUND(SUM(i.gmv_direct), 2)                                       AS gmvDirect,
+                   ROUND(SUM(i.gmv_indirect), 2)                                     AS gmvIndirect,
+                   SUM(i.order_total)                                                AS orderTotal,
+                   ROUND(SUM(i.gmv_total) / NULLIF(SUM(i.charge), 0), 2)              AS roi,
+                   SUM(i.cart_count)                                                 AS cartCount,
+                   SUM(i.collect_total)                                              AS collectTotal
+            FROM promo_cost_item_daily i
+                     LEFT JOIN platform_product p
+                               ON p.code = i.item_id COLLATE utf8mb4_unicode_ci
+            <where>
+                i.dimension = 'item'
+                AND i.stat_date BETWEEN #{dateFrom} AND #{dateTo}
+                <if test="planType != null and planType != '' and planType != 'all'">
+                    AND i.plan_type = #{planType}
+                </if>
+                <if test="campaignId != null and campaignId != ''">
+                    AND i.campaign_id = #{campaignId}
+                </if>
+                <if test="keyword != null and keyword != ''">
+                    AND (i.item_name LIKE CONCAT('%', #{keyword}, '%') OR i.item_id = #{keyword})
+                </if>
+            </where>
+            GROUP BY i.item_id, p.id, p.title, p.pricing
+        ) t
+        <choose>
+            <!-- 只看了没买：花了钱一次成交都没有，是这批报表里最该被挑出来的 -->
+            <when test="facet == 'noDeal'">
+                WHERE IFNULL(t.charge, 0) &gt; 0 AND IFNULL(t.gmvTotal, 0) = 0
+            </when>
+            <when test="facet == 'orphan'">
+                WHERE t.platformProduct = 0
+            </when>
+            <when test="facet == 'unpriced'">
+                WHERE IFNULL(t.charge, 0) &gt; 0 AND (t.pricing IS NULL OR t.pricing = 0)
+            </when>
+            <otherwise/>
+        </choose>
+        <choose>
+            <when test="sort == 'gmv'">ORDER BY t.gmvTotal IS NULL, t.gmvTotal DESC</when>
+            <when test="sort == 'roi'">ORDER BY t.roi IS NULL, t.roi DESC</when>
+            <when test="sort == 'click'">ORDER BY t.click IS NULL, t.click DESC</when>
+            <otherwise>ORDER BY t.charge IS NULL, t.charge DESC</otherwise>
+        </choose>
+    </select>
+
+</mapper>
