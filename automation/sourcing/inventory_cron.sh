@@ -29,13 +29,22 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] === 库存同步 $MODE 开始 ===" >> $LOG
 LINES_BEFORE=$(wc -l < "$LOG" 2>/dev/null || echo 0)
 BID=$($PY "$BATCH" begin --dataset "$DS")
 
-# 1. 采集1688 SKU + 检测变化 (默认只扫优质池, full扫全部)
+# 1. 采集1688 SKU + 检测变化
+#    池子=优质池 ∪ 绑定池（实测两者交集 0，绑定池才是断货告警唯一可能有数据的一批），
+#    单轮上限 60 个 + 10 秒间隔 + 14 天滚动重查：851 个候选摊到约 14 天跑完一轮。
+#    以前是"永久 done 名单"，首轮跑完就每天扫 0 个还报 success，库存悄悄烂了七周。
 if [ "$MODE" = "full" ]; then
-    $PY detect_stock_change.py >> $LOG 2>&1
+    $PY detect_stock_change.py --full --max-per-run 200 >> $LOG 2>&1
 else
-    $PY detect_stock_change.py --pool >> $LOG 2>&1
+    $PY detect_stock_change.py --pool-both --stale-days 14 --max-per-run 60 --delay 10 >> $LOG 2>&1
 fi
 rc=$?
+# 脚本自己打一行 SUMMARY；只在本轮新增片段里取，否则会读到上一轮的数字
+SUMMARY=$(tail -n +$((LINES_BEFORE + 1)) "$LOG" 2>/dev/null | grep '^SUMMARY ' | tail -1)
+CANDIDATES=$(echo "$SUMMARY" | sed -n 's/.*candidates=\([0-9]*\).*/\1/p')
+CHECKED=$(echo "$SUMMARY" | sed -n 's/.*checked=\([0-9]*\).*/\1/p')
+CHANGED=$(echo "$SUMMARY" | sed -n 's/.*changed=\([0-9]*\).*/\1/p')
+DEFERRED=$(echo "$SUMMARY" | sed -n 's/.*deferred=\([0-9]*\).*/\1/p')
 
 # 2. 检测提醒（独立台账：它跑挂不能借第 1 步的 rc 蒙混过关）
 ARB=$($PY "$BATCH" begin --dataset "$DS_ALERT")
@@ -47,7 +56,14 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] === 库存同步 $MODE 结束 rc=$rc 提醒
 ALERT_LINES=$(tail -n +$((LINES_BEFORE + 1)) "$LOG" 2>/dev/null | sed -n "s/.*新增 \([0-9]*\) 条.*/\\1/p")
 ALERT_ROWS=$(echo "${ALERT_LINES:-0}" | paste -sd+ - | bc 2>/dev/null || echo 0)
 if [ "$rc" = "0" ]; then
-  $PY "$BATCH" end --id "$BID" --status success > /dev/null 2>&1
+  $PY "$BATCH" end --id "$BID" --status success --rows-total "${CHECKED:-0}" \
+      --rows-ok "${CHANGED:-0}" > /dev/null 2>&1
+  # 停摆探测器：池子非空却一个都没查，说明变化检测又变成了"每天扫 0 个报 success"
+  # —— 那正是它悄悄停摆七周的形态（永久 done 名单），必须当场报而不是等人事后翻流水
+  if [ -n "$CANDIDATES" ] && [ "$CANDIDATES" != "0" ] && [ "${CHECKED:-0}" = "0" ]; then
+    $PY "$ALERT" --key inventory_sync --type cron_failed \
+      --msg "库存变化检测本轮扫 0 个（池子有 ${CANDIDATES} 个候选）：检测名单可能又被写成了永久跳过，库存数据在腐烂" > /dev/null 2>&1
+  fi
 else
   $PY "$BATCH" end --id "$BID" --status failed --error "detect_stock_change 异常退出 rc=$rc" > /dev/null 2>&1
   $PY "$ALERT" --key inventory_sync --type cron_failed --msg "库存日同步脚本异常退出 rc=$rc" > /dev/null 2>&1
