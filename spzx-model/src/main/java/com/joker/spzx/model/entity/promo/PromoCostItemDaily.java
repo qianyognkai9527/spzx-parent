@@ -86,6 +86,9 @@ public class PromoCostItemDaily {
 
     private BigDecimal cpc;
 
+    @Schema(description = "千次展现花费")
+    private BigDecimal cpm;
+
     @TableField("gmv_total")
     private BigDecimal gmvTotal;
 
@@ -98,6 +101,9 @@ public class PromoCostItemDaily {
     @TableField("order_total")
     private Integer orderTotal;
 
+    @TableField("order_direct")
+    private Integer orderDirect;
+
     private BigDecimal roi;
 
     @TableField("cart_count")
@@ -105,6 +111,60 @@ public class PromoCostItemDaily {
 
     @TableField("item_collect")
     private Integer itemCollect;
+
+    @TableField("shop_collect")
+    private Integer shopCollect;
+
+    @TableField("order_indirect")
+    private Integer orderIndirect;
+
+    @TableField("cvr_percent")
+    private BigDecimal cvrPercent;
+
+    @TableField("order_cost")
+    private BigDecimal orderCost;
+
+    @TableField("cart_direct")
+    private Integer cartDirect;
+
+    @TableField("cart_indirect")
+    private Integer cartIndirect;
+
+    @TableField("cart_rate_percent")
+    private BigDecimal cartRatePercent;
+
+    @TableField("cart_cost")
+    private BigDecimal cartCost;
+
+    @TableField("collect_total")
+    private Integer collectTotal;
+
+    @TableField("item_collect_rate_percent")
+    private BigDecimal itemCollectRatePercent;
+
+    @TableField("item_collect_cost")
+    private BigDecimal itemCollectCost;
+
+    @TableField("shop_collect_cost")
+    private BigDecimal shopCollectCost;
+
+    @TableField("collect_cart_total")
+    private Integer collectCartTotal;
+
+    @TableField("collect_cart_cost")
+    private BigDecimal collectCartCost;
+
+    @TableField("item_collect_cart")
+    private Integer itemCollectCart;
+
+    @TableField("item_collect_cart_cost")
+    private BigDecimal itemCollectCartCost;
+
+    @TableField("shopping_amt")
+    private BigDecimal shoppingAmt;
+
+    @TableField("add_new_uv")
+    private Integer addNewUv;
 
     @TableField("raw_json")
     private String rawJson;

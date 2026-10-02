@@ -41,9 +41,13 @@ public class PromoReportCsvParser {
             "stat_date", "campaign_id", "campaign_name", "unit_id", "unit_name",
             "entity_id", "entity_name", "entity_keyword", "entity_crowd", "entity_item",
             "entity_creative", "entity_region", "item_id", "item_name",
-            "charge", "ad_pv", "click", "ctr_percent", "cpc",
-            "gmv_total", "gmv_direct", "gmv_indirect", "order_total", "roi",
-            "cart_count", "item_collect");
+            "charge", "ad_pv", "click", "ctr_percent", "cpc", "cpm",
+            "gmv_total", "gmv_direct", "gmv_indirect", "order_total", "order_direct", "order_indirect",
+            "roi", "cvr_percent", "order_cost",
+            "cart_count", "cart_direct", "cart_indirect", "cart_rate_percent", "cart_cost",
+            "item_collect", "shop_collect", "collect_total", "item_collect_rate_percent", "item_collect_cost",
+            "shop_collect_cost", "collect_cart_total", "collect_cart_cost",
+            "item_collect_cart", "item_collect_cart_cost", "shopping_amt", "add_new_uv");
 
     /** 明细行主标识的候选列，任一命中即可 */
     private static final List<String> ENTITY_TARGETS =

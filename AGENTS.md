@@ -56,10 +56,10 @@ mvn spring-boot:run -pl spzx-manager
 | 包 | 用途 |
 |----|------|
 | `expense` | 对账管理：支付宝 CSV 幂等导入、打标规则引擎、月末关账 |
-| `ingest` | 采集契约/新鲜度：`ingest_dataset` 判据 + 过期告警写 `sync_alert`（调度留在系统 cron，后端只判定） |
+| `ingest` | 采集契约/新鲜度：`ingest_dataset` 判据 + 过期告警写 `sync_alert`（调度在系统 cron / LaunchAgent，后端只判定） |
 | `kw` | AI 选词推广：引擎凭据在 DB `kw_provider` 表 + `application-local.yml`；`KwAutoRunTask` 默认关闭 |
 | `platform` | 平台/店铺/能力只读注册表（`PlatformRegistryService`），P0 直查库不缓存 |
-| `promo` | 推广日报导入：先预览再落库，列名映射存 DB `promo_import_map`（当数据不当代码） |
+| `promo` | 推广日报：主路是 `automation/tb-auto/collect_alimama_promo.py` 直连万相台报表接口采集（LaunchAgent 每日 22:00）；`/admin/promo/import` 的 CSV 导入是兜底路，列名映射存 DB `promo_import_map`（当数据不当代码，全部 `verified=0` 未跟真实导出对过） |
 | `videogen` | 火山方舟 Seedance 视频生成（`ArkVideoClient` + `VideoPricing` 计费护栏 + 启动对账 `VideoGenStartupReconciler`） |
 | （无 `novel` 子包） | 小说/番茄逻辑在 service/ 顶层：`NovelService`、`NovelChapterService`、`FanqiePublishService` |
 

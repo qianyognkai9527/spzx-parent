@@ -334,11 +334,20 @@ class PromoReportCsvParserTest {
 
     @Test
     void 目标字段白名单按层级分开() {
-        assertTrue(PromoReportCsvParser.targetsOf("campaign").contains("shop_collect"));
-        assertFalse(PromoReportCsvParser.targetsOf("campaign").contains("entity_keyword"));
-        assertTrue(PromoReportCsvParser.targetsOf("item").contains("entity_keyword"));
-        assertTrue(PromoReportCsvParser.targetsOf("item").contains("item_id"));
-        assertFalse(PromoReportCsvParser.targetsOf("campaign").contains("item_id"));
-        assertFalse(PromoReportCsvParser.targetsOf("item").contains("cpm"));
+        java.util.Set<String> camp = PromoReportCsvParser.targetsOf("campaign");
+        java.util.Set<String> item = PromoReportCsvParser.targetsOf("item");
+        // 标识类字段必须分层：明细层才有 entity_*/item_id，计划层才有 bid_type
+        assertTrue(item.contains("entity_keyword"));
+        assertTrue(item.contains("item_id"));
+        assertFalse(camp.contains("entity_keyword"));
+        assertFalse(camp.contains("item_id"));
+        assertTrue(camp.contains("bid_type"));
+        assertFalse(item.contains("bid_type"));
+        // 指标类字段两层是同一套：接口在单元(adgroup)层返回的是同一批字段名，
+        // 明细表比计划表薄没有理由（2026-10-02 补齐 cpm/order_direct/shop_collect 等）
+        for (String m : new String[]{"cpm", "shop_collect", "order_direct", "order_indirect", "add_new_uv"}) {
+            assertTrue(camp.contains(m), "计划层缺指标 " + m);
+            assertTrue(item.contains(m), "明细层缺指标 " + m);
+        }
     }
 }

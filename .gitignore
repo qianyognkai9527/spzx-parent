@@ -55,6 +55,10 @@ automation/*/__pycache__/
 automation/*/*.pyc
 automation/sourcing/_archive_20260906/
 automation/sourcing/_probe_20260910/
+# 阿里妈妈报表接口的原始响应落盘：里面有 csrfId / memberId / 账户余额 / 商品数据，
+# 且 `automation/*/*.json` 只匹配一层，子目录里的 .json 挡不住，必须显式列目录
+automation/*/alimama_promo_raw/
+automation/*/probe_alimama_out/
 automation/tb-auto/novel_batches/
 automation/fanqie-publish/new_chapters/
 automation/*/*.png
