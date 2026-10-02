@@ -106,9 +106,6 @@ public class PromoCostItemDaily {
     @TableField("item_collect")
     private Integer itemCollect;
 
-    @TableField("chat_count")
-    private Integer chatCount;
-
     @TableField("raw_json")
     private String rawJson;
 

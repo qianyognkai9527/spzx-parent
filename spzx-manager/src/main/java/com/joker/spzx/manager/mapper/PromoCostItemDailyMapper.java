@@ -16,12 +16,12 @@ public interface PromoCostItemDailyMapper extends BaseMapper<PromoCostItemDaily>
             + "(shop_id, platform_code, stat_date, plan_type, dimension, entity_key, entity_id, entity_name, item_id, item_name, "
             + " campaign_id, campaign_name, unit_id, unit_name, report_source, "
             + " charge, ad_pv, click, ctr_percent, cpc, gmv_total, gmv_direct, gmv_indirect, "
-            + " order_total, roi, cart_count, item_collect, chat_count, raw_json, import_batch) VALUES "
+            + " order_total, roi, cart_count, item_collect, raw_json, import_batch) VALUES "
             + "<foreach collection='rows' item='r' separator=','>"
             + "(#{r.shopId},#{r.platformCode},#{r.statDate},#{r.planType},#{r.dimension},#{r.entityKey},#{r.entityId},#{r.entityName},#{r.itemId},#{r.itemName},"
             + " #{r.campaignId},#{r.campaignName},#{r.unitId},#{r.unitName},#{r.reportSource},"
             + " #{r.charge},#{r.adPv},#{r.click},#{r.ctrPercent},#{r.cpc},#{r.gmvTotal},#{r.gmvDirect},#{r.gmvIndirect},"
-            + " #{r.orderTotal},#{r.roi},#{r.cartCount},#{r.itemCollect},#{r.chatCount},#{r.rawJson},#{r.importBatch})"
+            + " #{r.orderTotal},#{r.roi},#{r.cartCount},#{r.itemCollect},#{r.rawJson},#{r.importBatch})"
             + "</foreach> AS new "
             + "ON DUPLICATE KEY UPDATE "
             + " platform_code=new.platform_code, plan_type=new.plan_type, entity_id=new.entity_id, entity_name=new.entity_name, item_id=new.item_id, item_name=new.item_name,"
@@ -29,7 +29,7 @@ public interface PromoCostItemDailyMapper extends BaseMapper<PromoCostItemDaily>
             + " charge=new.charge, ad_pv=new.ad_pv, click=new.click, ctr_percent=new.ctr_percent, cpc=new.cpc,"
             + " gmv_total=new.gmv_total, gmv_direct=new.gmv_direct, gmv_indirect=new.gmv_indirect,"
             + " order_total=new.order_total, roi=new.roi, cart_count=new.cart_count,"
-            + " item_collect=new.item_collect, chat_count=new.chat_count,"
+            + " item_collect=new.item_collect,"
             + " raw_json=new.raw_json, import_batch=new.import_batch</script>")
     int upsertBatch(@Param("rows") List<PromoCostItemDaily> rows);
 }

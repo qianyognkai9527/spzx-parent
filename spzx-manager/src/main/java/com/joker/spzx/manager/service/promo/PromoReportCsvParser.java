@@ -27,8 +27,13 @@ public class PromoReportCsvParser {
     private static final Set<String> CAMPAIGN_TARGETS = Set.of(
             "stat_date", "campaign_id", "campaign_name",
             "charge", "ad_pv", "click", "ctr_percent", "cpc", "cpm",
-            "gmv_total", "gmv_direct", "gmv_indirect", "order_total", "order_direct", "roi",
-            "cart_count", "item_collect", "shop_collect", "chat_count",
+            "gmv_total", "gmv_direct", "gmv_indirect", "order_total", "order_direct", "order_indirect",
+            "roi", "cvr_percent", "order_cost",
+            "cart_count", "cart_direct", "cart_indirect", "cart_rate_percent", "cart_cost",
+            "item_collect", "shop_collect", "collect_total",
+            "item_collect_rate_percent", "item_collect_cost", "shop_collect_cost",
+            "collect_cart_total", "collect_cart_cost", "item_collect_cart", "item_collect_cart_cost",
+            "shopping_amt", "add_new_uv", "bid_type",
             "unit_id", "unit_name");
 
     /** 明细级事实表允许的字段。entity_* 会顺带推出 dimension */
@@ -38,7 +43,7 @@ public class PromoReportCsvParser {
             "entity_creative", "entity_region", "item_id", "item_name",
             "charge", "ad_pv", "click", "ctr_percent", "cpc",
             "gmv_total", "gmv_direct", "gmv_indirect", "order_total", "roi",
-            "cart_count", "item_collect", "chat_count");
+            "cart_count", "item_collect");
 
     /** 明细行主标识的候选列，任一命中即可 */
     private static final List<String> ENTITY_TARGETS =

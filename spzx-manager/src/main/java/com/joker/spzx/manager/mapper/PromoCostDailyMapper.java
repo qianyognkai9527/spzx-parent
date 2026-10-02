@@ -14,25 +14,42 @@ public interface PromoCostDailyMapper extends BaseMapper<PromoCostDaily> {
     /**
      * 按自然键 (shop_id, plan_type, campaign_id, stat_date) upsert。
      * 重导一份修正过的报表是常态，所以"重复导入 = 用新值覆盖"，而不是报错也不是堆重复行。
+     * 成交类指标有归因回补（同一 stat_date 隔天会变），滚动重拉就是靠这条语句覆盖旧值。
      * 用 MySQL 8.0.19+ 的行别名语法，不用已废弃的 VALUES() 函数。
      */
     @Insert("<script>INSERT INTO promo_cost_daily "
             + "(shop_id, platform_code, stat_date, plan_type, campaign_id, campaign_name, report_source, "
             + " charge, ad_pv, click, ctr_percent, cpc, cpm, gmv_total, gmv_direct, gmv_indirect, "
-            + " order_total, order_direct, roi, cart_count, item_collect, shop_collect, chat_count, "
+            + " order_total, order_direct, order_indirect, roi, cvr_percent, order_cost, "
+            + " cart_count, cart_direct, cart_indirect, cart_rate_percent, cart_cost, "
+            + " item_collect, shop_collect, collect_total, item_collect_rate_percent, item_collect_cost, "
+            + " shop_collect_cost, collect_cart_total, collect_cart_cost, item_collect_cart, "
+            + " item_collect_cart_cost, shopping_amt, add_new_uv, bid_type, "
             + " raw_json, import_batch) VALUES "
             + "<foreach collection='rows' item='r' separator=','>"
             + "(#{r.shopId},#{r.platformCode},#{r.statDate},#{r.planType},#{r.campaignId},#{r.campaignName},#{r.reportSource},"
             + " #{r.charge},#{r.adPv},#{r.click},#{r.ctrPercent},#{r.cpc},#{r.cpm},#{r.gmvTotal},#{r.gmvDirect},#{r.gmvIndirect},"
-            + " #{r.orderTotal},#{r.orderDirect},#{r.roi},#{r.cartCount},#{r.itemCollect},#{r.shopCollect},#{r.chatCount},"
+            + " #{r.orderTotal},#{r.orderDirect},#{r.orderIndirect},#{r.roi},#{r.cvrPercent},#{r.orderCost},"
+            + " #{r.cartCount},#{r.cartDirect},#{r.cartIndirect},#{r.cartRatePercent},#{r.cartCost},"
+            + " #{r.itemCollect},#{r.shopCollect},#{r.collectTotal},#{r.itemCollectRatePercent},#{r.itemCollectCost},"
+            + " #{r.shopCollectCost},#{r.collectCartTotal},#{r.collectCartCost},#{r.itemCollectCart},"
+            + " #{r.itemCollectCartCost},#{r.shoppingAmt},#{r.addNewUv},#{r.bidType},"
             + " #{r.rawJson},#{r.importBatch})"
             + "</foreach> AS new "
             + "ON DUPLICATE KEY UPDATE "
             + " platform_code=new.platform_code, campaign_name=new.campaign_name, report_source=new.report_source,"
             + " charge=new.charge, ad_pv=new.ad_pv, click=new.click, ctr_percent=new.ctr_percent, cpc=new.cpc, cpm=new.cpm,"
             + " gmv_total=new.gmv_total, gmv_direct=new.gmv_direct, gmv_indirect=new.gmv_indirect,"
-            + " order_total=new.order_total, order_direct=new.order_direct, roi=new.roi,"
-            + " cart_count=new.cart_count, item_collect=new.item_collect, shop_collect=new.shop_collect, chat_count=new.chat_count,"
+            + " order_total=new.order_total, order_direct=new.order_direct, order_indirect=new.order_indirect,"
+            + " roi=new.roi, cvr_percent=new.cvr_percent, order_cost=new.order_cost,"
+            + " cart_count=new.cart_count, cart_direct=new.cart_direct, cart_indirect=new.cart_indirect,"
+            + " cart_rate_percent=new.cart_rate_percent, cart_cost=new.cart_cost,"
+            + " item_collect=new.item_collect, shop_collect=new.shop_collect, collect_total=new.collect_total,"
+            + " item_collect_rate_percent=new.item_collect_rate_percent, item_collect_cost=new.item_collect_cost,"
+            + " shop_collect_cost=new.shop_collect_cost, collect_cart_total=new.collect_cart_total,"
+            + " collect_cart_cost=new.collect_cart_cost, item_collect_cart=new.item_collect_cart,"
+            + " item_collect_cart_cost=new.item_collect_cart_cost, shopping_amt=new.shopping_amt,"
+            + " add_new_uv=new.add_new_uv, bid_type=new.bid_type,"
             + " raw_json=new.raw_json, import_batch=new.import_batch</script>")
     int upsertBatch(@Param("rows") List<PromoCostDaily> rows);
 }

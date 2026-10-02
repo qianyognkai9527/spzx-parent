@@ -1,8 +1,15 @@
--- 淘宝付费推广日报表导入（关键词推广标准计划 + 人群推广标准计划）
+-- 淘宝付费推广日报表（关键词推广标准计划 + 人群推广标准计划）
 --
 -- 背景：ingest_dataset 里 id=7 早就登记了 promo_cost「推广花费」契约
 -- （target_table=promo_cost_daily，required=campaign_id,stat_date，sla=30h，monitor=0），
 -- 但目标表一直没建、没有任何写入方。这一节把它落地。
+--
+-- 2026-10-03 数据来源改向（重要）：万相台的报表导出实测拿不到，改成直接调它报表页自己的接口
+-- （`campaign/horizontal/findPage.json` 带 rptQuery，一次返回区间内全部计划 + 指标；
+--   指标字典在 `component/findList.json`，共 31 项）。采集方 `automation/tb-auto/collect_alimama_promo.py`。
+-- 因此本文件第 3 节那张中文列名映射表（promo_import_map）**降级为 CSV 兜底路径**：
+-- 走接口就不存在"猜中文列名"，字段名是接口契约，映射写在代码里。
+-- 同一天删掉了 chat_count：万相台无界版不返回旺旺咨询量，留一列永远 NULL 是假数据源。
 --
 -- 与既有空表的关系（重要，别再走弯路）：
 -- - sycm_sy_ztkb / sycm_sy_llkb：一天一行的**店铺级**宽表，字段里已有 keyword_fee/exact_crowd_fee/
@@ -11,12 +18,12 @@
 --   AI 选词 spec 里已明确"不复用现有空表 keyword_plan_*"。
 -- 这两类都答不了"哪个词/哪个人群在烧钱不出单"，所以新建 campaign/item 两级事实表，不去改那批遗骸。
 --
--- 三条设计约束（因为"报表真实列名还没见过"而必须这么设计）：
--- 1. 列名映射放在 promo_import_map 里当数据，不写死在解析器代码里。猜错的代价只是改一行数据，
---    而不是改代码重新发版；未命中的列会被导入结果显式报出来，不会静默丢掉。
+-- 三条设计约束：
+-- 1. 列名映射放在 promo_import_map 里当数据，不写死在解析器代码里（仅 CSV 路径需要）。
 -- 2. 每一行原始数据整条留在 raw_json。映射以后怎么改，历史行都能重放，不用重新导出。
--- 3. 百分比一律按"报表原样的百分数"存（ctr_percent=12.34 表示 12.34%），不在导入阶段猜口径。
---    导出给的是 "12.34%" 还是 "0.1234" 还没核实，存原样 + 存来源串，事后能判断也能重算。
+-- 3. 百分比一律按"百分数"存（ctr_percent=12.34 表示 12.34%）。接口给的是比值 0.1234，
+--    入库前 ×100 —— 已实测 ctr = click/adPv，是比值不是百分数。
+-- 4. 成交类指标有归因回补，同一 stat_date 的数字隔天会变 → 采集要滚动重拉，upsert 天然覆盖。
 
 -- ============================================================================
 -- 1. 计划粒度日报（= ingest_dataset 登记的 promo_cost_daily）
@@ -49,10 +56,35 @@ CREATE TABLE IF NOT EXISTS promo_cost_daily
     roi             DECIMAL(10, 2) NULL COMMENT '投入产出比 = 总成交金额 / 花费，报表给什么存什么，不自己重算',
 
     -- 意向侧（转化漏斗中段，判断"有流量没成交"卡在哪一环）
-    cart_count      INT            NULL COMMENT '加入购物车数',
-    item_collect    INT            NULL COMMENT '收藏商品数',
-    shop_collect    INT            NULL COMMENT '收藏店铺数',
-    chat_count      INT            NULL COMMENT '旺旺咨询量',
+    cart_count      INT            NULL COMMENT '总购物车数 cartInshopNum',
+    item_collect    INT            NULL COMMENT '收藏宝贝数 itemColInshopNum',
+    shop_collect    INT            NULL COMMENT '收藏店铺数 shopColDirNum',
+
+    -- 2026-10-03 按阿里妈妈接口指标字典（component/findList.json 里页面渲染表头用的那 31 个）补齐。
+    -- 原先建的 chat_count「旺旺咨询量」已删：字典里根本没有这个指标，万相台无界版不返回，
+    -- 留一列永远 NULL 比留空更糟——看着有数据源，实际是假的。
+    -- 口径与已验证的四条一致：*_percent 一律 ×100 后的百分数（接口给比值），
+    -- 笔数/件数用 INT，成本类 DECIMAL(10,2)，购物金 DECIMAL(12,2)。
+    order_indirect             INT            NULL COMMENT '间接成交笔数 alipayIndirNum',
+    cvr_percent                DECIMAL(10, 4) NULL COMMENT '点击转化率 cvr，百分数',
+    order_cost                 DECIMAL(10, 2) NULL COMMENT '总成交成本 alipayInshopCost',
+    cart_direct                INT            NULL COMMENT '直接购物车数 cartDirNum',
+    cart_indirect              INT            NULL COMMENT '间接购物车数 cartIndirNum',
+    cart_rate_percent          DECIMAL(10, 4) NULL COMMENT '加购率 cartRate，百分数',
+    cart_cost                  DECIMAL(10, 2) NULL COMMENT '加购成本 cartCost',
+    collect_total              INT            NULL COMMENT '总收藏数 colNum（= 收藏宝贝 + 收藏店铺，已实测）',
+    item_collect_rate_percent  DECIMAL(10, 4) NULL COMMENT '宝贝收藏率 itemColInshopRate，百分数',
+    item_collect_cost          DECIMAL(10, 2) NULL COMMENT '宝贝收藏成本 itemColInshopCost',
+    shop_collect_cost          DECIMAL(10, 2) NULL COMMENT '店铺收藏成本 shopColInshopCost',
+    collect_cart_total         INT            NULL COMMENT '总收藏加购数 colCartNum',
+    collect_cart_cost          DECIMAL(10, 2) NULL COMMENT '总收藏加购成本 colCartCost',
+    item_collect_cart          INT            NULL COMMENT '宝贝收藏加购数 itemColCart',
+    item_collect_cart_cost     DECIMAL(10, 2) NULL COMMENT '宝贝收藏加购成本 itemColCartCost',
+    shopping_amt               DECIMAL(12, 2) NULL COMMENT '购物金充值金额 shoppingAmt',
+    add_new_uv                 INT            NULL COMMENT '新增客数 addNewUv（人群推广返回，指标字典里没有）',
+
+    -- 计划属性，非指标：「标准计划」与「智能计划」的判据
+    bid_type                   VARCHAR(24)    NULL COMMENT '接口 bidType：custom_bid≈标准计划 roi_control≈智能控投产。采集按它筛标准计划',
 
     raw_json        TEXT           NULL COMMENT '整行原始键值 JSON：映射改动后可重放，不必重新导出',
     import_batch    VARCHAR(64)    NULL COMMENT '导入批次号，配合整批回滚',
@@ -106,7 +138,6 @@ CREATE TABLE IF NOT EXISTS promo_cost_item_daily
     roi             DECIMAL(10, 2) NULL,
     cart_count      INT            NULL,
     item_collect    INT            NULL,
-    chat_count      INT            NULL,
 
     raw_json        TEXT           NULL,
     import_batch    VARCHAR(64)    NULL,
@@ -169,7 +200,6 @@ VALUES ('campaign', '日期', 'stat_date', 0, '待核对'),
        ('campaign', '加购数', 'cart_count', 0, NULL),
        ('campaign', '收藏商品数', 'item_collect', 0, NULL),
        ('campaign', '收藏店铺数', 'shop_collect', 0, NULL),
-       ('campaign', '旺旺咨询量', 'chat_count', 0, NULL),
        ('campaign', '单元ID', 'unit_id', 0, '计划级报表里出现说明是单元维度，导入会降级到明细表'),
        ('campaign', '单元名称', 'unit_name', 0, NULL),
        ('item', '日期', 'stat_date', 0, NULL),

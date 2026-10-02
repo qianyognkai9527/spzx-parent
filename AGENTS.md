@@ -20,7 +20,7 @@ mvn spring-boot:run -pl spzx-manager
 
 ## 测试
 
-- 纯 JUnit 单测（不联网、不拉 Spring 上下文）：`AlipayBillCsvParserTest`、`VideoPromptParseTest`、`VideoJsonUtilTest`、`ArkVideoClientTest`。单跑：
+- `spzx-manager` 下 16 个测试类，**除 `EmailTest` 外全是纯 JUnit 单测**（不联网、不拉 Spring 上下文，覆盖 expense/kw/videogen/ingest/platform/promo 等）。单跑：
   `mvn test -pl spzx-manager -Dtest=AlipayBillCsvParserTest`
 - `EmailTest` 是 `@SpringBootTest`，需 MySQL/Redis 在线；**裸 `mvn test` 会带上它**——环境不全必挂，单测一律用 `-Dtest=` 指定。
 - `spzx-model/src/test/java/com/joker/GeneratorCode.java` 是 MyBatis-Plus 代码生成器（非测试），outPath/tables 硬编码旧机器，勿直接跑。
@@ -38,13 +38,13 @@ mvn spring-boot:run -pl spzx-manager
 ## 配置要点（`application-dev.yml`）
 
 - MySQL `localhost:3306/db_spzx`（root/root123456）、Redis `localhost:6379`（无密码）——宿主机直装，**机器重启后不自启**。
-- `spring.config.import: optional:application-local.yml` — 本地覆盖文件已 gitignore，**密钥/凭据放这里，勿提交**。
+- `spring.config.import: optional:classpath:application-local.yml` — 本地覆盖文件已 gitignore，**密钥/凭据放这里，勿提交**。
 - 微信扫码登录 `wx.login.mock-mode: true`：dev 登录走 mock（白名单含 mockScan/mockConfirm），无需真实微信回调。
 - MinIO `127.0.0.1:9000`（minioadmin/minioadmin），bucket `spzx-manager`。
 - `spzx-manager` 资源 `filtering=true`：resources 里的 `${...}` 会被 Maven 构建期替换，勿把运行期占位符写进 yml。
 - ES / ClickHouse：仅 pom 引入依赖，**无任何配置与代码引用，未启用**（yml 的 `app.enable-infra` 开关也无代码绑定）；**没有 RocketMQ**（依赖都没有）。
-- dev 开了 `spring.main.lazy-initialization: true`：缺 bean / 配置错误会延迟到首次调用才爆，别只看启动日志判断健康。
-- `task-progress.config-path`、`visual.python-bin/script-dir` 硬编码本机绝对路径指向 `automation/`，仓库搬家即失效。
+- dev 开了 `spring.main.lazy-initialization: true`：缺 bean / 配置错误会延迟到首次调用才爆，别只看启动日志判断健康。**`@Scheduled` 任务类必须加 `@Lazy(false)`**，否则 bean 永不实例化、任务永不调度（`OrderStatisticsTask`/`QrLoginTicketCleanTask` 就没加）。
+- `task-progress.config-path`、`visual.python-bin/script-dir` 硬编码本机绝对路径指向 `automation/`，仓库搬家即失效；`visual.script-dir` 仍指向 sourcing 根，但 `assess_visual.py` 已归档到 `_archive_20260906/`——主图质量分重算目前找不到脚本。
 - 根 pom 的 `<spring-boot.version>3.4.0</spring-boot.version>` 是**死属性**（无任何引用），实际生效的是 parent 3.3.5；升级版本改 parent 那行，勿被它误导。
 
 ## 登录拦截白名单
@@ -55,9 +55,12 @@ mvn spring-boot:run -pl spzx-manager
 
 | 包 | 用途 |
 |----|------|
-| `expense` | 对账管理：支付宝 CSV 幂等导入（`AlipayBillCsvParser`） |
-| `kw` | AI 选词推广：引擎凭据在 DB `kw_provider` 表 + `application-local.yml` |
-| `videogen` | 火山方舟 Seedance 视频生成（`ArkVideoClient` + 启动对账 `VideoGenStartupReconciler`） |
+| `expense` | 对账管理：支付宝 CSV 幂等导入、打标规则引擎、月末关账 |
+| `ingest` | 采集契约/新鲜度：`ingest_dataset` 判据 + 过期告警写 `sync_alert`（调度留在系统 cron，后端只判定） |
+| `kw` | AI 选词推广：引擎凭据在 DB `kw_provider` 表 + `application-local.yml`；`KwAutoRunTask` 默认关闭 |
+| `platform` | 平台/店铺/能力只读注册表（`PlatformRegistryService`），P0 直查库不缓存 |
+| `promo` | 推广日报导入：先预览再落库，列名映射存 DB `promo_import_map`（当数据不当代码） |
+| `videogen` | 火山方舟 Seedance 视频生成（`ArkVideoClient` + `VideoPricing` 计费护栏 + 启动对账 `VideoGenStartupReconciler`） |
 | （无 `novel` 子包） | 小说/番茄逻辑在 service/ 顶层：`NovelService`、`NovelChapterService`、`FanqiePublishService` |
 
 平台级业务细节/运营红线见全局 `~/.config/opencode/AGENTS.md`。

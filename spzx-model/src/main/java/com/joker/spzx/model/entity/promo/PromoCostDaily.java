@@ -90,8 +90,70 @@ public class PromoCostDaily {
     @TableField("shop_collect")
     private Integer shopCollect;
 
-    @TableField("chat_count")
-    private Integer chatCount;
+    @TableField("order_indirect")
+    private Integer orderIndirect;
+
+    @Schema(description = "点击转化率，百分数")
+    @TableField("cvr_percent")
+    private BigDecimal cvrPercent;
+
+    @Schema(description = "总成交成本")
+    @TableField("order_cost")
+    private BigDecimal orderCost;
+
+    @TableField("cart_direct")
+    private Integer cartDirect;
+
+    @TableField("cart_indirect")
+    private Integer cartIndirect;
+
+    @Schema(description = "加购率，百分数")
+    @TableField("cart_rate_percent")
+    private BigDecimal cartRatePercent;
+
+    @Schema(description = "加购成本")
+    @TableField("cart_cost")
+    private BigDecimal cartCost;
+
+    @Schema(description = "总收藏数 = 收藏宝贝 + 收藏店铺")
+    @TableField("collect_total")
+    private Integer collectTotal;
+
+    @Schema(description = "宝贝收藏率，百分数")
+    @TableField("item_collect_rate_percent")
+    private BigDecimal itemCollectRatePercent;
+
+    @TableField("item_collect_cost")
+    private BigDecimal itemCollectCost;
+
+    @TableField("shop_collect_cost")
+    private BigDecimal shopCollectCost;
+
+    @Schema(description = "总收藏加购数")
+    @TableField("collect_cart_total")
+    private Integer collectCartTotal;
+
+    @TableField("collect_cart_cost")
+    private BigDecimal collectCartCost;
+
+    @Schema(description = "宝贝收藏加购数")
+    @TableField("item_collect_cart")
+    private Integer itemCollectCart;
+
+    @TableField("item_collect_cart_cost")
+    private BigDecimal itemCollectCartCost;
+
+    @Schema(description = "购物金充值金额")
+    @TableField("shopping_amt")
+    private BigDecimal shoppingAmt;
+
+    @Schema(description = "新增客数（人群推广才返回）")
+    @TableField("add_new_uv")
+    private Integer addNewUv;
+
+    @Schema(description = "接口 bidType：custom_bid≈标准计划，roi_control≈智能控投产")
+    @TableField("bid_type")
+    private String bidType;
 
     @Schema(description = "整行原始键值 JSON，映射变更后可重放")
     @TableField("raw_json")
