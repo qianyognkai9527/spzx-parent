@@ -1045,3 +1045,125 @@ AGENTS.md 等）一笔没动、一笔没带。§25 这份修复（`sync_alert_da
 - 推广费进商品维度后，把 `itemOps` 的毛利改成**扣掉推广费**的真实毛利
 - 开放平台 API 路线未探（个人店大概率没有阿里妈妈报表接口权限，未核实）
 - 成交归因窗口（累计成交 vs 当天成交）在真实文件里怎么体现，等文件到了再定列
+
+---
+
+## 28. 推广日报转向接口采集，并把数据做成看板（2026-10-02）
+
+### 28.1 为什么放弃 CSV 主路
+
+§27 立的骨架等的是"人工从万相台导出报表"。真去导出时发现**导不出来**：万相台无界版的报表页
+没有可用的导出入口，只能看。于是改成直连它自己的报表接口——浏览器里抓一次请求就把契约钉死了。
+
+### 28.2 接口契约（三条都是实测换来的）
+
+- 计划层：`POST one.alimama.com/campaign/horizontal/findPage.json`，
+  `rptQuery={fields, conditionList:[{sourceList:["scene","campaign_list"], startTime, endTime, isRt:false}]}`
+  一次回全部计划 + 全部指标。
+- 宝贝层：`adgroup/horizontal/findPage.json` + `campaignIdList` + `requestSource:"campaignAdgroupHorizontal"`。
+  **`sourceList` 必须放进 `rptQuery.conditionList` 里**——放在顶层、或只传 `tab`，接口一律静默忽略、
+  回一份没有报表数据的壳。这条是从详情页自己的请求里对比出来的。
+- 一个「单元」就是一个「宝贝」，`material.materialId` 是 13 位淘宝商品ID，与 `platform_product.code` 同形，
+  所以付费/免费流量归因的 join 键天然存在。
+- 鉴权：`csrfId` + `loginPointId` 是会话级的，cookie 全 httpOnly → 只能在 one.alimama.com 同源页面里
+  `page.evaluate(fetch(...))` 借，不能离线重放。借模板时**那个页不能关**，换成 about:blank 就 `Failed to fetch`。
+
+### 28.3 落地的东西
+
+- `automation/tb-auto/collect_alimama_promo.py`：两级采集（计划 → 计划下宝贝），32 项指标映射，
+  比率类按 `pct` 展开成 `*_percent` 存 ×100，金额/比率用 `Decimal(ROUND_HALF_UP)` 对齐 Java 侧。
+  自带对账：Σ宝贝花费 vs 计划花费，逐日记进台账 error（14 天里 12 天完全对上，2 天差 0.01~0.02 的归因回补）。
+- 表结构：`promo_cost_daily` / `promo_cost_item_daily` 各补 17 列，`chat_count` 删（旺旺咨询量口径不明）。
+- `check_promo_columns.py`：把 Python 侧手写的列清单和 `information_schema` 对一遍。
+  Python 不像 Java 会编译报错，列名漂了只能靠这种"自己点自己"的检查。
+- 调度：LaunchAgent `com.spzx.alimama-promo` 每天 22:00（crontab 写不进去——TCC 要"完全磁盘访问"，
+  跟 root 无关，`osascript ... with administrator privileges` 也一样被 `tmp/tmp.NNNNN: Operation not permitted` 拦）。
+- 只读看板接口 `/admin/promo/report/{summary,trend,plans,items,items/{p}/{s},itemFacetCounts}` + 前端「运营 > 推广日报」。
+
+### 28.4 看板上必须显式说的三件事（不然一定被读错）
+
+1. **默认区间是"昨天往前 14 天"，不含今天**。采集器只取昨天及更早（当天未结算），
+   把今天放进去 = 让看板显示"今天花费 0"，而真相是"今天还没采"。
+2. **请求区间 ≠ 有数据的区间**。VO 里 `rangeFrom/rangeTo` 是请求的，`dateFrom/dateTo/days` 是有报表的，
+   两者不一致时页面直接写"中间缺的 N 天是没拿到报表，不等于花费 0"。实测 14 天窗口只有 4 天有数。
+3. **比率一律用汇总后的分子分母重算**，不 AVG(每日百分比)；分母为 0 出 NULL 不出 0。
+
+### 28.5 这一节里被接口/构建抓到（而不是想到）的四个 bug
+
+- `plans` 接口 `ORDER BY charge IS NULL, charge DESC` 在 `ONLY_FULL_GROUP_BY` 下直接报错——
+  裸列名 `charge` 被认成分组外的列而不是别名。必须重复聚合表达式 `SUM(charge)`。
+- 宝贝维度原本 `MAX(campaign_id)/MAX(campaign_name)`：225 个宝贝里有 8 个同时投在 2 个计划上，
+  MAX 出来的那个是瞎猜。改成 `COUNT(DISTINCT campaign_id)` + `GROUP_CONCAT`，多计划由前端标出来。
+- 首屏 items 请求发了两遍（ProTable 挂载自己发一次，`reload()` 又 `requery()` 一次）——加 `booted` 闸门。
+- 改 `spzx-model` 的 VO 加字段后 devtools 热重启不生效（jar 在 base classloader 里），
+  当场 `NoSuchMethodError`，必须整进程重启。这条已写进 AGENTS.md。
+
+### 28.6 机器重启顺手验到的失败路径
+
+2026-10-02 21:28 机器重启，22:00 的 LaunchAgent 照常触发：Chrome 9222 不在线 →
+两个数据集各写一行 `failed`（error="Chrome 9222 不在线"）+ 一条 `cron_skipped` 告警，一秒结束。
+`failed` 不在 LANDED 里，所以不会刷新心跳——跳过必须让新鲜度告警看得见，这条设计闭环了。
+
+### 28.7 数据本身说了什么（174.68 元买到的结论）
+
+09-15~10-01 全量：花费 174.68、展现 12,444、点击 454、点击率 3.65%、CPC 0.3848，
+**成交 0 笔、加购 4、收藏 3**。标准计划A 09-16 后停投，人群计划 09-28 起投。
+免费侧没有可用的订单事实（`order_info` 43 行全是 2023 年），所以"付费 vs 免费成交占比"暂时只能靠生意参谋的窗口快照近似。
+
+### 28.8 还没做
+
+- 历史回补只做 15 天；更早的要跑 `--from/--to`，需要 Chrome 9222 在线。
+- 看板没做店铺维度筛选（当前只有 1 个淘宝店，加了是空转）。
+- 推广费进商品毛利（→ §29 的 4′）。
+
+---
+
+## 29. 4′ 的前置核实：利润的数据地基到底有没有（2026-10-03 凌晨）
+
+### 29.1 起因
+
+要在看板上算"真实利润"，钱的两边都得有数据。推广侧 §28 已经有了，成交侧只有
+`sycm_item_effect_history`。但它近期连续 6 个快照 `pay_amt=0`，而 `visitors` 从 ~800 跳到 ~15,000——
+先判清这是采集坏了还是真没卖，再谈建表。
+
+### 29.2 结论：不是采集坏了，是这门生意真的没成交
+
+- 万相台报表（独立数据源）同期 `gmv_total=0`、`order_total=0`，与生意参谋的 0 互相印证。
+- 有数的日子（09-10~09-17 窗口）成交 302.74 / 203.28，与 `pay_byrs=1~3` 一致，字段映射没错。
+- 访客暴涨是真的：`itmBounceRate≈0.99`、`stayTimeAvg≈3s`、`seGuideUv=0` → 不是搜索来的，
+  是推荐/内容位的低意愿曝光。这类流量不出单是常态，不是数据事故。
+
+### 29.3 但确实挖出两个真问题
+
+1. **成交侧的字段根本没摊平成列**。`extra_json` 里一直存着 `crtAmt`(下单金额)、`crtItmQty`(下单件数)、
+   `payItmCnt`(支付件数)、`sucRefundAmt`(成功退款金额)——利润要的正是这四个，而表里只有 `pay_amt/pay_byrs`。
+   补列 + 回填：`pay_items/order_amt/order_items/refund_amt`，3,672 行全部从已存的 JSON 反解出来，
+   **不用重采**（采集器一直把整条 item 原样落库，这是那一步留的后路）。
+   可空语义钉死：键不存在 → NULL，值真是 0 → 0。写混了就把"没采到"变成"零成交"。
+2. **截断的跑批被记成 success**。10-02 那轮只采到 100 条（前两轮的 35%），脚本 rc=0 于是台账 `success`。
+   补了 `cron_batch.py verdict`：拿该数据集近 5 轮**已落库**批次（只认 success/partial，
+   把 failed 的 0 条混进基线会让以后每轮都"达标"）的中位数当基线，低于 60% 判 `partial` 并告警。
+   阈值向上取整（286×0.6=171.6 → 要 172 条），文案里打印的数与判定用的数必须同一个——
+   第一版用 `int()` 打印 171 却把 171 判成不足，被 `test_sycm_money_fields.py` 当场抓出。
+   10-02 那行已追认为 `partial` 并写明是事后重判。
+
+### 29.4 回填后立刻看见的两件事（这就是 4′ 的价值证明）
+
+- 933069373643 在 09-10~09-16 窗口成交 99.46，09-25 窗口 `refund_amt=99.46` → **这单退了**，净成交 0。
+  只看 `pay_amt` 的利润表会把它算成收入。
+- 854165978085 有 `crtAmt=1024 / crtItmQty=1` 连续出现在 09-22~09-30 三个窗口，`payAmt=0` →
+  **一笔 1,024 元下单从未支付**。对这个周成交 ~300 元的店，这是最该被看见的一笔钱。
+
+### 29.5 4′ 的硬口径约束（不写下来一定会算错）
+
+`sycm_item_effect_history` 每行是**一个 7 天窗口**的快照，相邻快照的窗口互相重叠：
+**跨 snapshot 求和会把同一笔成交数重复计入**（302.74 在 09-14/15/16 三个快照里各出现一次）。
+所以利润只能按"一个窗口取一份快照"来算，即 `date_range` 定窗口、取该窗口最新的 `snapshot_time`，
+不能 `SUM(pay_amt) GROUP BY DATE(snapshot_time)`。推广侧是真日表，可以直接按日加——两边粒度不同，
+拼在一张利润表里必须先各自收敛到同一个窗口。
+
+### 29.6 4′ 现在能做到哪一步
+
+地基够了：成交额/件数、退款、推广费、货源进价（`platform_product` → 已绑货源最低 SKU 价）都在库里。
+缺的是**销量口径**：`pay_items` 是窗口内件数，配进价能算货成本；但运费、平台技术服务费率、
+支付费率这三项目前是散在前端常量里的（商品运营台的毛利公式），要进利润表得先收到一处配置里。

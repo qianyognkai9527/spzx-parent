@@ -20,10 +20,12 @@ mvn spring-boot:run -pl spzx-manager
 
 ## 测试
 
-- `spzx-manager` 下 16 个测试类，**除 `EmailTest` 外全是纯 JUnit 单测**（不联网、不拉 Spring 上下文，覆盖 expense/kw/videogen/ingest/platform/promo 等）。单跑：
+- `spzx-manager` 下 17 个测试类，**除 `EmailTest` 外全是纯 JUnit 单测**（不联网、不拉 Spring 上下文，覆盖 expense/kw/videogen/ingest/platform/promo 等）。单跑：
   `mvn test -pl spzx-manager -Dtest=AlipayBillCsvParserTest`
 - `EmailTest` 是 `@SpringBootTest`，需 MySQL/Redis 在线；**裸 `mvn test` 会带上它**——环境不全必挂，单测一律用 `-Dtest=` 指定。
 - `spzx-model/src/test/java/com/joker/GeneratorCode.java` 是 MyBatis-Plus 代码生成器（非测试），outPath/tables 硬编码旧机器，勿直接跑。
+- **改 `spzx-model`（实体/VO）后必须完整重启后端**：devtools 热重启只重载 `target/classes`，`spzx-model` 以 jar 进 classpath，加字段会当场 `NoSuchMethodError`（先 `mvn install -pl spzx-model` 再重启）。
+- 断言与实测矛盾时先 `hexdump` 字面量：`2026-09-01` 与 `2026/09/01` 在终端里看着一模一样，但 `LocalDate.parse` 只认后者——「测试不合逻辑地通过」九成是渲染骗眼，不是构建骗人。
 
 ## 模块边界
 
@@ -59,7 +61,7 @@ mvn spring-boot:run -pl spzx-manager
 | `ingest` | 采集契约/新鲜度：`ingest_dataset` 判据 + 过期告警写 `sync_alert`（调度在系统 cron / LaunchAgent，后端只判定） |
 | `kw` | AI 选词推广：引擎凭据在 DB `kw_provider` 表 + `application-local.yml`；`KwAutoRunTask` 默认关闭 |
 | `platform` | 平台/店铺/能力只读注册表（`PlatformRegistryService`），P0 直查库不缓存 |
-| `promo` | 推广日报：主路是 `automation/tb-auto/collect_alimama_promo.py` 直连万相台报表接口采集（LaunchAgent 每日 22:00）；`/admin/promo/import` 的 CSV 导入是兜底路，列名映射存 DB `promo_import_map`（当数据不当代码，全部 `verified=0` 未跟真实导出对过） |
+| `promo` | 推广日报：主路是 `automation/tb-auto/collect_alimama_promo.py` 直连万相台报表接口采集（LaunchAgent 每日 22:00）；`/admin/promo/import` 的 CSV 导入是兜底路，列名映射存 DB `promo_import_map`（当数据不当代码，全部 `verified=0` 未跟真实导出对过）；看板读接口 `/admin/promo/report/{summary,trend,plans,items,facetCounts}` 纯只读（前端 运营 > 推广日报）；比率一律用汇总后的分子分母重算，分母为 0 出 NULL 不出 0 |
 | `videogen` | 火山方舟 Seedance 视频生成（`ArkVideoClient` + `VideoPricing` 计费护栏 + 启动对账 `VideoGenStartupReconciler`） |
 | （无 `novel` 子包） | 小说/番茄逻辑在 service/ 顶层：`NovelService`、`NovelChapterService`、`FanqiePublishService` |
 
@@ -68,19 +70,21 @@ mvn spring-boot:run -pl spzx-manager
 ## 文档 / 杂项
 
 - `docs/DEVELOPMENT.md`（开发文档）；`docs/ARCHITECTURE.md`（微服务蓝图，未落地）
-- `docs/superpowers/`：功能交付台账
+- `docs/superpowers/`：功能交付台账（`specs/`+`plans/`+`audits/`）。2026-09-30 两份 PDD 设计（`pdd-wearable-nail-distribution`、`pdd-1688-product-binding`）**状态待评审、后端/前端未落地**，别按文档找 Java 代码。
 - `spzx-manager/src/main/resources/sql/db_optimization_plan.sql`：索引优化方案（执行前审阅）
 - 远程：GitHub `qyongkai9527/spzx-parent`
 
-## automation/ — Python 电商自动化生态（原 ~/sourcing、~/tb-auto、~/fanqie-publish，2026-09-23 迁入）
+## automation/ — Python 电商自动化生态（sourcing/tb-auto/fanqie-publish 于 2026-09-23 从 `~/` 迁入；pdd-auto 2026-09-30 新建）
 
-Playwright async + CDP。Python 3.9，统一 `automation/venv/bin/python`。**Chrome 风控红线 / CDP 端口分工 / cron / 小说发布闭环见全局 `~/.config/opencode/AGENTS.md`；逐目录坑位见 `automation/sourcing/AGENTS.md`、`automation/tb-auto/AGENTS.md`。**
+Playwright async + CDP。Python 3.9，统一 `automation/venv/bin/python`。**Chrome 风控红线 / CDP 端口分工 / cron / 小说发布闭环见全局 `~/.config/opencode/AGENTS.md`；逐目录坑位见 `automation/{sourcing,tb-auto,pdd-auto}/AGENTS.md`。**
 
 | 子目录 | 用途 | CDP |
 |---|---|---|
 | `automation/sourcing/` | 1688 选品/归类调价/抖店直建 | 9223 |
 | `automation/tb-auto/` | 1688→淘宝铺货/巡检/小说章节导入 | 9222 |
 | `automation/fanqie-publish/` | 番茄小说自动发布（常驻 publish_auto.py，每日 12:00 发 8 章） | 9223 |
+| `automation/pdd-auto/` | 淘宝穿戴甲→拼多多铺货（1688 直铺，`run_pdd_1688.sh` 循环） | 9224（发布，窗口模式）；采集复用 9222 |
 
+- pdd-auto 是**第四条线**：CDP 9224 独立 profile，提交类必须窗口模式（PDD 发布入口是 `/goods/category` 不是 `/goods/publish`）；主图须缩到 1080px 否则商详校验静默拦截。细节见 `automation/pdd-auto/AGENTS.md`。
 - 数据/缓存/登录态（chrome-profile*、*.jsonl、novel_batches、xlsx/mp4 等）已 gitignore，勿提交
 - 代码中出现 `/Users/qyk9527/sourcing|tb-auto|fanqie-publish` 旧路径 = bug（yml/@Value 曾漏改 10 处，2026-09-24 已全部修复）
