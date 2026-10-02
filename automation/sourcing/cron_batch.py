@@ -29,8 +29,29 @@ DB_CONFIG = {
     "password": "root123456", "database": "db_spzx", "charset": "utf8mb4",
 }
 TERMINAL = ("success", "partial", "failed")
+LANDED = ("success", "partial")
 # 超过这个小时数还挂在 running 就是没人收尾（进程被 kill / 机器关机），补成 failed 说明真相
 STALE_RUNNING_HOURS = 12
+# 本轮行数低于近 N 轮中位数的这个比例，判"少了一大截"：翻页中途断掉、接口只回第一页
+# 都会 rc=0 正常退出，光看退出码看不出来（2026-10-02 实测：100 条 vs 平时 283 条仍记 success）
+COVERAGE_RATIO = 0.6
+COVERAGE_WINDOW = 5
+
+
+def coverage_verdict(rows, baseline, ratio=COVERAGE_RATIO):
+    """纯函数：本轮落库行数相对历史基线算不算"跑全了"。
+
+    返回 (verdict, detail)。基线缺失（首轮/历史全是 0）时判 unknown 而不是 ok——
+    没有可比对象就说"正常"，等于用一个不存在的标准给人假安心。
+    """
+    if not baseline:
+        return "unknown", "无历史基线可比"
+    # 阈值向上取整：286×0.6=171.6，171 条就是"没到 60%"。用 int() 向下取整会打印
+    # "171"却把 171 判成不足，文案与判定对不上，排查时必被绕进去。
+    need = -(-baseline * ratio // 1)
+    if rows >= need:
+        return "ok", f"{rows} 条 ≥ 基线 {baseline}×{ratio:g}={int(need)}"
+    return "partial", f"{rows} 条 < 基线 {baseline}×{ratio:g}={int(need)}"
 
 
 def log(msg):
@@ -123,6 +144,45 @@ def end_batch(batch_id, status, rows_total=0, rows_ok=0, rows_dup=0,
         conn.close()
 
 
+def recent_baseline(dataset, window=COVERAGE_WINDOW, exclude_id=None):
+    """该数据集最近 window 个「真的落了库」批次的 rows_total 中位数。
+
+    只取 success/partial：failed 行数是 0，混进基线会把中位数拉到 0，
+    之后任何一轮都能"达标"。本轮自己按 exclude_id 剔掉（调用时它可能已经写成
+    success，不剔就会拿自己当基线、永远达标）。
+    """
+    conn = connect()
+    if conn is None:
+        return None
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT rows_total FROM ingest_batch "
+                "WHERE dataset=%s AND status IN (%s, %s) "
+                "  AND (%s IS NULL OR id <> %s) "
+                "ORDER BY started_at DESC, id DESC LIMIT %s",
+                (dataset, LANDED[0], LANDED[1], exclude_id, exclude_id, window))
+            vals = [int(r[0] or 0) for r in cur.fetchall()]
+    except Exception as e:
+        log(f"recent_baseline 失败: {e}")
+        return None
+    finally:
+        conn.close()
+    vals = sorted(v for v in vals if v > 0)
+    if not vals:
+        return None
+    mid = len(vals) // 2
+    return vals[mid] if len(vals) % 2 else (vals[mid - 1] + vals[mid]) // 2
+
+
+def verdict(dataset, rows, exclude_id=None):
+    """给 cron 包装层用的口径判定：stdout 只出 ok|partial|unknown，解释走 stderr。"""
+    baseline = recent_baseline(dataset, exclude_id=exclude_id)
+    call, detail = coverage_verdict(rows, baseline)
+    log(f"coverage[{dataset}] {call}: {detail}（基线=近{COVERAGE_WINDOW}轮中位数 {baseline}）")
+    return call
+
+
 def begin(args):
     batch_id = begin_batch(args.dataset, channel=args.channel, platform=args.platform,
                            biz_from=args.biz_from, biz_to=args.biz_to)
@@ -155,9 +215,17 @@ def main():
     e.add_argument("--rows-invalid", type=int, default=0)
     e.add_argument("--error", default=None)
 
+    v = sub.add_parser("verdict")
+    v.add_argument("--dataset", required=True)
+    v.add_argument("--rows", type=int, required=True, help="本轮实际落库行数")
+    v.add_argument("--exclude-id", default=None, help="本轮批次 id，避免拿自己当基线")
+
     args = parser.parse_args()
     if args.cmd == "begin":
         sys.stdout.write(begin(args))
+    elif args.cmd == "verdict":
+        exclude = int(args.exclude_id) if str(args.exclude_id or "").strip().isdigit() else None
+        sys.stdout.write(verdict(args.dataset, args.rows, exclude_id=exclude))
     else:
         end(args)
     return 0

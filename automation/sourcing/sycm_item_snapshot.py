@@ -82,6 +82,29 @@ def _v(d, *keys):
     return 0
 
 
+def _raw(d, key):
+    v = d.get(key)
+    if isinstance(v, dict):
+        return v.get("value")
+    return v
+
+
+def _opt_num(d, key, integer=False):
+    """可空版取值：键不存在/值为空 → None。
+
+    成交侧四个字段必须能区分"生意参谋没给"和"给了但是 0"——写 0 会让一个漏采的
+    快照在利润口径上变成"零成交"，而这正是最容易被当成经营结论的数字。
+    """
+    v = _raw(d, key)
+    if v is None or v == "":
+        return None
+    try:
+        n = float(v)
+    except (TypeError, ValueError):
+        return None
+    return int(n) if integer else n
+
+
 def parse_items(items, date_type, date_range):
     """解析 top.json 条目 (2026-09-07 实测结构: item{} + 各指标 {value,cycleCrc,syncCrc})"""
     rows = []
@@ -106,6 +129,10 @@ def parse_items(items, date_type, date_range):
             fav_rate=float(_v(it, "visitCltRate") or 0),
             pay_byrs=int(_v(it, "payByrCnt") or 0),
             pay_amt=float(_v(it, "payAmt") or 0),
+            pay_items=_opt_num(it, "payItmCnt", True),
+            order_amt=_opt_num(it, "crtAmt"),
+            order_items=_opt_num(it, "crtItmQty", True),
+            refund_amt=_opt_num(it, "sucRefundAmt"),
             pay_rate=float(_v(it, "payRate") or 0),
             stay_sec=float(_v(it, "stayTimeAvg") or 0),
             bounce_rate=float(_v(it, "itmBounceRate") or 0),
@@ -128,14 +155,16 @@ def save_db(rows):
             sql = """INSERT INTO sycm_item_effect_history
                      (item_id,title,date_type,date_range,visitors,page_views,
                       cart_users,cart_items,cart_rate,fav_users,fav_rate,
-                      pay_byrs,pay_amt,pay_rate,stay_sec,bounce_rate,se_uv,
+                      pay_byrs,pay_amt,pay_items,order_amt,order_items,refund_amt,
+                      pay_rate,stay_sec,bounce_rate,se_uv,
                       item_status,item_no,cate_id,extra_json,snapshot_time)
-                     VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
+                     VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
             cur.executemany(sql, [(
                 r["item_id"], r["title"], r["date_type"], r["date_range"],
                 r["visitors"], r["page_views"], r["cart_users"], r["cart_items"],
                 r["cart_rate"], r["fav_users"], r["fav_rate"], r["pay_byrs"],
-                r["pay_amt"], r["pay_rate"], r["stay_sec"], r["bounce_rate"],
+                r["pay_amt"], r["pay_items"], r["order_amt"], r["order_items"],
+                r["refund_amt"], r["pay_rate"], r["stay_sec"], r["bounce_rate"],
                 r["se_uv"], r["item_status"], r["item_no"], r["cate_id"],
                 r["extra"], now) for r in rows])
         conn.commit()

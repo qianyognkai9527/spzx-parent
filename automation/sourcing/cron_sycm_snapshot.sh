@@ -36,7 +36,17 @@ echo "[$(date '+%F %T')] 退出码 $rc" >> "$LOG"
 # 脚本自己会打「入库 N 条」；只在本轮新增的日志片段里取，否则会读到上一轮的数字。取不到留 0（未上报）
 ROWS=$(tail -n +$((LINES_BEFORE + 1)) "$LOG" | sed -n "s/.*入库 \\([0-9]*\\) 条.*/\\1/p" | tail -1)
 if [ "$rc" = "0" ]; then
-  $PY "$BATCH" end --id "$BID" --status success --rows-total "${ROWS:-0}" --rows-ok "${ROWS:-0}" > /dev/null 2>&1
+  # rc=0 只说明脚本没报错，不说明采全了：翻页中途断掉时它照样正常退出并写 success。
+  # 2026-10-02 实测 100 条 vs 平时 283 条仍记 success，靠行数才能判出来。
+  V=$($PY "$BATCH" verdict --dataset "$DS" --rows "${ROWS:-0}" --exclude-id "$BID")
+  if [ "$V" = "partial" ]; then
+    $PY "$BATCH" end --id "$BID" --status partial --rows-total "${ROWS:-0}" --rows-ok "${ROWS:-0}" \
+      --error "仅落库 ${ROWS:-0} 条，远低于近 5 轮中位数（多半只采到第一页或中途断）" > /dev/null 2>&1
+    $PY "$ALERT" --key sycm_snapshot --platform 1 --type cron_failed \
+      --msg "生意参谋快照本轮只落了 ${ROWS:-0} 条（明显少于近期基线），商品效果/成交数据不完整，别拿去算利润" > /dev/null 2>&1
+  else
+    $PY "$BATCH" end --id "$BID" --status success --rows-total "${ROWS:-0}" --rows-ok "${ROWS:-0}" > /dev/null 2>&1
+  fi
 elif [ "$rc" = "42" ]; then
   $PY "$BATCH" end --id "$BID" --status failed --error "触发风控(rc=42), 已入库 ${ROWS:-0} 条" > /dev/null 2>&1
   $PY "$ALERT" --key sycm_snapshot --platform 1 --type cron_failed --msg "生意参谋快照触发风控 rc=42（可能只落了部分页）" > /dev/null 2>&1
