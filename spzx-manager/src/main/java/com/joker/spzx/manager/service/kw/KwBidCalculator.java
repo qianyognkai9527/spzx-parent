@@ -144,6 +144,20 @@ public final class KwBidCalculator {
     }
 
     /**
+     * 推荐关键词出价：把"行业平均出价"当成**目标最终出价**，反推基数该填多少。
+     * 因子与 {@link #maxBaseBid} 同一条：(1+溢价) × 折扣 × (1+全能调价幅度)，
+     * 全能调价按最坏情况（+幅度）预留 —— 宁可基数低一点，也别在高峰时段突破均价。
+     *
+     * @param targetPct 对标系数：100=跟均价持平，80=压着打，120=抢排名
+     */
+    public static double recommendedBaseBid(double marketAvgBid, double targetPct,
+                                            double premiumPct, double discountPct, double swingPct) {
+        require(marketAvgBid, "行业平均出价");
+        requirePct(targetPct, "对标系数");
+        return maxBaseBid(marketAvgBid * targetPct / 100, premiumPct, discountPct, swingPct);
+    }
+
+    /**
      * 按推广费率口径：每点击最多愿意出多少。
      * 客单价 × 转化率 = 每个访客的期望成交金额；再乘可接受费率 = 每个访客可承受的推广费。
      */

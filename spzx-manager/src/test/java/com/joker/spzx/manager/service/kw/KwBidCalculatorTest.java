@@ -159,6 +159,44 @@ class KwBidCalculatorTest {
     }
 
     @Test
+    void 从行业均价反推推荐关键词出价() {
+        // 默认档位：人群溢价 300%、分时折扣 50%、全能调价 0% ⇒ 因子 = 4.0 × 0.5 × 1.0 = 2.0
+        eq("均价 1.2 对标 100%", 0.60,
+                KwBidCalculator.recommendedBaseBid(1.2, 100, 300, 50, 0));
+        eq("想压着均价打（对标 80%）", 0.48,
+                KwBidCalculator.recommendedBaseBid(1.2, 80, 300, 50, 0));
+        eq("想抢排名（对标 120%）", 0.72,
+                KwBidCalculator.recommendedBaseBid(1.2, 120, 300, 50, 0));
+        // 全能调价打开 30%：最坏情况会被抬到 1.3 倍，所以基数要再降
+        eq("带全能调价 30%", 0.4615,
+                KwBidCalculator.recommendedBaseBid(1.2, 100, 300, 50, 30));
+        eq("该时段不投放", 0.0,
+                KwBidCalculator.recommendedBaseBid(1.2, 100, 300, 0, 0));
+        eq("均价没填", 0.0, KwBidCalculator.recommendedBaseBid(0, 100, 300, 50, 0));
+    }
+
+    @Test
+    void 推荐值代回链条必须正好够到目标() {
+        double avg = 1.35;
+        double premium = 300, discount = 50, swing = 0, targetPct = 100;
+        double rec = KwBidCalculator.recommendedBaseBid(avg, targetPct, premium, discount, swing);
+        eq("代回正算 = 行业均价", avg * targetPct / 100,
+                KwBidCalculator.finalBid(rec, premium, discount));
+        // 溢价档位不同（100%）也要自洽
+        double rec2 = KwBidCalculator.recommendedBaseBid(avg, 120, 100, 30, 20);
+        eq("换档位仍自洽（含全能调价上沿）", avg * 1.2,
+                KwBidCalculator.omniHigh(KwBidCalculator.finalBid(rec2, 100, 30), 20));
+    }
+
+    @Test
+    void 对标系数与均价的非法值要拦住() {
+        assertThrows(IllegalArgumentException.class,
+                () -> KwBidCalculator.recommendedBaseBid(1.2, 400, 300, 50, 0));
+        assertThrows(IllegalArgumentException.class,
+                () -> KwBidCalculator.recommendedBaseBid(-1.2, 100, 300, 50, 0));
+    }
+
+    @Test
     void 金额一律两位小数且向下取整不吹上限() {
         eq("出价向下到分", 1.87, KwBidCalculator.money(1.872));
         eq("上限也向下取整（不吹）", 1.49, KwBidCalculator.money(1.4999));
