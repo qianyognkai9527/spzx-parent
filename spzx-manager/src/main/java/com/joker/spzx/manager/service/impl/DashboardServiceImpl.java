@@ -90,6 +90,8 @@ public class DashboardServiceImpl implements DashboardService {
         vo.setSnapshotAt(latest.getSnapshotTime());
         vo.setEffectItems(latest.getItems());
         vo.setVisitors7d(latest.getVisitors());
+        vo.setAbnormalItems(latest.getAbnormalItems());
+        vo.setAbnormalVisitors(latest.getAbnormalVisitors());
         vo.setPayAmount7d(latest.getPayAmount());
         vo.setCartUsers7d(latest.getCartUsers());
         if (snapshots.size() > 1) {

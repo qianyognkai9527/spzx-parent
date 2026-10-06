@@ -22,6 +22,17 @@ public class DashboardKpiVo {
     @Schema(description = "近7日访客数")
     private Long visitors7d;
 
+    /**
+     * 与 visitors7d **同一份快照**剔掉的异常流量商品数。
+     * 口径句必须引用同一行，否则会出现"访客 616、剔除 0"这种自相矛盾的话
+     * （快照按 snapshot_time DESC 取第 0 行，前端趋势数组是 ASC，两者下标不是同一天）。
+     */
+    @Schema(description = "同一份快照里被判定为异常流量而剔除的商品数")
+    private Long abnormalItems;
+
+    @Schema(description = "同一份快照里被剔除的异常流量访客数")
+    private Long abnormalVisitors;
+
     @Schema(description = "近7日加购人数")
     private Long cartUsers7d;
 
