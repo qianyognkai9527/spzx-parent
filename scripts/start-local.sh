@@ -90,7 +90,7 @@ JAVA_BIN="$JAVA_HOME_DIR/bin/java"
 
 bp="$(listener "$BPORT")"
 if [ -n "$bp" ]; then
-  say "  已经有人在听（pid $bp）→ 复用，不动它"
+  say "  已经有人在听（pid ${bp}）→ 复用，不动它"
   [ "$(ps -o command= -p "$bp" 2>/dev/null | grep -c 'target/classes')" != "0" ] && \
     say "  注意：这个进程吃的是 target/classes（IDEA 或 mvn spring-boot:run 起的）。改完 Java 代码要在它自己的启动方式里重启才生效，本脚本管不到它。"
 else
@@ -141,7 +141,7 @@ $(tail -40 "$RUN/package.log")"
       -jar "$JAR")"
   [ -n "$bp" ] || die "启动后端失败（python 没返回 pid）"
   echo "backend $bp" >> "$PIDS"
-  say "  pid $bp，等端口（最多 180s，lazy-init 下第一次点页面还会更慢）"
+  say "  pid ${bp}，等端口（最多 180s，lazy-init 下第一次点页面还会更慢）"
   wait_port "$BPORT" 180 "$bp" || { tail -30 "$BLOG"; die "后端 180s 没起来，日志见 $BLOG"; }
   say "  ok :$BPORT 在听"
 fi
@@ -150,7 +150,7 @@ say ""
 say "=== [3/4] 前端 :$FPORT ==="
 fp="$(listener "$FPORT")"
 if [ -n "$fp" ]; then
-  say "  已经有人在听（pid $fp）→ 复用，不动它"
+  say "  已经有人在听（pid ${fp}）→ 复用，不动它"
 else
   [ -d "$WEB/node_modules" ] || die "前端依赖没装：cd '$WEB' && npm ci（用 Node 23）"
   # shell 默认是 Node 14，vite 5 起不来且不会报错只会静默失败 —— 直接点 v23 的绝对路径，不 source nvm
@@ -158,7 +158,7 @@ else
   for c in "$HOME"/.nvm/versions/node/v23*/bin; do [ -x "$c/node" ] && node_dir="$c"; done
   [ -n "$node_dir" ] || die "找不到 Node 23（~/.nvm/versions/node/v23*/bin），先 nvm install 23"
   export PATH="$node_dir:$PATH"
-  say "  启动 vite（node $("node" -v)，直连后端 $BPORT，不挂 mock）"
+  say "  启动 vite（node $("node" -v)，直连后端 ${BPORT}，不挂 mock）"
   # 384m 的依据：现在这份 vite 跑 3 天 19 小时，footprint 215MB、常驻 53MB，node 默认堆上限(~2G)根本用不到。
   # 只影响 dev server；`npm run build` 是另一条命令，不受这里限制。
   export NODE_OPTIONS=--max-old-space-size=384
@@ -175,7 +175,7 @@ while read -r who pid; do
   [ -n "${pid:-}" ] && kill -0 "$pid" 2>/dev/null || continue
   mb="$(footprint -p "$pid" 2>/dev/null | grep -o 'Footprint: [0-9]* MB' | awk '{print $2}')"
   tty="$(ps -o tty= -p "$pid" 2>/dev/null | tr -d ' ')"
-  say "  本脚本起的 $who: pid $pid，footprint ${mb:-未知}MB，tty=${tty:-?}（?? = 已脱离控制终端，关窗口带不走它）"
+  say "  本脚本起的 $who: pid ${pid}，footprint ${mb:-未知}MB，tty=${tty:-?}（?? = 已脱离控制终端，关窗口带不走它）"
 done < "$PIDS"
 say "  RSS 会低估好几倍，判占用只看 footprint（这台机器 swap 已用 $(sysctl -n vm.swapusage | awk '{print $6}')）"
 say "  日志：backend $BLOG | frontend $FLOG"
