@@ -144,17 +144,18 @@ public final class KwBidCalculator {
     }
 
     /**
-     * 推荐关键词出价：把"行业平均出价"当成**目标最终出价**，反推基数该填多少。
+     * 推荐关键词出价：把**实际出价**（这一档真正出出去的价，常拿行业平均出价当目标）当成目标，
+     * 反推基数该填多少。
      * 因子与 {@link #maxBaseBid} 同一条：(1+溢价) × 折扣 × (1+全能调价幅度)，
-     * 全能调价按最坏情况（+幅度）预留 —— 宁可基数低一点，也别在高峰时段突破均价。
+     * 全能调价按最坏情况（+幅度）预留 —— 宁可基数低一点，也别在高峰时段突破目标价。
      *
-     * @param targetPct 对标系数：100=跟均价持平，80=压着打，120=抢排名
+     * @param targetPct 对标系数：100=跟目标持平，80=压着打，120=抢排名
      */
-    public static double recommendedBaseBid(double marketAvgBid, double targetPct,
+    public static double recommendedBaseBid(double targetBid, double targetPct,
                                             double premiumPct, double discountPct, double swingPct) {
-        require(marketAvgBid, "行业平均出价");
+        require(targetBid, "实际出价");
         requirePct(targetPct, "对标系数");
-        return maxBaseBid(marketAvgBid * targetPct / 100, premiumPct, discountPct, swingPct);
+        return maxBaseBid(targetBid * targetPct / 100, premiumPct, discountPct, swingPct);
     }
 
     /**
@@ -221,12 +222,28 @@ public final class KwBidCalculator {
                 .doubleValue();
     }
 
+    /**
+     * 差额落到分：和 {@link #money} 的区别是**允许负数**（负数表示已经顶破目标价），
+     * 且四舍五入而不是向下 —— 它不是上限，只是一个带符号的差值。
+     */
+    public static double signedMoney(double v) {
+        requireFinite(v, "差额");
+        return new BigDecimal(Double.toString(v))
+                .setScale(6, RoundingMode.HALF_UP)
+                .setScale(2, RoundingMode.HALF_UP)
+                .doubleValue();
+    }
+
     private static void require(double v, String what) {
-        if (Double.isNaN(v) || Double.isInfinite(v)) {
-            throw new IllegalArgumentException(what + "不是有效数字");
-        }
+        requireFinite(v, what);
         if (v < 0) {
             throw new IllegalArgumentException(what + "不能为负数");
+        }
+    }
+
+    private static void requireFinite(double v, String what) {
+        if (Double.isNaN(v) || Double.isInfinite(v)) {
+            throw new IllegalArgumentException(what + "不是有效数字");
         }
     }
 

@@ -202,4 +202,13 @@ class KwBidCalculatorTest {
         eq("上限也向下取整（不吹）", 1.49, KwBidCalculator.money(1.4999));
         eq("零保持零", 0.0, KwBidCalculator.money(0));
     }
+
+    @Test
+    void 差额允许负数但金额不允许() {
+        eq("顶破目标价时差额是负的", -1.2, KwBidCalculator.signedMoney(1.2 - 2.4));
+        eq("差额四舍五入（不是向下）", 0.61, KwBidCalculator.signedMoney(0.605));
+        assertThrows(IllegalArgumentException.class, () -> KwBidCalculator.money(-0.01));
+        assertThrows(IllegalArgumentException.class,
+                () -> KwBidCalculator.signedMoney(Double.NaN));
+    }
 }
