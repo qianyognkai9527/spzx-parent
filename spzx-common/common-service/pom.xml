@@ -42,6 +42,17 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
+        <!--
+          与 common-util 一致用 provided：本模块只编译期需要 servlet/spring-webmvc
+          （GlobalExceptionHandler 要接 MissingServletRequestParameterException，
+          它继承的 ServletRequestBindingException 属于 jakarta.servlet），
+          运行期由 spzx-manager 的 starter-web 提供，不重复打包。
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <scope>provided</scope>
+        </dependency>
 
 
     </dependencies>
