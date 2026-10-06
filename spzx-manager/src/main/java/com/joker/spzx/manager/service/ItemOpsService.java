@@ -20,9 +20,12 @@ import java.util.Set;
 @Service
 public class ItemOpsService {
 
-    /** 筛选项白名单。非法值不报错而是退回 all，避免前端一个拼错就整页空 */
-    private static final Set<String> FACETS =
-            Set.of("all", "noSale", "negativeMargin", "lowStock", "noEffect", "noSource", "unpriced");
+    /** 筛选项白名单。非法值不报错而是退回 all，避免前端一个拼错就整页空。
+     *  与 mapper/ItemOpsMapper.xml 里的 {@code facet == 'x'} 分支必须一一对应，
+     *  ItemOpsParamTest 会把两边对一遍 —— 所以这里不设 private。 */
+    static final Set<String> FACETS =
+            Set.of("all", "noSale", "negativeMargin", "lowStock", "noEffect", "noSource", "unpriced",
+                    "abnormalTraffic");
 
     @Autowired
     private ItemOpsMapper itemOpsMapper;

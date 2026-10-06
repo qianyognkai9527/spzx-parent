@@ -19,6 +19,10 @@
       - 抖店商品没有生意参谋采集（只覆盖淘宝），visitors 等一律为 null，前端必须显示"未采"而不是 0。
       - margin 在 pricing 为 NULL 或 0 时判为不可算：库里 1115 个商品还没定价，
         若不排除，"毛利为负"会报出 1118 条、其中 1100 条是假亏本。
+      - abnormalTraffic（异常流量）判据与 DashboardMapper.ABNORMAL_TRAFFIC 逐字一致：
+        访客≥100 且 跳失率>80% 且 近7日零成交。这类商品会被算进"有流量无成交"，
+        但它不是详情页/价格出了问题，而是平台灌进来的一次性低质流量（详见 DashboardMapper 注释里的实测），
+        所以 noSale 筛选项把它排除、列表单独打标记，而不是悄悄把访客显示成 0。
     -->
     <sql id="itemOpsBase">
         SELECT p.id,
@@ -32,6 +36,9 @@
                e.pay_amt                 AS payAmount,
                e.pay_byrs                AS payBuyers,
                e.cart_users              AS cartUsers,
+               CASE WHEN e.visitors >= 100 AND e.bounce_rate > 0.8
+                         AND COALESCE(e.pay_byrs, 0) = 0
+                    THEN 1 ELSE 0 END    AS abnormalTraffic,
                DATE_FORMAT(e.snapshot_time, '%Y-%m-%d %H:%i') AS effectAt,
                IFNULL(s.source_count, 0) AS sourceCount,
                s.source_price            AS sourcePrice,
@@ -53,6 +60,7 @@
                                    s1.pay_amt,
                                    s1.pay_byrs,
                                    s1.cart_users,
+                                   s1.bounce_rate,
                                    s1.snapshot_time
                             FROM sycm_item_effect_history s1
                                      JOIN (SELECT item_id, MAX(id) AS max_id
@@ -97,8 +105,10 @@
         ) t
         <choose>
             <when test="facet == 'noSale'">
-                <!-- 有流量没成交：详情页/价格/评价出了问题，是最该动手的一批 -->
+                <!-- 有流量没成交：详情页/价格/评价出了问题，是最该动手的一批。
+                     异常流量商品要排除 —— 它的"有流量"是平台灌的，诊断不出详情页问题。 -->
                 WHERE t.visitors &gt; IFNULL(#{uvFrom}, 0) AND IFNULL(t.payAmount, 0) = 0
+                    AND t.abnormalTraffic = 0
             </when>
             <when test="facet == 'negativeMargin'">
                 WHERE t.margin IS NOT NULL AND t.margin &lt; 0
@@ -109,6 +119,11 @@
             <when test="facet == 'noEffect'">
                 <!-- 采集没覆盖到的商品：运营上等于盲飞，不能因为"没数据"就当它不存在 -->
                 WHERE t.effectAt IS NULL
+            </when>
+            <when test="facet == 'abnormalTraffic'">
+                <!-- 被剔出 noSale 的异常流量商品要能翻出来看，不能悄悄藏掉。
+                     筛选项名字与 selectFacetCounts 的角标别名取同一个，前端不必再映射一次 -->
+                WHERE t.abnormalTraffic = 1
             </when>
             <when test="facet == 'noSource'">
                 WHERE t.sourceCount = 0
@@ -136,12 +151,15 @@
          分 7 次跑 pageItems 取 total 会把这条 join 做七遍，不值得。 -->
     <select id="selectFacetCounts" resultType="java.util.Map">
         SELECT COUNT(*)                                                        AS total,
+               <!-- noSale 的计数必须和上面 <when> 的筛选条件逐字一致，否则角标数和点开看到的条数会打架 -->
                SUM(CASE WHEN t.visitors &gt; IFNULL(#{uvFrom}, 0)
-                             AND IFNULL(t.payAmount, 0) = 0 THEN 1 ELSE 0 END)  AS noSale,
+                             AND IFNULL(t.payAmount, 0) = 0
+                             AND t.abnormalTraffic = 0 THEN 1 ELSE 0 END)      AS noSale,
                SUM(CASE WHEN t.margin IS NOT NULL AND t.margin &lt; 0 THEN 1 ELSE 0 END) AS negativeMargin,
                SUM(CASE WHEN t.minStock IS NOT NULL
                              AND t.minStock &lt;= IFNULL(#{stock}, 10) THEN 1 ELSE 0 END) AS lowStock,
                SUM(CASE WHEN t.effectAt IS NULL THEN 1 ELSE 0 END)             AS noEffect,
+               SUM(CASE WHEN t.abnormalTraffic = 1 THEN 1 ELSE 0 END)          AS abnormalTraffic,
                SUM(CASE WHEN t.sourceCount = 0 THEN 1 ELSE 0 END)              AS noSource,
                SUM(CASE WHEN t.pricing IS NULL OR t.pricing = 0 THEN 1 ELSE 0 END) AS unpriced
         FROM (

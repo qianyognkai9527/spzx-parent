@@ -24,7 +24,7 @@ public class ItemOpsController {
     @Autowired
     private ItemOpsService itemOpsService;
 
-    @Operation(summary = "分页查询，facet 可选 all/noSale/negativeMargin/lowStock/noEffect/noSource/unpriced")
+    @Operation(summary = "分页查询，facet 可选 all/noSale/negativeMargin/lowStock/noEffect/noSource/unpriced/abnormalTraffic")
     @GetMapping("/page/{pageNum}/{pageSize}")
     public Result<IPage<ItemOpsVo>> page(@PathVariable long pageNum,
                                          @PathVariable long pageSize,

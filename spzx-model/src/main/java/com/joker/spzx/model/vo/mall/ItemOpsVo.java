@@ -17,7 +17,7 @@ public class ItemOpsVo {
 
     private String title;
 
-    @Schema(description = "1-淘宝 2-抖音")
+    @Schema(description = "1-淘宝 2-抖音 3-拼多多")
     private Integer platformType;
 
     @Schema(description = "所属店铺 id")
@@ -40,6 +40,10 @@ public class ItemOpsVo {
 
     @Schema(description = "近7日加购人数")
     private Integer cartUsers;
+
+    @Schema(description = "1=这条效果数据是平台侧一次性低质流量（访客≥100、跳失>80%、零成交），"
+            + "不算\"有流量无成交\"")
+    private Integer abnormalTraffic;
 
     @Schema(description = "效果数据快照时间")
     private String effectAt;
