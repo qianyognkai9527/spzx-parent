@@ -75,7 +75,7 @@ mvn spring-boot:run -pl spzx-manager
 |----|------|
 | `expense` | 对账管理：支付宝 CSV 幂等导入、打标规则引擎、月末关账 |
 | `ingest` | 采集契约/新鲜度：`ingest_dataset` 判据 + 过期告警写 `sync_alert`（调度在系统 cron / LaunchAgent，后端只判定） |
-| `kw` | AI 选词推广：引擎凭据在 DB `kw_provider` 表 + `application-local.yml`；`KwAutoRunTask` 默认关闭 |
+| `kw` | AI 选词推广：引擎凭据在 DB `kw_provider` 表 + `application-local.yml`；`KwAutoRunTask` 默认关闭。**关键词出价计算器** `POST /admin/kw/bid/calc`（纯算术、不碰库、不花钱）：链条 `关键词出价 ×(1+人群溢价) ×分时折扣`，全能调价只按公布的幅度给**区间**（平台黑箱，反推一律用最坏情况 +幅度），人群命中多个人群**取最高溢价不相加**；反推口径两种（按可承受推广费率 / 按每单毛利分成），可直接带商品运营台一行（客单价取**成交均价** = 成交额/买家数，不是标价；`abnormalTraffic=1` 的宝贝拒绝带入）。公式与校验全在 `KwBidCalculator`（14 条单测），页面 `/#/kwBidCalc` 只渲染不自己算 —— 别把公式抄第二份 |
 | `platform` | 平台/店铺/能力只读注册表（`PlatformRegistryService`），P0 直查库不缓存。`shop.cdp_port` 是**机器端口的镜像**（淘宝 9222 / 抖音 9223 / 拼多多 9224），权威值在 `automation/{tb-auto,sourcing,pdd-auto}` 的 config 里，改端口以 config 为准再同步这张表；`multiplatform_p0_seed.sql` 已改成**不再覆盖 `shop.status`**（拼多多店运营中已=1，重跑种子会把这家停用） |
 | `promo` | 推广日报：主路是 `automation/tb-auto/collect_alimama_promo.py` 直连万相台报表接口采集（LaunchAgent 每日 22:00）；`/admin/promo/import` 的 CSV 导入是兜底路，列名映射存 DB `promo_import_map`（当数据不当代码，全部 `verified=0` 未跟真实导出对过）；看板读接口 `/admin/promo/report/{summary,trend,plans,items,facetCounts}` 纯只读（前端 运营 > 推广日报）；比率一律用汇总后的分子分母重算，分母为 0 出 NULL 不出 0；宝贝页另有 进价/运费/净利 三列，**净利不含运费**（与 `itemOpsBase` 的 margin 同一口径，全库 4683 个商品只有 17 个有非零运费），且**不建利润汇总表**——225 行现算 0.12s，物化只会换来滞后。见 spec §30 |
 | `videogen` | 火山方舟 Seedance 视频生成（`ArkVideoClient` + `VideoPricing` 计费护栏 + 启动对账 `VideoGenStartupReconciler`） |

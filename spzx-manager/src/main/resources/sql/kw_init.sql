@@ -123,3 +123,11 @@ WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE component = 'kwConfig');
 INSERT INTO sys_role_menu (role_id, menu_id)
 SELECT 9, 68
 WHERE NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 9 AND menu_id = 68);
+
+-- 关键词出价计算页（2026-10-06）：与 kw 其它菜单同样幂等，回滚见文末注释
+INSERT INTO sys_menu (parent_id, title, component, sort_value, status)
+SELECT 38, '关键词出价计算', 'kwBidCalc', 65, 1
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE component='kwBidCalc');
+INSERT INTO sys_role_menu (role_id, menu_id)
+SELECT 9, id FROM sys_menu WHERE component='kwBidCalc'
+AND id NOT IN (SELECT menu_id FROM sys_role_menu WHERE role_id=9);
