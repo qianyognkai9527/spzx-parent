@@ -15,7 +15,7 @@ public class EffectTrendVo {
     @Schema(description = "该次快照覆盖的商品数")
     private Integer items;
 
-    @Schema(description = "近7日访客数合计")
+    @Schema(description = "近7日访客数合计（已剔除异常流量商品）")
     private Long visitors;
 
     @Schema(description = "近7日成交金额合计")
@@ -23,4 +23,10 @@ public class EffectTrendVo {
 
     @Schema(description = "近7日加购人数合计")
     private Long cartUsers;
+
+    @Schema(description = "被判为异常流量的商品数：访客≥100 且 跳失率>80% 且 近7日零成交")
+    private Long abnormalItems;
+
+    @Schema(description = "上述异常流量商品贡献的访客数，未计入 visitors")
+    private Long abnormalVisitors;
 }
