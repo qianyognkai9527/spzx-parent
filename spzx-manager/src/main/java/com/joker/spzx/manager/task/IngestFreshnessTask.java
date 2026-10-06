@@ -13,7 +13,8 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
-@Lazy(false) // dev 开了 lazy-init，定时任务 bean 必须启动即建，否则永不调度
+@Lazy(false) // 显式保险：实测 Boot 3.3.5 已把 @Scheduled 的 bean 排除在懒初始化之外（不加也会被调度），
+    // 留着是为了不依赖这个实现细节
 public class IngestFreshnessTask {
 
     @Autowired

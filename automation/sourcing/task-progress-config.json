@@ -200,6 +200,22 @@
    "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent/automation/sourcing && /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python sycm_item_snapshot.py --date-type recent7"
   },
   {
+   "key": "alimama_promo",
+   "name": "淘宝推广日报采集",
+   "category": "scheduled",
+   "tags": [
+    "淘宝",
+    "9222",
+    "LaunchAgent"
+   ],
+   "port": 9222,
+   "schedule": "每日 22:00（LaunchAgent，非 crontab）",
+   "type": "process_only",
+   "script": "collect_alimama_promo.py",
+   "logPath": "/tmp/alimama_promo_launchd.log",
+   "launchCmd": "bash /Users/qyk9527/ideaProject/spzx-parent/automation/tb-auto/cron_alimama_promo.sh"
+  },
+  {
    "key": "taobao_cat_v2",
    "name": "淘宝归类调价v2",
    "category": "manual",

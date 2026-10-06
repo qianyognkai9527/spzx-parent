@@ -27,8 +27,8 @@ while [ $ATTEMPT -lt $MAX_RETRY ]; do
             2) CD=2400; CDM=40m ;;
             *) CD=7200; CDM=2h ;;
         esac
-        echo "[$(date '+%m-%d %H:%M:%S')] 风控, 降级跑货源销量计算(秒完)后冷却 ${CDM}" >> $LOG
-        $PY detect_stock_change.py --pool >> $LOG 2>&1
+        echo "[$(date '+%m-%d %H:%M:%S')] 风控, 冷却 ${CDM} (降级货源销量计算临时禁用: 避免与1688图片下载争抢同IP解封)" >> $LOG
+        # $PY detect_stock_change.py --pool >> $LOG 2>&1   # 2026-10-06 临时禁用: 1688图片下载需同IP解封, 勿再打1688
         echo "[$(date '+%m-%d %H:%M:%S')] 冷却 ${CDM} 后自动续跑..." >> $LOG
         sleep $CD
     else

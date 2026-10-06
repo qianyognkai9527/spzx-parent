@@ -33,7 +33,7 @@ from assign_shop_category import (
 )
 from compliance_filler import (
     clear_overlays, detect_gaps, fill_extract_way, fill_sku_gaps,
-    fill_prop_gaps, is_image_only_failure, clean_sku_color_brackets,
+    fill_prop_gaps, is_image_only_failure, is_permanent_failure, clean_sku_color_brackets,
     sku_colors_dirty, ensure_no_overlay, ZONE_EXTRACT,
 )
 
@@ -445,13 +445,23 @@ async def process_one(ctx, rec, source_price):
                 pass
 
 
+def _failed_err(rec):
+    """兼容 failed 值: dict{error,...} / str 旧档."""
+    if isinstance(rec, dict):
+        return rec.get('error', '') or ''
+    return str(rec or '')
+
+
 def build_todo(plan, prog, retry_failed=False, start=0, limit=0, test=False, ids=None):
     """过滤 done/failed(可选重试) 后按 出售中->仓库->gone/failed 排序; limit/test 在排序后切片.
     skipped 默认剔除, 显式 --ids 时放行(人工修完数据定向补跑); done 始终剔除.
+    --retry-failed 只重试瞬时失败; 永久失败(数据问题/盗图/视频比例/类目不在树, is_permanent_failure)
+    重试永远失败, 默认剔除, 仅 --ids 显式定向时放行(人工修完补跑).
     gone 池商品无 --ids 时剔除(不在任何池, 编辑页打不开必空转); 无 pool 字段的旧数据按 warehouse 兜底不剔除"""
     done = set(prog['done'])
     skipped = set(prog['skipped'])
-    failed_ids = set(prog['failed'].keys())
+    failed = prog['failed']
+    failed_ids = set(failed.keys())
     ids_set = set(ids) if ids else None
     todo = []
     for r in plan[start:]:
@@ -460,8 +470,12 @@ def build_todo(plan, prog, retry_failed=False, start=0, limit=0, test=False, ids
             continue
         if iid in skipped and not (ids_set and iid in ids_set):
             continue
-        if not (retry_failed or iid not in failed_ids):
-            continue
+        if iid in failed_ids:
+            if not retry_failed:
+                continue
+            forced = bool(ids_set and iid in ids_set)
+            if not forced and is_permanent_failure(_failed_err(failed[iid])):
+                continue
         if not ids and r.get('pool') == 'gone':
             continue
         todo.append(r)
@@ -504,7 +518,8 @@ async def main():
     done = set(prog['done'])
     skipped = set(prog['skipped'])
     failed_ids = set(prog['failed'].keys())
-    log(f"计划 {len(plan)} 个, v2已完成 {len(done)}, 跳过 {len(skipped)}, 失败 {len(failed_ids)}, 本次处理 {len(todo)}")
+    perm_c = sum(1 for v in prog['failed'].values() if is_permanent_failure(_failed_err(v)))
+    log(f"计划 {len(plan)} 个, v2已完成 {len(done)}, 跳过 {len(skipped)}, 失败 {len(failed_ids)}(永久{perm_c}不再自动重试), 本次处理 {len(todo)}")
 
     anchor = load_price_anchor()
     log(f"货源价锚点覆盖 {len(anchor)}/{len(plan)} 个商品")

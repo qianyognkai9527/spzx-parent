@@ -21,6 +21,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -79,12 +84,29 @@ public class VisualScoreServiceImpl implements VisualScoreService {
 
     @Override
     public VisualScoreStatsVo statsPlatform(Integer platformType) {
-        return visualScoreMapper.statsPlatform(platformType);
+        return withStaleness(visualScoreMapper.statsPlatform(platformType));
     }
 
     @Override
     public VisualScoreStatsVo statsSource() {
-        return visualScoreMapper.statsSource();
+        return withStaleness(visualScoreMapper.statsSource());
+    }
+
+    /**
+     * 分数是批量脚本跑出来的、跑完就不再动，接口却和实时数据长一样。
+     * 把「最后一次写分距今几天」算出来带上，界面才有得显示"截至"。
+     */
+    private static VisualScoreStatsVo withStaleness(VisualScoreStatsVo vo) {
+        vo.setStaleDays(staleDays(vo.getScoredAt(), LocalDate.now()));
+        return vo;
+    }
+
+    /** 整天取整；未来时间（时钟偏差）按 0 天算，不返回负数 */
+    public static Integer staleDays(LocalDateTime scoredAt, LocalDate today) {
+        if (scoredAt == null) {
+            return null;
+        }
+        return (int) Math.max(ChronoUnit.DAYS.between(scoredAt.toLocalDate(), today), 0);
     }
 
     @Override
@@ -149,6 +171,7 @@ public class VisualScoreServiceImpl implements VisualScoreService {
     }
 
     private String runScript(String script, String... args) {
+        requireChain(script);
         List<String> cmd = new ArrayList<>();
         cmd.add(pythonBin);
         cmd.add(script);
@@ -167,5 +190,21 @@ public class VisualScoreServiceImpl implements VisualScoreService {
             throw new ServiceException(500, "脚本执行失败");
         }
         return output;
+    }
+
+    /**
+     * 跑之前先看文件和解释器在不在。2026-10-03 实测：assess_main_img.py / assess_visual.py /
+     * generate_main_img_variants.py 已不在 visual.script-dir 里（整批归档进 sourcing/_archive_20260906/），
+     * 少了这一步就只剩一句"脚本执行失败"，看不出是链路断了还是图坏了。
+     */
+    private void requireChain(String script) {
+        if (!Files.isRegularFile(Path.of(script))) {
+            throw new ServiceException(500, "评分脚本不存在：" + script
+                    + "。这条链路依赖配置 visual.script-dir 指向的目录，脚本目前不在那里（已随目录归档），重算不可用。");
+        }
+        if (!Files.isRegularFile(Path.of(pythonBin))) {
+            throw new ServiceException(500, "Python 解释器不存在：" + pythonBin
+                    + "（配置项 visual.python-bin）；脚本在，但跑不起来。");
+        }
     }
 }

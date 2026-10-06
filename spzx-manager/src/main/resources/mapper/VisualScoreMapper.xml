@@ -48,6 +48,15 @@
         ORDER BY visual_score DESC
     </select>
 
+    <!--
+      统计口径是「每个商品的第一条媒体记录」，实测 file_type=1 的行每个商品都只有 img_pos=1 那条被选中
+      （淘宝 3085 个商品 3085 行，全是 img_pos=1），所以 total/均分/档位读作「商品数与首图分」，
+      不是全部 5 张主图。
+      分数由批量脚本一次性写入，行更新时间是唯一可用的评分时间线索（表里没有单独的 scored_time 列），
+      但 scoredAt 取的是「覆盖张数最多的那一批」而不是 max(update_time)：零星重算会把 max 推到今天，
+      于是 15,242 张旧分数被一句"数据截至今天"盖掉。batchRows/newerRows 一起给，界面必须把
+      "这批只覆盖 N 张、另有 M 张更晚"说出来。
+    -->
     <select id="statsPlatform" resultType="com.joker.spzx.model.vo.mall.VisualScoreStatsVo">
         SELECT COUNT(*) AS total,
                SUM(CASE WHEN pm.visual_score IS NULL THEN 1 ELSE 0 END) AS unscored,
@@ -58,10 +67,21 @@
                SUM(CASE WHEN pm.visual_score >= 80 AND pm.visual_score &lt; 90 THEN 1 ELSE 0 END) AS countB,
                SUM(CASE WHEN pm.visual_score >= 70 AND pm.visual_score &lt; 80 THEN 1 ELSE 0 END) AS countC,
                SUM(CASE WHEN pm.visual_score >= 60 AND pm.visual_score &lt; 70 THEN 1 ELSE 0 END) AS countD,
-               SUM(CASE WHEN pm.visual_score &lt; 60 THEN 1 ELSE 0 END) AS countDMinus
+               SUM(CASE WHEN pm.visual_score &lt; 60 THEN 1 ELSE 0 END) AS countDMinus,
+               MAX(m.scoredAt) AS scoredAt,
+               MAX(m.batchRows) AS scoredBatchRows,
+               MAX((SELECT COUNT(*) FROM product_media v3
+                 WHERE v3.visual_score IS NOT NULL AND v3.platform_type = #{platformType}
+                   AND v3.update_time > m.scoredAt)) AS scoredNewerRows
         FROM product_media pm
         JOIN (SELECT product_id, MIN(id) AS mid FROM product_media WHERE file_type=1 GROUP BY product_id) t
           ON pm.id = t.mid
+        CROSS JOIN (SELECT MAX(v.update_time) AS scoredAt, COUNT(*) AS batchRows
+                      FROM product_media v
+                     WHERE v.visual_score IS NOT NULL AND v.platform_type = #{platformType}
+                     GROUP BY DATE(v.update_time)
+                     ORDER BY batchRows DESC, scoredAt DESC
+                     LIMIT 1) m
         WHERE pm.platform_type = #{platformType}
     </select>
 
@@ -75,8 +95,18 @@
                SUM(CASE WHEN visual_score >= 80 AND visual_score &lt; 90 THEN 1 ELSE 0 END) AS countB,
                SUM(CASE WHEN visual_score >= 70 AND visual_score &lt; 80 THEN 1 ELSE 0 END) AS countC,
                SUM(CASE WHEN visual_score >= 60 AND visual_score &lt; 70 THEN 1 ELSE 0 END) AS countD,
-               SUM(CASE WHEN visual_score &lt; 60 THEN 1 ELSE 0 END) AS countDMinus
+               SUM(CASE WHEN visual_score &lt; 60 THEN 1 ELSE 0 END) AS countDMinus,
+               MAX(m.scoredAt) AS scoredAt,
+               MAX(m.batchRows) AS scoredBatchRows,
+               MAX((SELECT COUNT(*) FROM source_product v3
+                 WHERE v3.visual_score IS NOT NULL AND v3.update_time > m.scoredAt)) AS scoredNewerRows
         FROM source_product
+        CROSS JOIN (SELECT MAX(v.update_time) AS scoredAt, COUNT(*) AS batchRows
+                      FROM source_product v
+                     WHERE v.visual_score IS NOT NULL
+                     GROUP BY DATE(v.update_time)
+                     ORDER BY batchRows DESC, scoredAt DESC
+                     LIMIT 1) m
         WHERE is_deleted=0 AND head_img_url IS NOT NULL
     </select>
 

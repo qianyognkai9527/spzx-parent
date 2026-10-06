@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.joker.spzx.manager.mapper.SyncAlertMapper;
 import com.joker.spzx.model.entity.inventory.SyncAlert;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,7 +24,8 @@ import java.util.List;
  */
 @Slf4j
 @Component
-@Lazy(false) // dev 开了 lazy-init，定时任务 bean 必须启动即建，否则永不调度
+@Lazy(false) // 显式保险：实测 Boot 3.3.5 已把 @Scheduled 的 bean 排除在懒初始化之外（不加也会被调度），
+    // 留着是为了不依赖这个实现细节
 public class SyncAlertNotifyTask {
 
     @Autowired
@@ -33,6 +35,20 @@ public class SyncAlertNotifyTask {
     private String webhook;
 
     private static final int BATCH = 20;
+
+    /**
+     * 没配 webhook 时这个任务是空转的 —— 空转本身不是问题（告警在后台顶栏与任务进度页可见），
+     * 但"为什么我没收到推送"得能从启动日志回答，所以只在启动时说一次。
+     */
+    @PostConstruct
+    void announceChannel() {
+        if (webhook == null || webhook.isBlank()) {
+            log.info("外部推送通道未配置（spzx.alert.dingtalk-webhook 为空）："
+                    + "告警只写进 sync_alert，由后台顶栏「待处理提醒」与任务进度页承载");
+        } else {
+            log.info("外部推送通道已配置，未读告警每分钟批量推一次（单批最多 {} 条）", BATCH);
+        }
+    }
 
     @Scheduled(fixedDelay = 60_000, initialDelay = 30_000)
     public void pushPending() {

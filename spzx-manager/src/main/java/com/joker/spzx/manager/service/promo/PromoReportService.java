@@ -11,8 +11,11 @@ import com.joker.spzx.model.vo.promo.PromoSummaryVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -33,6 +36,8 @@ public class PromoReportService {
     /** 区间上限：采集器最多回补 90 天，再长必然出现"没采"和"没投"分不清的日子 */
     public static final int MAX_RANGE_DAYS = 90;
     public static final int DEFAULT_DAYS = 14;
+
+    private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
 
     @Autowired
     private PromoReportMapper promoReportMapper;
@@ -117,12 +122,70 @@ public class PromoReportService {
         // 关 count 优化：宝贝维度是「先聚合再筛」的派生表，优化器剥掉 group by 后
         // 外层 WHERE 会引用到不存在的别名（商品运营台踩过同样的坑）
         page.setOptimizeCountSql(false);
-        return promoReportMapper.selectItems(page, r[0], r[1],
+        IPage<PromoItemVo> res = promoReportMapper.selectItems(page, r[0], r[1],
                 normalizeChoice(planType, PLAN_TYPES, "all"),
                 campaignId == null || campaignId.isBlank() ? null : campaignId.trim(),
                 keyword == null || keyword.isBlank() ? null : keyword.trim(),
                 normalizeChoice(facet, FACETS, "all"),
                 normalizeChoice(sort, SORTS, "charge"));
+        res.getRecords().forEach(PromoReportService::applyProfit);
+        return res;
+    }
+
+    /**
+     * 纯函数：把毛利原料换算成钱。SQL 只负责按宝贝把原料加总，钱在这里算——
+     * 与「比率一律用汇总后的分子分母重算」是同一条纪律：先加总再算，逐行四舍五入会偏。
+     *
+     * 口径与商品运营台的 margin 保持一致（不含运费），否则同一个宝贝在两个页面会给出
+     * 对不上的毛利；运费单列 freightCost 给出去，让看的人自己决定要不要扣。
+     * 没出货（成交额与笔数都是 0）时货成本/佣金/运费都记 0，缺不缺原料都一样——
+     * 这种行的净利就是「−推广花费」，是真实亏损，不是算不出来。
+     */
+    public static void applyProfit(PromoItemVo vo) {
+        BigDecimal gmv = vo.getGmvTotal() == null ? BigDecimal.ZERO : vo.getGmvTotal();
+        BigDecimal charge = vo.getCharge() == null ? BigDecimal.ZERO : vo.getCharge();
+        int units = vo.getOrderTotal() == null ? 0 : vo.getOrderTotal();
+        BigDecimal qty = BigDecimal.valueOf(units);
+        List<String> gaps = new ArrayList<>();
+
+        BigDecimal goodsCost;
+        BigDecimal platformFee;
+        if (gmv.signum() == 0 && units == 0) {
+            goodsCost = BigDecimal.ZERO;
+            platformFee = BigDecimal.ZERO;
+        } else {
+            if (vo.getSourcePrice() == null) {
+                gaps.add("缺进价");
+                goodsCost = null;
+            } else {
+                goodsCost = vo.getSourcePrice().multiply(qty).setScale(2, RoundingMode.HALF_UP);
+            }
+            if (vo.getCommissionRate() == null || vo.getPaymentFeeRate() == null) {
+                gaps.add("缺费率");
+                platformFee = null;
+            } else {
+                platformFee = gmv.multiply(vo.getCommissionRate().add(vo.getPaymentFeeRate()))
+                        .divide(HUNDRED, 2, RoundingMode.HALF_UP);
+            }
+        }
+        vo.setGoodsCost(goodsCost);
+        vo.setPlatformFee(platformFee);
+        // 运费只在真有出货时才有意义，且它不进净利
+        vo.setFreightCost(vo.getFreight() == null || units == 0 ? BigDecimal.ZERO
+                : vo.getFreight().multiply(qty).setScale(2, RoundingMode.HALF_UP));
+
+        if (goodsCost == null || platformFee == null) {
+            vo.setNetProfit(null);
+            vo.setNetRoi(null);
+        } else {
+            BigDecimal net = gmv.subtract(goodsCost).subtract(platformFee).subtract(charge)
+                    .setScale(2, RoundingMode.HALF_UP);
+            vo.setNetProfit(net);
+            // 花费为 0 时 ROI 无意义，出 null 而不是 0 或除零异常
+            vo.setNetRoi(charge.signum() == 0 ? null
+                    : net.divide(charge, 2, RoundingMode.HALF_UP));
+        }
+        vo.setProfitGaps(gaps.isEmpty() ? null : String.join("、", gaps));
     }
 
     /** 宝贝维度各筛选项的条数：一次查完，口径与 items 一致 */

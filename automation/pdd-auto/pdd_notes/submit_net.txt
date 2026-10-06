@@ -1,0 +1,136 @@
+
+=== 200 https://mms.pinduoduo.com/janus/api/checkLogin
+{"success":true,"errorCode":1000000,"errorMsg":null,"result":{"login":true}}
+
+=== 200 https://mms.pinduoduo.com/genji/checkGray/inferiorRefund
+{"success":true,"errorCode":1000000,"errorMsg":null,"result":false}
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/edit/commit/create_new
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"goods_commit_id":202512254883,"goods_sn":null,"goods_id":1011564103589}}
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/commit/detail
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"id":202512254883,"goods_id":1011564103589,"check_status":9,"commit_deleted":0,"owner":"主账号","is_shop":0,"goods_sn":"2609301564103589","out_goods_sn":"","is_folt":0,"warm_tips":"","fabric":null,"fabric_content":null,"cost_template_id":544142245494784,"cat_id":0,"mall_id":376710688,"goods_name":"","tiny_name":"","goods_desc":"","share_desc":"","list_desc":[],"market_price":0,"thumb_url":"","image_url":"","hd_thumb_url":"","allowed_region":[],"region_limit":1,"goods_type":1,"country":null,"country_id":0,"goods_name_prefix":null,"ori
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/sensitive_word/check
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"contain_sensitive_word":false}}
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/mall/commit_letter/query
+{"success":true,"error_code":1000000,"error_msg":null,"result":[]}
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/rules/limit/new
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"is_refundable":[1],"must_not_refundable":false,"draft_not_refundable":null,"shipment_limit_second":[86400,172800],"production_date":false,"shelf_life":false,"production_license":false,"production_standard_number":false,"have_production_license":true,"is_can_edit":false,"is_must_fake_one_lose_ten":false,"is_not_show_fake_one_lose_ten":false,"is_show_tips_for_fruit_cat":false,"fabric_and_content_must_fill":false,"second_hand_must_no":false,"second_hand_must_yes":false,"is_event_multi_discount":false,"is_paper_show_net_weight":false
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/mall/commit_letter/query
+{"success":true,"error_code":1000000,"error_msg":null,"result":[]}
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/rules/limit/new
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"is_refundable":[1],"must_not_refundable":false,"draft_not_refundable":null,"shipment_limit_second":[86400,172800],"production_date":false,"shelf_life":false,"production_license":false,"production_standard_number":false,"have_production_license":true,"is_can_edit":false,"is_must_fake_one_lose_ten":false,"is_not_show_fake_one_lose_ten":false,"is_show_tips_for_fruit_cat":false,"fabric_and_content_must_fill":false,"second_hand_must_no":false,"second_hand_must_yes":false,"is_event_multi_discount":false,"is_paper_show_net_weight":false
+
+=== 200 https://mms.pinduoduo.com/glide/mms/goodsCommit/action/update_goods_commit_info
+{"success":true,"error_code":1000000,"error_msg":null,"result":true}
+
+=== 200 https://mms.pinduoduo.com/janus/api/checkLogin
+{"success":true,"errorCode":1000000,"errorMsg":null,"result":{"login":true}}
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/user/ip/check
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"if_need_warn":false}}
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/certificate/property/white_list
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"677":[862380],"2462":[1453706],"2677":[],"3281":[2127894]}}
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/commit/detail
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"id":202512254883,"goods_id":1011564103589,"check_status":9,"commit_deleted":0,"owner":"主账号","is_shop":0,"goods_sn":"2609301564103589","out_goods_sn":"","is_folt":0,"warm_tips":"","fabric":null,"fabric_content":null,"cost_template_id":544142245494784,"cat_id":24349,"mall_id":376710688,"goods_name":"【软萌猫咪儿童甲】韩系波点奶芙芙童趣可爱手绘猫咪穿戴甲","tiny_name":"","goods_desc":"","share_desc":"","list_desc":[],"market_price":0,"thumb_url":"","image_url":"","hd_thumb_url":"","allowed_region":[],"region_limit":1,"goods_type":1,"country":null,"country_id":
+
+=== 200 https://mms.pinduoduo.com/express_inf/mall/service/template/check_suit_mallIdLst
+{"success":true,"errorCode":1000000,"errorMsg":null,"result":2}
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/property/weak_verify
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"code":1,"comment":"正常"}}
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/rules/limit/new
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"is_refundable":[1],"must_not_refundable":false,"draft_not_refundable":null,"shipment_limit_second":[86400,172800],"production_date":false,"shelf_life":false,"production_license":false,"production_standard_number":false,"have_production_license":true,"is_can_edit":false,"is_must_fake_one_lose_ten":false,"is_not_show_fake_one_lose_ten":false,"is_show_tips_for_fruit_cat":false,"fabric_and_content_must_fill":false,"second_hand_must_no":false,"second_hand_must_yes":false,"is_event_multi_discount":false,"is_paper_show_net_weight":false
+
+=== 200 https://mms.pinduoduo.com/osaka/additional/rule/query/sku_property_rule
+{"success":true,"error_code":"0","error_msg":"成功","result":null}
+
+=== 200 https://mms.pinduoduo.com/glide/forward/gorse/mms/goods/decoration/commit/query/V2
+{"success":true,"error_code":1000000,"error_msg":null,"result":null}
+
+=== 200 https://mms.pinduoduo.com/draco-ms/mms/template/property/value/img
+{"success":true,"error_code":1000000,"result":{"predictable":false,"properties":[]}}
+
+=== 200 https://mms.pinduoduo.com/draco-ms/mms/template/with/property
+{"success":true,"error_code":1000000,"result":{"id":57189,"source_template_id":46826,"name":"\u624B\u5DE5\u7A7F\u6234\u7532(24349)","cat_ids":[24349],"cats":[{"cat_id":24349,"cat_name":"\u624B\u5DE5\u7A7F\u6234\u7532"}],"dark_launch_type":0,"dark_launch_rule":"*","dark_launch_rate":100,"dark_launch_option":[],"sort_order":15,"status":0,"input_max_spec_num":1,"choose_all_qualify_spec":false,"single_spec_value_num":100,"spec_tip":"","is_single_item":false,"channel":1,"type":0,"modules":[{"id":79721,"module_id":1,"sort_order":1,"status":0,"propertys":[{"id":531047,"name_alias":"\u7532\u578B","pid
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/rules/limit/new
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"is_refundable":[1],"must_not_refundable":false,"draft_not_refundable":null,"shipment_limit_second":[86400,172800],"production_date":false,"shelf_life":false,"production_license":false,"production_standard_number":false,"have_production_license":true,"is_can_edit":false,"is_must_fake_one_lose_ten":false,"is_not_show_fake_one_lose_ten":false,"is_show_tips_for_fruit_cat":false,"fabric_and_content_must_fill":false,"second_hand_must_no":false,"second_hand_must_yes":false,"is_event_multi_discount":false,"is_paper_show_net_weight":false
+
+=== 200 https://mms.pinduoduo.com/draco-ms/mms/template/with/property
+{"success":true,"error_code":1000000,"result":{"id":57189,"source_template_id":46826,"name":"\u624B\u5DE5\u7A7F\u6234\u7532(24349)","cat_ids":[24349],"cats":[{"cat_id":24349,"cat_name":"\u624B\u5DE5\u7A7F\u6234\u7532"}],"dark_launch_type":0,"dark_launch_rule":"*","dark_launch_rate":100,"dark_launch_option":[],"sort_order":15,"status":0,"input_max_spec_num":1,"choose_all_qualify_spec":false,"single_spec_value_num":100,"spec_tip":"","is_single_item":false,"channel":1,"type":0,"modules":[{"id":79721,"module_id":1,"sort_order":1,"status":0,"propertys":[{"id":531047,"name_alias":"\u7532\u578B","pid
+
+=== 200 https://mms.pinduoduo.com/osaka/additional/rule/query/sku_property_rule
+{"success":true,"error_code":"0","error_msg":"成功","result":null}
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/property/weak_verify
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"code":1,"comment":"正常"}}
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/rules/limit/new
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"is_refundable":[1],"must_not_refundable":false,"draft_not_refundable":null,"shipment_limit_second":[86400,172800],"production_date":false,"shelf_life":false,"production_license":false,"production_standard_number":false,"have_production_license":true,"is_can_edit":false,"is_must_fake_one_lose_ten":false,"is_not_show_fake_one_lose_ten":false,"is_show_tips_for_fruit_cat":false,"fabric_and_content_must_fill":false,"second_hand_must_no":false,"second_hand_must_yes":false,"is_event_multi_discount":false,"is_paper_show_net_weight":false
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/rules/limit/new
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"is_refundable":[1],"must_not_refundable":false,"draft_not_refundable":null,"shipment_limit_second":[86400,172800],"production_date":false,"shelf_life":false,"production_license":false,"production_standard_number":false,"have_production_license":true,"is_can_edit":false,"is_must_fake_one_lose_ten":false,"is_not_show_fake_one_lose_ten":false,"is_show_tips_for_fruit_cat":false,"fabric_and_content_must_fill":false,"second_hand_must_no":false,"second_hand_must_yes":false,"is_event_multi_discount":false,"is_paper_show_net_weight":false
+
+=== 200 https://mms.pinduoduo.com/glide/forward/gorse/mms/goods/decoration/commit/save
+{"success":true,"error_code":1000000,"error_msg":null,"result":true}
+
+=== 200 https://mms.pinduoduo.com/glide/forward/gorse/mms/goods/decoration/commit/query/V2
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"goods_id":1011564103589,"goods_commit_id":202512254883,"mall_id":376710688,"floor_list":[{"floor_id":121754674286,"key":"DecImage","type":"text","priority":0,"content_list":[{"img_url":"https://img.pddpic.com/mms-material-img/2026-09-30/dca767af-d031-48cb-95e6-aba3bc4e5aca.png","file_id":null,"height":124,"width":750,"file_status":null,"goods_id":null,"goods_name":null,"show_price":null,"status":null,"min_on_sale_group_price":null,"text":"【软萌猫咪儿童甲】韩系波点奶芙芙童趣可爱手绘猫咪穿戴甲","hot_zone_list":null,"text_module_details":{"font_size":15,"fon
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/mall/commit_letter/query
+{"success":true,"error_code":1000000,"error_msg":null,"result":[]}
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/edit/commit/submit
+{"success":false,"error_code":40000003,"error_msg":"商详装修校验:请重新上传第2张图片，注意图片宽度应为480-1200px，高度应为1500px以内.","result":null}
+
+=== 200 https://mms.pinduoduo.com/goods/goods_add/index?type=add&from=category&version=predictCate&id=202512254883&goods_id=1011564103589
+<!DOCTYPE html><html lang="zh-CN" class="__mfns_container"><head><meta charSet="utf-8"/><script>var pft = window.__mms_pft__ = window.__mms_pft__ || {};
+            pft.pageStart = +new Date();</script><script>window.__mf = true</script><script>window.__staging = false</script><script>window.__from_nginx = false</script><script>window.__mms_fallback_public_path__="https://mms-static.pddpic.com"</script><script>window.__mms = window.__mms || {};
+              window.__mms.time = window.__mms.time || {};
+              window.__mms.time.serverTimeSnapshot = 1790782153705 || new Date().getTime()
+ 
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/certificate/property/white_list
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"677":[862380],"2462":[1453706],"2677":[],"3281":[2127894]}}
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/user/ip/check
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"if_need_warn":false}}
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/commit/detail
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"id":202512254883,"goods_id":1011564103589,"check_status":0,"commit_deleted":0,"owner":"主账号","is_shop":0,"goods_sn":"2609301564103589","out_goods_sn":"","is_folt":0,"warm_tips":"","fabric":null,"fabric_content":null,"cost_template_id":544142245494784,"cat_id":24349,"mall_id":376710688,"goods_name":"【软萌猫咪儿童甲】韩系波点奶芙芙童趣可爱手绘猫咪穿戴甲","tiny_name":"","goods_desc":"【软萌猫咪儿童甲】韩系波点奶芙芙童趣可爱手绘猫咪穿戴甲","share_desc":"【软萌猫咪儿童甲】韩系波点奶芙芙童趣可爱手绘猫咪穿戴甲","list_desc":[],"market_price":17736,"thumb_url":"","image_url":"","hd_thumb_url":"","allowed_region":[],"r
+
+=== 200 https://mms.pinduoduo.com/janus/api/checkLogin
+{"success":true,"errorCode":1000000,"errorMsg":null,"result":{"login":true}}
+
+=== 200 https://mms.pinduoduo.com/express_inf/mall/service/template/check_suit_mallIdLst
+{"success":true,"errorCode":1000000,"errorMsg":null,"result":2}
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/property/weak_verify
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"code":1,"comment":"正常"}}
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/rules/limit/new
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"is_refundable":[1],"must_not_refundable":false,"draft_not_refundable":null,"shipment_limit_second":[86400,172800],"production_date":false,"shelf_life":false,"production_license":false,"production_standard_number":false,"have_production_license":true,"is_can_edit":false,"is_must_fake_one_lose_ten":false,"is_not_show_fake_one_lose_ten":false,"is_show_tips_for_fruit_cat":false,"fabric_and_content_must_fill":false,"second_hand_must_no":false,"second_hand_must_yes":false,"is_event_multi_discount":false,"is_paper_show_net_weight":false
+
+=== 200 https://mms.pinduoduo.com/osaka/additional/rule/query/sku_property_rule
+{"success":true,"error_code":"0","error_msg":"成功","result":null}
+
+=== 200 https://mms.pinduoduo.com/glide/forward/gorse/mms/goods/decoration/commit/query/V2
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"goods_id":1011564103589,"goods_commit_id":202512254883,"mall_id":376710688,"floor_list":[{"floor_id":121754674286,"key":"DecImage","type":"text","priority":0,"content_list":[{"img_url":"https://img.pddpic.com/mms-material-img/2026-09-30/dca767af-d031-48cb-95e6-aba3bc4e5aca.png","file_id":null,"height":124,"width":750,"file_status":null,"goods_id":null,"goods_name":null,"show_price":null,"status":null,"min_on_sale_group_price":null,"text":"【软萌猫咪儿童甲】韩系波点奶芙芙童趣可爱手绘猫咪穿戴甲","hot_zone_list":null,"text_module_details":{"font_size":15,"fon
+
+=== 200 https://mms.pinduoduo.com/draco-ms/mms/template/property/value/img
+{"success":true,"error_code":1000000,"result":{"predictable":false,"properties":[]}}
+
+=== 200 https://mms.pinduoduo.com/draco-ms/mms/template/with/property
+{"success":true,"error_code":1000000,"result":{"id":57189,"source_template_id":46826,"name":"\u624B\u5DE5\u7A7F\u6234\u7532(24349)","cat_ids":[24349],"cats":[{"cat_id":24349,"cat_name":"\u624B\u5DE5\u7A7F\u6234\u7532"}],"dark_launch_type":0,"dark_launch_rule":"*","dark_launch_rate":100,"dark_launch_option":[],"sort_order":15,"status":0,"input_max_spec_num":1,"choose_all_qualify_spec":false,"single_spec_value_num":100,"spec_tip":"","is_single_item":false,"channel":1,"type":0,"modules":[{"id":79721,"module_id":1,"sort_order":1,"status":0,"propertys":[{"id":531047,"name_alias":"\u7532\u578B","pid
+
+=== 200 https://mms.pinduoduo.com/glide/v2/mms/query/rules/limit/new
+{"success":true,"error_code":1000000,"error_msg":null,"result":{"is_refundable":[1],"must_not_refundable":false,"draft_not_refundable":null,"shipment_limit_second":[86400,172800],"production_date":false,"shelf_life":false,"production_license":false,"production_standard_number":false,"have_production_license":true,"is_can_edit":false,"is_must_fake_one_lose_ten":false,"is_not_show_fake_one_lose_ten":false,"is_show_tips_for_fruit_cat":false,"fabric_and_content_must_fill":false,"second_hand_must_no":false,"second_hand_must_yes":false,"is_event_multi_discount":false,"is_paper_show_net_weight":false

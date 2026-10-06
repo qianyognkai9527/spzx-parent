@@ -121,10 +121,37 @@
                    SUM(i.order_total)                                                AS orderTotal,
                    ROUND(SUM(i.gmv_total) / NULLIF(SUM(i.charge), 0), 2)              AS roi,
                    SUM(i.cart_count)                                                 AS cartCount,
-                   SUM(i.collect_total)                                              AS collectTotal
+                   SUM(i.collect_total)                                              AS collectTotal,
+                   <!-- 毛利原料。进价走「已绑货源的最低 SKU 价」、费率走 fee_benchmark 按平台均值，
+                        抄的是商品运营台 itemOpsBase 的同一套口径：两处公式一旦不一样，
+                        同一个宝贝在两个页面上就会给出对不上的毛利。
+                        派生表都按 product_id / platform_type 聚成一行再 join，避免绑定关系把行数放大。 -->
+                   MAX(src.source_price)                                             AS sourcePrice,
+                   MAX(p.freight)                                                    AS freight,
+                   MAX(fee.commission_rate)                                          AS commissionRate,
+                   MAX(fee.payment_fee_rate)                                         AS paymentFeeRate
             FROM promo_cost_item_daily i
                      LEFT JOIN platform_product p
                                ON p.code = i.item_id COLLATE utf8mb4_unicode_ci
+                     LEFT JOIN (SELECT br.product_id,
+                                       MIN(COALESCE(sk.min_price, sp.source_price)) AS source_price
+                                FROM product_bind_relation br
+                                         JOIN source_product sp
+                                              ON sp.id = br.source_productId AND sp.is_deleted = 0
+                                         LEFT JOIN (SELECT source_product_id,
+                                                           MIN(CASE WHEN status = 1 THEN price END) AS min_price
+                                                    FROM source_sku
+                                                    WHERE is_deleted = 0
+                                                    GROUP BY source_product_id) sk
+                                                   ON sk.source_product_id = sp.id
+                                WHERE br.is_deleted = 0
+                                GROUP BY br.product_id) src ON src.product_id = p.id
+                     LEFT JOIN (SELECT platform_type,
+                                       ROUND(AVG(commission_rate), 2)  AS commission_rate,
+                                       ROUND(AVG(payment_fee_rate), 3) AS payment_fee_rate
+                                FROM fee_benchmark
+                                WHERE is_deleted = 0
+                                GROUP BY platform_type) fee ON fee.platform_type = p.platform_type
             <where>
                 i.dimension = 'item'
                 AND i.stat_date BETWEEN #{dateFrom} AND #{dateTo}

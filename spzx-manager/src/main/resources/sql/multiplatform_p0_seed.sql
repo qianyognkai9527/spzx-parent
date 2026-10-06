@@ -11,13 +11,19 @@ ON DUPLICATE KEY UPDATE name        = VALUES(name),
                         theme_color = VALUES(theme_color),
                         money_channel = VALUES(money_channel);
 
-INSERT INTO shop (id, platform_code, shop_name, ingest_channel, is_default, status)
-VALUES (1, 1, '淘宝默认店', 'browser', 1, 1),
-       (2, 2, '抖音默认店', 'browser', 1, 1),
-       (3, 3, '拼多多默认店', 'browser', 1, 0)
+-- cdp_port 是这台机器上各条自动化线的实际端口（tb-auto 9222 / sourcing 9223 / pdd-auto 9224），
+-- 权威值在 automation/*/ 的 config 里，这里只是给店铺管理页一个能看的镜像。
+INSERT INTO shop (id, platform_code, shop_name, ingest_channel, cdp_port, is_default, status)
+VALUES (1, 1, '淘宝默认店', 'browser', 9222, 1, 1),
+       (2, 2, '抖音默认店', 'browser', 9223, 1, 1),
+       (3, 3, '拼多多默认店', 'browser', 9224, 1, 0)
 ON DUPLICATE KEY UPDATE shop_name  = VALUES(shop_name),
                         is_default = VALUES(is_default),
-                        status     = VALUES(status);
+                        cdp_port   = VALUES(cdp_port);
+-- 注意：这里**不再覆盖 status**。种子写的是"店铺未起"（拼多多 status=0），
+-- 但 status 是运营状态——2026-10 拼多多店已经开起来并被改成 1，
+-- 重跑种子把 status 写回去会静默停用一家正在用的店（店铺管理页与所有按店铺筛选的页面一起空掉）。
+-- 要停用/启用店铺请在店铺管理页做，不要靠重跑种子。
 
 INSERT INTO platform_capability (platform_code, capability, supported, note)
 VALUES (1, 'ingest_order', 1, 'order_info 由自动化写入'),

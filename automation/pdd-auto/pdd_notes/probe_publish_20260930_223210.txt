@@ -1,0 +1,19 @@
+URL: https://mms.pinduoduo.com/login/?redirectUrl=https%3A%2F%2Fmms.pinduoduo.com%2Fgoods%2Fpublish
+TITLE: 拼多多商家后台，一站式店铺管理工作台，0元开店坐享流量红利，高效店铺工具轻松上手，与百万卖家交流经营心得
+
+== BODY ==
+扫码登录
+账号登录
+打开拼多多商家版App扫码登录
+还没有店铺？0元开店
+商家入驻批发采购开放平台服务市场多多直播拼多多课堂营销书院帮助中心规则中心廉正举报
+Copyright 2015-2026 pinduoduo.com 版权所有 (增值电信业务经营许可证：沪B2-20170215)
+沪公网安备 31010502000392号沪ICP备15010535号-13
+手机App下载
+Win版客户端
+Mac版客户端
+官方
+客服
+
+== DOM ==
+{'buttons': [{'tag': 'BUTTON', 'id': '', 'name': '', 'text': '登录'}], 'inputs': [{'tag': 'INPUT', 'id': 'usernameId', 'name': '', 'text': '请输入账号名/手机号'}, {'tag': 'INPUT', 'id': 'passwordId', 'name': '', 'text': '请输入密码'}], 'selects': [], 'labels': [], 'textareas': []}

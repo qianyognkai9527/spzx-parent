@@ -96,6 +96,20 @@ def is_image_only_failure(msg):
     return not any(m in rest for m in FILL_FAIL_MARKS)
 
 
+PERMANENT_FAIL_MARKS = (
+    '数据问题',                          # 表单必填校验(属性/销售规格/尺寸表 必填项未填) → 需人工修数据
+    IMAGE_FAIL_MARK,                     # 盗图 PIC_STEAL → 需换主图
+    'CHK_VIDEO_RATIO_INVALID_ERROR',     # 视频比例 → 需人工改视频
+    '类目设置失败',                      # 目标类目不在树中 → 需人工改类目
+)
+
+
+def is_permanent_failure(msg):
+    """该提交失败是否需人工修数据(重试永远失败): 数据问题必填校验/盗图/视频比例/类目不在树.
+    瞬时失败(超时/网络/假失败)不在其中, 仍应重试. 纯函数."""
+    return any(m in (msg or '') for m in PERMANENT_FAIL_MARKS)
+
+
 async def detect_gaps(page):
     """读页面错误态(自带上次失败态, 零试提交) -> parse_gaps.
     #struct-error-board 可能已被 clear_overlays 隐藏(display:none), body.innerText 读不到

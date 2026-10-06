@@ -78,11 +78,14 @@ async def read_tab_count(page, name):
         const re = new RegExp(pat + '\\\\(([\\\\d,]+)\\\\)');
         for (const el of document.querySelectorAll('.next-tabs-tab-inner')) {
             const m = (el.textContent||'').match(re);
-            if (m) return parseInt(m[1].replace(/[^\\\\d]/g, ''), 10);
+            if (m) return parseInt(m[1].replace(/[^0-9]/g, ''), 10);
         }
         return 0;
     }""", pat)
-    return int(r or 0)
+    try:
+        return int(r)
+    except (TypeError, ValueError):
+        return 0
 
 
 def load_existing(out_path):

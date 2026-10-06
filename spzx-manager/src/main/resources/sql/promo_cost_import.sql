@@ -265,6 +265,28 @@ VALUES ('promo_cost_detail', '推广明细日报', 1, 'batch', 'promo_cost_item_
         '关键词/人群/宝贝维度明细。宝贝维度用于把推广费摊到商品上算真实 ROI');
 
 -- ============================================================================
+-- 5. 调度登记补全（2026-10-04）：推广采集是 **LaunchAgent** 不是 crontab
+--    `~/Library/LaunchAgents/com.spzx.alimama-promo.plist` → 每日 22:00 跑
+--    `automation/tb-auto/cron_alimama_promo.sh`，日志 `/tmp/alimama_promo_launchd.log`。
+--    之前 cron_expr 一直留空、remark 还写着"monitor 待装 cron 后再开"，而 monitor 早就=1 ——
+--    看板上的"定时"因此是空的，读的人不知道这份数据本该每天几点到。
+--    cron_expr 用 cron 语法记 launchd 的日历时间，是为了给看板统一渲染；真实开关在 plist 里。
+-- ============================================================================
+UPDATE ingest_dataset
+SET cron_expr = '0 22 * * *',
+    remark = CONCAT('已由接口采集器落地（campaign/horizontal/findPage.json + rptQuery，一次拿全计划×指标）。',
+                   '成交类有归因回补，靠唯一键 upsert 滚动覆盖。',
+                   '调度：LaunchAgent com.spzx.alimama-promo 每日 22:00（不是 crontab），日志 /tmp/alimama_promo_launchd.log')
+WHERE code = 'promo_cost' AND (cron_expr IS NULL OR cron_expr = '');
+
+UPDATE ingest_dataset
+SET cron_expr = '0 22 * * *',
+    remark = CONCAT('宝贝粒度由 adgroup/horizontal/findPage.json 采集（一个单元=一个宝贝，materialId 即淘宝商品ID）。',
+                   '完整性自证：Σ宝贝花费=计划花费。',
+                   '调度：LaunchAgent com.spzx.alimama-promo 每日 22:00（不是 crontab），日志 /tmp/alimama_promo_launchd.log')
+WHERE code = 'promo_cost_detail' AND (cron_expr IS NULL OR cron_expr = '');
+
+-- ============================================================================
 -- 自检
 -- ============================================================================
 SELECT table_name, table_rows

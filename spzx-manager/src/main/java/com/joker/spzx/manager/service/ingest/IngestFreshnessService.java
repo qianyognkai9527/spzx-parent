@@ -68,6 +68,8 @@ public class IngestFreshnessService {
      */
     public record Health(
             String code, String name, Integer platformCode, String measure, Integer slaHours,
+            /* 本该几点跑：没有它，"SLA 30 小时"和"每周六才跑一次"在看板上长得一模一样 */
+            String cronExpr,
             Integer monitor, LocalDateTime lastWriteAt, Long ageHours,
             boolean stale, LocalDateTime staleSince, String writer, boolean measurable,
             boolean hasBatch,
@@ -120,7 +122,7 @@ public class IngestFreshnessService {
             BatchRow b = batches.get(d.getCode());
             boolean hasBatch = !IngestDataset.MEASURE_BATCH.equals(d.getMeasure()) || b != null;
             out.add(new Health(d.getCode(), d.getName(), d.getPlatformCode(), d.getMeasure(),
-                    d.getSlaHours(), d.getMonitor(), lw.at(), age,
+                    d.getSlaHours(), d.getCronExpr(), d.getMonitor(), lw.at(), age,
                     isStale(lw.at(), slaOf(d), now) && hasBatch,
                     d.getStaleSince(), d.getWriter(), lw.measurable(), hasBatch,
                     b == null ? null : b.status(), b == null ? null : b.startedAt(),

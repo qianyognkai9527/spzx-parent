@@ -87,6 +87,20 @@ def test_image_only():
     assert not is_image_only_failure('PIC_STEAL 尺码表数据缺失')
 
 
+def test_permanent_failure():
+    from compliance_filler import is_permanent_failure
+    # 永久失败(需人工修数据, 重试永远失败)
+    assert is_permanent_failure('提交失败: 数据问题: 商品发布 错误(4) 销售规格 必填项未填')
+    assert is_permanent_failure('提交失败: 数据问题: ...CHK_IMAGE_PC_PIC_STEAL...')
+    assert is_permanent_failure('CHK_VIDEO_RATIO_INVALID_ERROR 视频比例错误')
+    assert is_permanent_failure('类目设置失败: 目标类目[长裤]不在树中')
+    # 瞬时失败(超时/网络/假失败)仍应重试
+    assert not is_permanent_failure('页面加载超时(表单未水合)')
+    assert not is_permanent_failure('提交超时240s(可能已提交, 待重试)')
+    assert not is_permanent_failure('net::ERR_ABORTED')
+    assert not is_permanent_failure('')
+
+
 def test_sku_value_for():
     from compliance_filler import sku_value_for
     assert sku_value_for('是否加绒', '冬季加绒加厚卫裤') == '是'
@@ -139,6 +153,7 @@ if __name__ == '__main__':
     test_parse_gaps_no_false_positive()
     test_parse_gaps_inline_separate()
     test_image_only()
+    test_permanent_failure()
     test_sku_value_for()
     test_sku_value_for_options()
     test_sku_value_for_unknown_fields()

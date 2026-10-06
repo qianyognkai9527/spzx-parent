@@ -2,12 +2,22 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.joker.spzx.manager.mapper.EvalGapMapper">
 
+    <!--
+      headImgUrl 以前是写死的 NULL AS headImgUrl —— platform_product 表里根本没有图片字段，
+      图在 product_media（file_type=1，img_pos 1~5）。这里取该商品最小 img_pos 的那张当首图：
+      淘宝 3282 个商品里 3260 个有 media，22 个没有主图1，用 ORDER BY img_pos 兜底成"有哪张显示哪张"，
+      剩下真没行的仍为 null，前端 v-else 显示 "-"。id 做次级排序是因为实测有 3 个商品存在重复的 img_pos=1。
+    -->
     <select id="pageList" resultType="com.joker.spzx.model.vo.mall.EvalGapVo">
         SELECT
             pp.id,
             pp.code,
             pp.title,
-            NULL AS headImgUrl,
+            (SELECT pm.file_url
+             FROM product_media pm
+             WHERE pm.product_id = pp.id AND pm.file_type = 1
+             ORDER BY pm.img_pos, pm.id
+             LIMIT 1) AS headImgUrl,
             COALESCE((
                 SELECT sp.eval_with_image_count
                 FROM product_bind_relation pbr

@@ -1167,3 +1167,571 @@ AGENTS.md 等）一笔没动、一笔没带。§25 这份修复（`sync_alert_da
 地基够了：成交额/件数、退款、推广费、货源进价（`platform_product` → 已绑货源最低 SKU 价）都在库里。
 缺的是**销量口径**：`pay_items` 是窗口内件数，配进价能算货成本；但运费、平台技术服务费率、
 支付费率这三项目前是散在前端常量里的（商品运营台的毛利公式），要进利润表得先收到一处配置里。
+
+
+---
+
+## 30. 4′ 落地：推广费进商品毛利（2026-10-03 凌晨）
+
+### 30.1 没有建 `profit_period_summary`，这是决定不是偷懒
+
+实测宝贝维度全量 225 行一次取回 **0.12s**（含登录态与序列化）。给这个量级物化一张汇总表，
+换来的只有"摘要比明细旧"这一种新 bug。所以利润走**读路径现算**：SQL 只按宝贝把原料加总，
+钱在 Java 里汇总后算——与 §28 定的「比率一律用汇总后的分子分母重算」是同一条纪律。
+
+### 30.2 口径（与商品运营台同源，否则两个页面的毛利对不上）
+
+- 净利 = 成交额 − 货成本(进价 × 成交笔数) − 平台佣金与支付手续费(成交额 × (技术服务费率 + 支付费率)) − 推广花费。
+- **不含运费**。`itemOpsBase` 的 margin 也不含；一处含一处不含，同一个宝贝在两个页面就会给出不同毛利。
+  运费单列摆出（`freightCost`），由看的人决定要不要扣。
+- 原料来源钉死：进价 = `product_bind_relation → source_product/source_sku` 的最低在架 SKU 价；
+  费率 = `fee_benchmark` 按平台 `AVG`；运费 = `platform_product.freight`。
+- 已知低估：**万相台没有件数字段**，只有 `order_total`(笔数)，一单多件会把货成本算少。
+- NULL 纪律：没出货（成交额与笔数都是 0）时货成本/佣金记 0，净利 = −花费，这是**真实亏损**；
+  只有真出了货又缺进价/费率才 `netProfit=null` 并把缺口写进 `profitGaps`。
+  把"不知道进价"记成"进价 0"就是凭空造利润。
+
+### 30.3 数据现状：这门生意今天的净利就是 −173.68
+
+09-15~10-01 六个投放日、225 个投过钱的宝贝：成交额全为 0（万相台 `gmv_total` 与生意参谋
+`pay_amt` 两个独立源互相印证，见 §28.7/§29.2），所以 Σ净利 = −Σ花费 = **−173.68**。
+不可算 0 行、缺进价 9 行、本地无此商品 1 行。运费侧：全库 4683 个商品只有 17 个有非零运费
+（3832 个 NULL、834 个显式 0），投过钱的 224 个宝贝里只有 2 行有非零运费——这就是运费不进净利的量化理由。
+
+### 30.4 顺带挖出：计划粒度与宝贝粒度天然差 1.00 元（平台侧，不是采集漏行）
+
+同区间 `promo_cost_daily` 合计 174.68，`promo_cost_item_daily` 合计 173.68。差额全在已停投的
+标准计划A：09-15 差 0.20、09-16 差 0.80。翻原始响应 `items_keyword_83392643008_2026-09-15_0.json`：
+`data.list` 有 54 个单元，其中只有 2 个带 `charge`（6.68 + 5.26 = 11.94），而计划级报 12.14。
+**万相台自己的单元级报表合计就小于计划级**，采集器没漏行。影响：宝贝页合计与看板顶部花费
+最多差 0.57%，且只出现在回补的早期日子；不改数据，记在这里当口径说明书用。
+
+### 30.5 落地清单
+
+- 后端：`PromoItemVo` 加 6 个原料/结果字段；`PromoReportMapper.selectItems` 加两个派生表
+  （按 product_id / platform_type 先聚成一行再 join，避免绑定关系放大行数）；
+  `PromoReportService.applyProfit()` 纯函数承担全部算术。
+- 测试：`PromoProfitMathTest` 8 项（零成交=−花费、缺进价判不可算、运费不进净利、
+  花费 0 时 ROI 出 null、HALF_UP 舍入、全空行不抛异常）。`mvn test -Dtest='Promo*'` 40 项全绿。
+- 前端：推广日报宝贝页新增 进价 / 运费 / 净利(未含运费) 三列 + 一段「净利的口径」说明；
+  截图验收（负数红色、NULL 显示"未填"、显式 0 显示 ¥0、未定价标记不受影响）。
+- 验收数据：`items?from=2026-09-15&to=2026-10-01` 225 行，Σ花费 173.68、Σ净利 −173.68、不可算 0。
+
+### 30.6 4′ 还欠的三块地基（都不是前端能解决的）
+
+1. **真成交数据源**：`order_info` 43 行全是 2023-05~07 的演示数据，`order_item` 80 行同批。
+   利润要按订单算，得先把淘宝 ISV 订单接进来；在那之前净利只能到"−推广费"这一层。
+2. **件数**：报表只有笔数，一单多件会低估货成本。
+3. **运费填充率**：17/4683。要么补录，要么明确"本店包邮、运费恒 0"，别让它停在 NULL 与 0 混着的状态。
+
+## 31. 主图质量分的诚实性：数据截至，以及这页其实一直在空转（2026-10-04）
+
+### 31.1 触发点
+
+页面顶部摆着「总数 3085 / 均分 65.3 / 各档位计数」，没有任何时间标记，读起来像实时结论。
+库里查一下就知道不是：
+
+```
+product_media  file_type=1：18790 行，18611 行有分，update_time 最大 2026-08-21 20:16:49
+               有分的行只分布在 08-11 / 08-16 / 08-17 / 08-21 四天 —— 一次批量跑完就没再动
+source_product is_deleted=0 且有头图：82 行，75 行有分，最后写入 2026-09-26 04:36:42
+```
+
+也就是说 10 月 4 日打开这页，看到的是 **44 天前（淘宝）/ 48 天前（抖店）/ 8 天前（货源）** 的评级，
+而重跑链路已经断了（见 31.6）。表里没有单独的 `scored_time` 列，`update_time` 是唯一线索。
+
+### 31.2 落地：把"截至"做成接口字段而不是前端猜
+
+- `VisualScoreStatsVo` 加 `scoredAt` / `staleDays`；两个 stats SQL 加
+  `MAX(CASE WHEN visual_score IS NOT NULL THEN update_time END) AS scoredAt`
+  —— 只取有分行的时间，否则"最新一行"可能是后来新增、还没评分的商品，会把陈旧期盖掉。
+- `VisualScoreServiceImpl.staleDays(scoredAt, today)` 纯函数：整天取整、未来时间按 0、
+  从没评过分返回 **null**（0 天会被读成"今天刚跑过"，那是另一种假）。
+- 前端统计条末尾加「分数截至 2026-08-21（44 天前）」一格，超过 30 天标橙。
+  **30 天是人给的线**，不是 SLA —— 批量评分没有排期，所以它只表示"该重跑了"，不表示数据错。
+- 页顶加一段口径说明，其中「重跑依赖 visual.script-dir」那句只在平台页出现，
+  货源页没有生成按钮，说它就是误导。
+
+### 31.3 统计口径钉死在"首图"，并且改成写在界面上
+
+`statsPlatform` 的子查询是 `SELECT product_id, MIN(id) FROM product_media WHERE file_type=1 GROUP BY product_id`。
+实测这 3085 条被选中的行 **全部是 img_pos=1**，所以 total/均分/档位读作「商品数 + 首图分」，
+不是全部 5 张主图（全部主图口径：15295 行、均分 66.1，比首图口径高 0.8 分）。
+列表本身是一行一个商品，所以保留商品数口径、把口径写进说明，而不是把统计改成按图计数。
+
+另一个会被误读成 bug 的事实：**全库 visual_score 区间只有 32~82**，所以 S(100)/A+(95-99)/A(90-94)
+三档恒为 0，B 档只有 6 个。这是评分器自己的标定区间，不是统计漏算。
+
+### 31.4 顺手抓出来的两个真 bug（不是口径问题）
+
+1. **主图 1~5 五列从来没显示过图**。列配置写了 `tdSlot: 'imgCell'` + `tdProps: { idx: n-1 }`，
+   但 ProTable 根本不认识 `tdProps`（全仓 grep 只有这一处用到它），插槽只拿到
+   `{row, column, $index}` → `idx` 是 undefined → `row.imgs[undefined]` 恒空 → 3088 个商品
+   五列全渲染成"-"。而接口返回里 `imgs` 实打实有 5 条带 `imgPos`/`visualScore`/`fileUrl` 的记录。
+   修法：ProTable 的单元格插槽改成 `v-bind="{ ...scope, ...(item.tdProps || {}) }"`（纯追加，
+   其他页不传 tdProps 时行为不变）。
+2. **按下标取图会串位**。淘宝 90 个、抖店 18 个商品的主图不足 5 张，`imgs[i]` 会把后面的图
+   挪到前一格。改成按 `imgPos` 找位（列表和变体框的"原始"列都改），缺的位置直说"这个位置没图"。
+
+顺带：变体列 `:key="item.imgPos"` 在真实数据上重复 —— `product_media_variant` 只有 1 个商品的
+25 行，且 `variant_set` 全是 1（5 规则 × 5 个图位塞进同一套），所以 key 换成 `imgPos-ruleName`，
+列标题补上"· 主图N"，否则 25 列里"背景虚化"出现 5 次分不清。
+
+同类缺陷扫过一遍：全仓 27 个带 `tdSlot`/`labelSlot` 的 .vue，逐个比对模板里有没有同名
+`<template #x>`，**缺插槽的只有 `visualScore.vue` 的 `headImg` 一处**（已补）。
+反方向（给了模板却没列引用）报 25 个文件，全是 `#toolbar`/`#header`/`#prefix`/`#dropdown`
+这类别的组件的插槽，属误报，所以没把这版扫描固化成脚本。
+
+### 31.5 变体图为什么显示不出来，以及为什么不给它开文件服务
+
+`product_media_variant.file_url` 存的是本机绝对路径：
+
+```
+/Users/qyk9527/tb/headImges/2361/set1/img1_bokeh.jpg
+```
+
+25 个文件确实在盘上（2.3 MB，2026-08-12 生成），但 `<img src="/Users/...">` 会被解析成
+本站路径，浏览器拿不到。项目里本机文件的既有做法是传 MinIO、库里存 HTTP URL —— 当年这个
+生成脚本没做这一步。
+
+**决定不做**后端文件映射（把某个本机目录挂成 HTTP 出口）：生成链路已断（31.6），
+为 1 个商品的 25 张遗留图开一个文件系统出口，风险换不到价值。改成界面上如实交代：
+本机路径的格子显示"本机文件 + 文件名"（鼠标悬停给全路径），框顶一句话说明为什么没有图。
+真要恢复，正确改法是在生成脚本里加"传 MinIO 后再入库"，而不是加读文件的接口。
+
+### 31.6 重算链路的失败信息
+
+`assess_main_img.py` / `assess_visual.py` / `generate_main_img_variants.py` 都不在
+`visual.script-dir`（`automation/sourcing/`）里，整批在 `automation/sourcing/_archive_20260906/`。
+以前点「生成优质主图」只会得到一句"脚本执行失败"（要等 Python 报错退出），现在 `runScript`
+先查脚本和解释器在不在，实测：
+
+```
+POST /admin/mall/visualScore/generateVariant {"productId":1059,"platformType":1}
+→ {"code":500,"message":"评分脚本不存在：/Users/.../automation/sourcing/generate_main_img_variants.py。
+   这条链路依赖配置 visual.script-dir 指向的目录，脚本目前不在那里（已随目录归档），重算不可用。"}
+```
+
+### 31.7 验收
+
+- 单测：`VisualScoreStalenessTest` 4 项（44 天、null≠0、当天算 0、未来不出现负数）。
+  全量 `mvn test -pl spzx-manager -Dtest='!*EmailTest'` → **Tests run: 113, Failures: 0, Errors: 0**。
+- 接口（重启后端后实测，spzx-model 改了 VO 必须整进程重启）：
+  淘宝 `total 3085 / avg 65.3 / unscored 2 / scoredAt 2026-08-21T20:16:49 / staleDays 44`；
+  抖店 `669 / 65.5 / 0 / 2026-08-17T18:19:13 / 48`；货源 `82 / 62.1 / 7 / 2026-09-26T04:36:42 / 8`。
+- 截图已看：淘宝页五列出图出分（80/79/82/79/70 等，颜色按 scoreColor 分档，
+  DOM 计算样式核对过 80→绿、79→黄、68→橙）；货源页头图列不再空白；
+  「分数截至」两页分别显示 44 天前（橙）和 8 天前（灰）。
+- 变体对比框：**只有 DOM 断言**（26 列、25 个"本机文件"格、标题"背景虚化 · 主图1"、说明文案），
+  截图通道当时被同一 Chrome 实例的另一个会话占住，所有调用 `invocation did not complete`。
+  这一格结论的强度就到 DOM 为止。
+
+## 32. 错误层不再撒谎，以及"点了进 404"的按钮（2026-10-04）
+
+### 32.1 触发点是我自己探接口时留下的日志
+
+给质量分接口做验收时，日志里出现两条不该出现的 ERROR：
+
+```
+ERROR GlobalExceptionHandler : 系统异常
+org.springframework.web.servlet.resource.NoResourceFoundException: No static resource admin/ingest/freshness/health.
+ERROR GlobalExceptionHandler : 系统异常
+org.springframework.web.bind.MissingServletRequestParameterException: Required request parameter 'platformType' ...
+```
+
+两条都是**调用方用错了接口**（我打错了路径 / 少传了参数），界面上却统一显示
+"您的网络有问题请稍后重试"（`ResultCodeEnum.SYSTEM_ERROR`），并且各落一条 ERROR 全栈。
+两笔账：一是把"接口用错了"报成"网络故障"，二是把"后端日志 0 ERROR"这条健康判据冲淡——
+我每轮验收都要数 ERROR 行数，噪声一进来这条判据就不成立了。
+
+### 32.2 改法
+
+`GlobalExceptionHandler` 新增一个 handler，把四类调用错误收成 `code 400` + 人话原因，
+日志降成一行 WARN（带 method + URI）：
+
+| 异常 | 文案 |
+|---|---|
+| MissingServletRequestParameterException | 缺少必填参数：platformType |
+| MethodArgumentTypeMismatchException | 参数类型不对：platformType |
+| HttpMessageNotReadableException | 请求体不是合法 JSON |
+| NoResourceFoundException | 接口不存在 |
+
+**文案一律自己拼，绝不打 `e.getMessage()`**：`HttpMessageNotReadableException` 的 message 里
+带着请求体原文（`Source: (byte[])"{"userName":"admin","password":"..."}`），
+登录接口的 body 里有口令；`MethodArgumentTypeMismatch` 的 message 里带着用户输入。
+URI 用 `getRequestURI()`，不含 query string。
+
+踩到的编译坑记一下：`MissingServletRequestParameterException` 的父类
+`ServletRequestBindingException` 继承自 `jakarta.servlet.ServletException`，
+而 `common-util` 的 `spring-boot-starter-web` 是 **provided 作用域（不传递给下游模块）**，
+所以 common-service 编译期根本没有 servlet API。给 `common-service/pom.xml` 补了同样一份
+provided 依赖（运行期由 spzx-manager 提供，不重复打包）。第一次改完编译报的
+"程序包jakarta.servlet.http不存在 / 找不到符号 log"就是这件事，`log` 那串是连带误报。
+
+### 32.3 死跳转：菜单三条件与 5 个进 404 的按钮
+
+路由是动态注册的，一个页面能打开要同时满足三件事：
+`sys_menu.status=1` **且** `is_deleted=0` **且** 授权给当前角色，且 `component` 与前端路由 `name` 同名。
+按这三条把全仓 `router.push({path:...})` 对了一遍（先把 path 映射成 name，
+因为有 `/sourceProduct → name=production` 这种不同名的），结果 7 处死跳转：
+
+```
+mallProduct.vue   -> /productTitle /picture /addOrder(两处按钮) /productSku /evalGap
+evalGap.vue       -> /addOrder      （本页自身不可达，点了不存在）
+brushPerson.vue   -> /addOrder      （同上）
+```
+
+也就是说**商品列表一行 8 个按钮里 6 个点了直接进 404**（实测点 sku 那枚：URL 变成
+`#/error/productSku?id=4722`）。这 6 个目标页里 5 个是 `status=0`（刷单/补单/买家秀/历史标题/
+图片空间/订单报表/补评价缺口这一家子，看着是刻意隐藏的运营红线相关页），
+`productSku` 是 `is_deleted=1` 被软删了。
+
+改法不是去放开菜单（那是产品决定），而是**没注册的路由就不露出入口**：
+`mallProduct.vue` 里加 `const can = path => router.getRoutes().some(r => r.path === path)`，
+6 枚按钮全部 `v-if="can('/xxx')"`。菜单哪天启用，按钮自己就回来。
+按 path 判断而不是 `hasRoute(name)`：本项目存在 path 与 name 不同名的路由。
+
+验收：实测商品列表行内按钮从 8 个变 2 个（修改 / 查看关联），截图已看；
+`can()` 判定的依据（注册路由表）与菜单三条件同源，不会漂移。
+
+### 32.4 评价缺口页的头图列以前是写死的 NULL
+
+`EvalGapMapper.pageList` 里是 `NULL AS headImgUrl`——因为 `platform_product` 表根本没有图片字段，
+图在 `product_media`。改成取该商品最小 `img_pos` 的那张（`ORDER BY img_pos, id LIMIT 1`）：
+淘宝 3282 个商品 3260 个有 media，22 个没有主图 1，用 img_pos 兜底成"有哪张显示哪张"，
+真没行的仍为 null，前端 `v-else` 显示 "-"。`id` 做次级排序是因为实测 3 个商品存在重复的 img_pos=1。
+接口实测：淘宝 3110 条 / 抖店 1569 条，首页 20 行里 15/19 行有图，单页耗时 0.06s（首次 0.32s）。
+
+### 32.5 记下来但没动的
+
+1. **7 个 `status=0` 菜单**（补评价缺口/补单管理/图片空间/历史标题/刷单人员/买家秀人员/订单报表管理）
+   是不是都要继续藏着，是运营决定；页面代码和接口都在，放开只需改一行。
+2. `platform_sku` 的菜单被软删，但 `platform_sku` 表还有 14 行数据、`skuBind` 页在用别的接口——
+   要不要恢复 SKU 页，跟"平台 SKU 几乎没采"是同一件事（§26 的数据地基）。
+3. 商品列表第一行 `VGTEST-001` 标题是乱码（`316ä¸é”ˆé’¢...`，UTF-8 被按 latin1 二次编码），
+   是早期 videogen 联调留下的演示数据，不是显示 bug；删不删由他定。
+4. `mallProduct.vue` 有 6 个 `no-unused-vars` 警告（上传头像/绑定弹窗的遗留），
+   属"功能雏形未接线"，本轮没顺手删。
+
+## 33. 货源商品页有四列根本没有数据源（2026-10-04）
+
+### 33.1 怎么撞上的
+
+给评价缺口页补头图时，顺着 `EvalGapMapper` 里那个"货源带图评价数"往上查，发现它读的
+`source_product.eval_with_image_count` **全库 5,373 行都是 0**。不是没采到、也不是 NULL，
+是 `import_to_db.py` 的 INSERT 语句里直接写了字面量 `0`（`steady_status, eval_with_image_count`
+对应 `1, 0`）。也就是说：缺口 = 货源带图评价数 − 我方已评价数 = `GREATEST(0 - n, 0)` = **恒 0**，
+这页的核心指标在数学上不可能出现非零值。
+
+顺手把整页列都按填充率量了一遍（`WHERE is_deleted=0`，5373 行）：
+
+| 列 | 实测 | 判定 |
+|---|---|---|
+| `logistics_name` 物流公司 | 5373 全空 | **结构空列** |
+| `dispatch_time` 发货时长 | 5373 全 NULL | **结构空列** |
+| `eval_with_image_count` 带图评价数 | 5373 全 = 0（脚本写死） | **假数据**（看着最像真数据） |
+| `salesCount14d` 近14天销量 | 派生自 `source_product_sales_history`，该表 **0 行** | **结构空列** |
+| `quality_grade` 质量分级 | 5187 空，只有 186 行有等级 | 覆盖 3.5% |
+| `category_name` 类目 | 2662 空 | 覆盖 50% |
+| `repurchase_rate` / `trust_years` / `sales_count` | 各 3666 行 NULL | 覆盖 32%（1707 行） |
+| `freight_cost` 邮费 | 3221 行为 0/空 | 覆盖 40% |
+| `supplier_name` 供应商 | 866 空 | 覆盖 84% |
+| `source_price` 价格 | 178 行为 0 | 覆盖 97% |
+
+### 33.2 处理：只改"会骗人的那一个"，其余说清楚
+
+空列显示空白，读者本来就知道"没数"；**只有恒 0 那列会被读成"这家货源没有带图评价"**——
+那是对供应商的事实陈述，而我们从没采过它。所以：
+
+- 列标题 `带图评价数` → `带图评价数(未采)`（列表和详情弹窗两处），并在表格上方挂一条说明，
+  把"这四列在本库没有任何数据源"一次讲完。等真接上采集，去掉 `(未采)` 即可。
+- **没有**为了好看去删列或改数据：删列是产品决定，改数（比如把 0 显示成 —）会在采集真的上线后
+  把真实的 0 也吞掉。
+- 事实记进 `automation/sourcing/AGENTS.md` 的 `import_to_db.py` 条目下——占位是脚本写的，
+  改判据的人第一个要看的就在那儿。
+
+### 33.3 与前面几节的关系
+
+这和 §30.6（利润缺真订单）、`stock-data-gap`（断货告警缺库存）、§31（质量分停在 08-21）是同一件事的
+第四次出现：**界面上的数字比它的数据源活得久**。前三次分别靠"读路径现算 + 口径说明"、
+"新鲜度台账"、"分数截至"收口；这轮的做法是给恒 0 列打上"未采"标记。
+判据统一成一条：**任何一列要么能追到一个还在跑的写入方，要么在界面上自证没有数据源。**
+
+## 34. 首页趋势的最后一个点：访客跳 20 倍而加购一动不动（2026-10-04）
+
+> **后续（2026-10-05）**：本节只做到"界面承认不自洽"。判据已经定出来并落进读路径，
+> 那 14,365 个鬼影访客不再进趋势和"有流量没成交" —— 见 §38。
+
+### 34.1 怎么发现的
+
+给趋势图 tooltip 补"覆盖 N 个商品"时，逐点悬停核对，发现最后一批点不对劲，于是把
+`sycm_item_effect_history` 按快照聚合拉了一遍（`SUM` 各指标）：
+
+| 快照日 | 商品 | 访客 | 浏览 | 加购人数 | 加购件数 | 成交人数 | 成交额 |
+|---|---|---|---|---|---|---|---|
+| 09-15 | 363 | 793 | 1088 | 4 | 16 | 3 | 302.74 |
+| 09-16 | 366 | 810 | 1123 | 4 | 16 | 3 | 302.74 |
+| 09-17 | 373 | 832 | 1120 | 3 | 16 | 2 | 203.28 |
+| 09-25 | 288 | 150 | 229 | 0 | 6 | 0 | 0 |
+| 09-26 | 284 | 147 | 229 | 0 | 6 | 0 | 0 |
+| 09-27 | 282 | 134 | 193 | 0 | 5 | 0 | 0 |
+| 09-30 | 290 | **14966** | 16348 | 1 | **5** | 0 | 0 |
+| 10-01 | 283 | **14983** | 16364 | 1 | **6** | 0 | 0 |
+| 10-02 | 100 | **10807** | 11848 | 1 | **6** | 0 | 0 |
+
+三段量级：09-17 前 ~800 访客且**有成交**；09-25~27 掉到 ~150；09-30 起涨到 ~15,000。
+关键不是哪一段对，而是**不同步**：
+
+- 访客涨 ~100 倍的同时，加购件数一直是 5~6、加购人数 0~1、成交恒 0。
+  15,000 访客 / 5 件加购 = 加购率 0.03%，生意参谋不会是这个形状。
+- 访客与浏览**同比例**变化（浏览每访客恒在 1.09~1.56），所以不是 `itmUv` 单字段解析错，
+  而是"流量侧两个字段一起换了口径/来源"，成交与加购侧则从 09-25 起就没再动过。
+- 同一批商品逐个对比也成立：`1027954851263` 09-27 访客 2 → 09-30 访客 1089。
+
+### 34.2 结论修正（2026-10-05 复核，这一节自己推翻自己）
+
+上一段写的是"`ingest_raw` 0 行 → 采集器不存原始响应 → 没有对照物，无法判定哪段是真值"。
+**前半句对，后半句错**：`sycm_item_effect_history.extra_json` **3,672 行全部有值**（平均 1,843 字节），
+存的就是接口返回的那条 item 原始 JSON。抽一条商品就当场出答案：
+
+```
+item 1027954851263
+窗口 2026-09-19|09-25：itmUv=2    itmPv=3     stayTime=3.74  bounce=—       加购 0  成交 0
+窗口 2026-09-22|09-28：itmUv=1089 itmPv=1204  stayTime=5.89  bounce=0.9843  加购 1  成交 0
+                      ↑ itmUv.syncCrc=1088.0、itmPv.syncCrc=601.0（平台自己标的环比倍数）
+```
+
+所以**不是采集解析错，平台真的返回了 1,089 访客**，而且带着 98.4% 跳失率、5.9 秒停留、
+`seGuideUv=0`（不是搜索来的）、加购 1、成交 0 —— 这是**一次性低质流量**的形状
+（活动/推荐位曝光，或被爬虫刷），不是店铺的真实经营流量。
+"09-30 起流量侧与成交侧不自洽"这个观察仍然成立，但性质从"采集可疑"变成
+"**平台数据里本来就混着异常流量，读它的人必须自己过滤**"。
+
+教训固化成一条：**要判断"有没有原始留存"，先按列扫一遍原始/扩展字段**
+（`SELECT COUNT(col), AVG(CHAR_LENGTH(col)) FROM …`），别只看 `ingest_raw` 空不空就下结论——
+原始可以活在业务表的 JSON 列里、活在磁盘 jsonl 里；那张专用表空着不等于没有证据。
+
+### 34.3 做了的两件事（都只加信息，不改数）
+
+1. 趋势图 tooltip 补一行 `覆盖 N 个商品`（数据本来就在 `EffectTrendVo.items` 里，以前不显示）。
+   逐点核对：09-07→331、09-25→288、10-02→100，与库里 `GROUP BY snapshot_time` 完全一致。
+   这样"曲线尾巴掉一半"至少能当场看出是覆盖率掉了。
+2. 首页口径说明从"快照时间 + 覆盖商品数"扩成**同时列出同期加购人数与成交额**，
+   并加一句"访客与加购/成交不同步时先怀疑采集，别当生意涨跌"。
+   现在第一屏直接显示 `覆盖 100 个商品，同期加购 1 人、成交 ¥0` —— 15,000 访客配 1 人加购
+   这种形状，读者自己就会起疑，不需要等我去猜哪段是真的。
+
+### 34.4 修正后真正还欠的
+
+原始留存不是缺口（`extra_json` 就是原始），缺口是**没人按自洽性过滤**：
+
+- **异常流量要能被标出来**：`itmBounceRate > 0.9` 且 `payByrCnt = 0` 且 `seGuideUv = 0` 的行，
+  在近 7 日窗口里贡献了 99% 的访客增量。读 `sycm` 的页面（首页趋势、商品运营台"有流量无成交"）
+  目前会把它们当真实流量算。这条**现在就能实现并回归**——库里 3,672 行带原始 JSON，
+  拿历史快照直接验，不需要等 Chrome。
+- 采集器侧的自洽闸门（访客变动 >5 倍而加购变动 <50% → 标 `partial` + 写 `sync_alert`）
+  仍然没做，但它的定位从"发现采集坏了"降级为"发现平台数据异常"，优先级低于上一条。
+- `ingest_raw` 该不该用起来是另一个问题（见 §38）：**唯一真正没有原始留存的线是抖店订单**，
+  而那恰好是最需要自证的一类数据。
+
+
+## 35. "该几点跑"这件事以前只存在于一份 JSON 里（2026-10-04 深夜）
+
+### 35.1 核对方式与结果
+
+把机器上真实的调度（`crontab -l` + `~/Library/LaunchAgents/*.plist`）与
+`ingest_dataset.cron_expr`、以及看板"定时任务"卡片的来源
+`automation/sourcing/task-progress-config.json` 三方对了一遍：
+
+| 作业 | crontab / launchd | 注册表 cron_expr | 定时卡 |
+|---|---|---|---|
+| 库存同步+变动检测 `inventory_cron.sh` | `0 5 * * *` | `0 5 * * *` ✓ | 有 |
+| 质量分级 `grade_quality.py` | `30 5 * * *` | ✓ | 有 |
+| 生意参谋快照 | `0 6 * * *` | ✓ | 有 |
+| 1688 详情周采 | `0 3 * * 6` | ✓ | 有 |
+| 运费周补抓 | `30 3 * * 6` | ✓ | 有 |
+| **推广日报采集** | **LaunchAgent 每日 22:00** | **NULL（缺）** | **没有这张卡** |
+| `task_stats.py` 统计汇总 | `0 * * * *` | 不是数据集 | 无（有意） |
+
+`detect_alerts.py` 看着"没有 cron 却在跑"，实际是被 `inventory_cron.sh` 第 51 行链式调用的，
+注册表里 `0 5 * * *` 是对的——这条查清楚才算没误报。
+
+**真正缺的是推广采集**：它是最新的一条流水线，调度挂在 launchd 而不是 crontab，
+于是注册表 `cron_expr` 为空、看板也没有它的定时卡，而它的 `remark` 里还留着
+"monitor 待装 cron 后再开"——可 `monitor` 早就=1 了。三处都在说一件已经不成立的事。
+
+### 35.2 改了什么
+
+1. `promo_cost_import.sql` 加第 5 段（幂等：`WHERE cron_expr IS NULL OR ''`），
+   把两个推广数据集的 `cron_expr` 补成 `0 22 * * *`，remark 重写为
+   "调度：LaunchAgent com.spzx.alimama-promo 每日 22:00（不是 crontab），日志 /tmp/alimama_promo_launchd.log"。
+   已对现网库执行并核对。
+2. `task-progress-config.json` 补 `alimama_promo` 这张定时卡（端口 9222、日志路径、launchCmd 指向
+   `cron_alimama_promo.sh`），schedule 写明"每日 22:00（LaunchAgent，非 crontab）"。
+3. `/admin/ingest/datasets` 的 `Health` 以前**不带 cron**，所以新鲜度标签只能显示
+   "SLA 30h"——读者分不清"每日作业过期 57h"和"每周六才跑的作业过期 57h"哪个正常。
+   现在带上 `cronExpr`，标签变成
+   `最后写入 10-02 16:43 · 已 57h 未采集（应跑 0 22 * * * · SLA 30h）`。
+
+### 35.3 顺手得到的两个事实
+
+- 22:00 那次 LaunchAgent **确实跑了并再次失败**（`ingest_batch` id=62/63，
+  `Chrome 9222 不在线`），所以推广数据停在 10-02 16:43、已 57h。调度没问题，缺的是 Chrome。
+- 全量 GET 接口耗时扫过一遍（73 个端点）：最慢 0.24s（`taskProgress/overview`），
+  没有任何 >1s 的读接口——本轮不需要做性能活，这条负结论记下来免得重复去查。
+
+## 36. 前端 URL ↔ 后端映射全量比对（2026-10-05）
+
+### 36.1 先说这道门本身翻过一次车
+
+第一版比对器报出 **48 处"前端调用而后端无映射"**——听起来是灾难，实际全是工具缺陷：
+类级注解写的是 `@RequestMapping(value = "/admin/taskProgress")`，我的正则只认
+`@RequestMapping("...")`，于是这些 controller 的 base 解析成空串；另外方法级漏了
+**不带括号的裸注解**（`@PostMapping` 直接换行，ExpenseOrderController 第 68 行就是），
+以及前端 `const api_name = 'admin/system/...'`（不带前导斜杠）没被当常量替换。
+修完这三处，218 个前端调用里只剩 6 个候选，逐个手验后 5 个仍是误报
+（`${api_name}/${path}` 这种动态拼接、以及 `/detail/{id}` 与 `/{id}` 的路径变量归一化差异）。
+
+**反向验证**：给比对器喂三条明知不存在的 URL（`/admin/taskProgress/不存在的端点` 等），
+必须全部报出来——3/3 命中才允许相信剩下那 1 个。
+
+### 36.2 真的那一个
+
+`src/api/supplierManager.js` 里的 `DetailRefundReport`：函数名是从 `refundReport.js`
+**整段复制**过来的（两个文件第 14 行同名同构），URL 却改成了
+`${api_name}/detail/${id}` = `/admin/mall/productFactory/detail/1`，
+而 `MallProductFactoryController` 只有 `/getDetail`。实测：
+
+```
+GET /admin/mall/productFactory/detail/1     → {"code":400,"message":"接口不存在"}
+GET /admin/mall/productFactory/getDetail?id=1 → {"code":200,...,"factoryName":"深圳市龙岗区韩魅儿牛仔服装厂"}
+```
+
+它没有任何调用方，所以线上没炸——属于"哪天有人按名字用它就会踩"的地雷。
+
+### 36.3 处置
+
+`supplierManager.js` 五个导出里四个无人引用（`pageList`/`saveData`/`updateData` 是
+`@/api/mall/supplyFactory` 那套 CRUD 的重复品，货源厂家页走的是后者），
+连同上面那个复制残留一起删掉，只留 `getAllProductFactory`
+（`production.vue`、`mallProduct.vue` 的厂商下拉在用）。删完实测下拉仍有 1299 家可选、
+eslint 干净。**没删**后端那几个 CRUD 接口——它们是被 `api/mall/supplyFactory` 用的真端点。
+
+## 37. 四条完整性核对：三条干净，一颗地雷（2026-10-05）
+
+沿"会不会把钱算错/把页面清空"这个方向做了四条核对，先把**干净的三条**记下来，
+免得以后重复查：
+
+1. **`platform_product.code` 唯一性**：4,683 行，重复 code 组数 **0**、空 code **0**。
+   这条是前提性检查——推广宝贝页 `selectItems` 是按 `p.code = i.item_id` join 的，
+   一旦同一 item_id 对上两行商品，`SUM(charge)` 就会翻倍，净利跟着错。现在不会。
+2. **菜单 → 路由 反向比对**：46 条带 `component` 的未删菜单，前端**没有同名路由的 0 条**。
+   （§32.3 查的是路由→菜单方向，那边有 19 条无菜单入口，多是 fixedRoutes 与停用页。）
+3. **引用完整性**：3,955 条未删 `product_bind_relation` 中，指向不存在/已软删货源、
+   指向不存在平台商品的 **全为 0**；`platform_product.shop_id` 为 NULL 的 **0 行**
+   （§26 的回填仍然成立）。所以"进价取不到"不是关系断链，是**真的没绑货源**——
+   推广宝贝页那个"缺进价"标记的语义是准的。
+
+### 37.1 那颗地雷：种子脚本会把拼多多店重新停用
+
+`multiplatform_p0_seed.sql` 对 `shop` 做的是
+`ON DUPLICATE KEY UPDATE shop_name, is_default, status = VALUES(status)`，
+而种子写的拼多多店是 `status=0`（"店铺未起"）。库里这家**早就被改成 1** 了
+（店已开起来在运营）。也就是说：**任何人重跑一次 P0 种子，这家店就静默变回停用**，
+店铺管理页和所有按店铺筛选的页面跟着空掉。
+
+改法：种子的 `ON DUPLICATE` 里**去掉 `status`**（保留 shop_name/is_default），
+并写明"停用在店铺管理页做，不靠重跑种子"。`platform` 那段本来就没覆盖 `enabled`，不用动。
+
+### 37.2 顺手补的：`shop.cdp_port` 三行全空
+
+这列在店铺管理页是有列名的（"CDP端口"），但三行全是 NULL，而机器上每条线的端口是确定的：
+tb-auto 9222 / sourcing 9223 / pdd-auto 9224（`pdd_config.py:9 CDP_PORT = 9224` 等）。
+库里补上三个值，种子 INSERT 也带上，并明确**权威在 automation 的 config，这张表只是镜像**
+——否则又多一份会漂移的副本（同 §35 那三份调度副本是同一类问题）。
+实测店铺管理页现在显示 9222/9223/9224，`status` 未被改动。
+
+
+
+
+
+
+
+
+---
+
+## 38. 异常流量不再冒充生意：判据落进读路径（2026-10-05）
+
+§34 只做到"界面承认采集不自洽"，没有解决它。这一节把那条 15,000 访客的鬼影从**算法**上摘掉。
+
+### 38.1 判据是怎么定出来的（不是拍脑袋）
+
+库里 3,672 行、12 个快照，按 `visitors>0` 分档看：
+
+| 档位 | 行数 | 访客合计 | 平均访客/行 | 成交 |
+|---|---|---|---|---|
+| 命中判据 | 40 | 37,112 | **927.8** | 0 |
+| 0.8~0.9 跳失边缘 | 18 | 3,956 | 219.8 | 0 |
+| 其余（正常） | 1,159 | 3,731 | **3.2** | ¥1,211 |
+
+正常商品平均 3.2 个访客，异常档平均 928 个 —— 差 290 倍，中间没有过渡带，所以"量级"本身就是可用的判据。
+边缘档要拆开看才不致误伤：里面既有 8~33 访客的**真小商品**（跳失高只是因为没人看），
+也有 424~579 访客、跳失 91~96%、零加购的**同类鬼影**。于是加了量级下限。
+
+最终判据（`DashboardMapper.ABNORMAL_TRAFFIC`）：
+
+```sql
+visitors >= 100 AND bounce_rate > 0.8 AND COALESCE(pay_byrs, 0) = 0
+```
+
+三个条件各挡一类误判：`visitors>=100` 保住小商品，`bounce_rate>0.8` 排掉"有流量没成交"里
+**真的**在看详情页的商品，`pay_byrs=0` 保证任何有成交的行都不会被动到（全库 `pay_amt>0 且 pay_byrs=0`
+的行实测为 0 条，所以这条不是纸面保险）。
+
+最硬的一条证据是同一件商品自己的前后对照（`760216419668` 大码派克服）：
+
+| 快照 | 访客 | 跳失 | 成交买家 | 判定 |
+|---|---|---|---|---|
+| 09-14 ~ 09-17 | 10~11 | 0.33~0.67 | 1（¥147） | 正常，不剔 |
+| 09-25 ~ 09-27 | 6 | 0 | 0 | 正常，不剔 |
+| 09-30 ~ 10-02 | 571~579 | 0.91~0.97 | 0 | **异常，剔掉** |
+
+流量涨 57 倍而加购/成交一动不动，且只发生在 09-30 之后 —— 判成"平台灌的一次性低质流量"
+比判成"生意变好"或"详情页出问题"都更站得住。反例也验过：`853044770497` 最新一行 486 访客但跳失只有
+44.6%，它留在 noSale 里（那是真的该看详情页的商品）。
+
+### 38.2 两处读路径，一套判据
+
+- **首页趋势 + KPI**：`selectEffectSnapshots` 的 `visitors/payAmount/cartUsers` 改为只汇总未命中行，
+  另出 `abnormalItems`/`abnormalVisitors`。KPI 卡走的是同一个方法（`snapshots.get(0)`），
+  所以卡片和曲线不会打架。
+- **商品运营台**：`itemOpsBase` 多出一列 `abnormalTraffic`，`noSale` 筛选项排除它，
+  同时新增同名筛选项让人能翻出被剔的那 16 条 —— **剔掉的东西必须看得见去了哪**。
+  角标计数与筛选条件逐字一致，否则角标和点开的条数会打架。
+
+两处的判据是两份 SQL 文本（一份 Java 注解、一份 XML），编译器管不到，所以固化成可重跑的检查：
+`ItemOpsParamTest` 从 classpath 读 mapper 原文，抽出 `CASE WHEN ... AS abnormalTraffic`
+与 `DashboardMapper.ABNORMAL_TRAFFIC` 去别名/去空白后逐字比对；顺带核对
+`ItemOpsService.FACETS` 与 XML 里的 `facet == 'x'` 分支一一对应、每个筛选项都有同名角标别名。
+**这套检查自己也被证伪过**：把 XML 里的 `100` 改成 `101` 跑一次，确实报
+"两页按不同口径剔流量…矛盾结论"，改回后 6 项全绿 —— 不然它可能只是两边都抽空而恒过。
+
+### 38.3 实测数字
+
+| 快照 | 改前访客 | 改后访客 | 剔掉的商品 | 剔掉的访客 |
+|---|---|---|---|---|
+| 09-30 | 14,966 | **601** | 16 | 14,365 |
+| 10-01 | 14,983 | **616** | 16 | 14,367 |
+| 10-02 | 10,807 | **574** | 12 | 10,233 |
+
+运营台（platformType=1，uvFrom=0）：`有流量没成交` **86 → 70**，`异常流量` 新增 **16**，86-70=16 对得上。
+接口实测 `facet=abnormalTraffic` 返回 16 条，逐条校验"访客≥100 且成交=0"违反数 0。
+首页截图确认：访客轴从 15,000 退回 700，KPI 卡显示 574 / 较上次快照 -42（-6.8%），
+而改前这个环比是 10,807 vs 14,983 的 -28% 噪声。
+
+### 38.4 还欠的
+
+`abnormalItems`/`abnormalVisitors`/`abnormalTraffic` 三个字段在 VO 里（`spzx-model`），
+而 devtools 热重启只重载 `target/classes`、`spzx-model` 以 jar 进 classpath ——
+所以**跑着的老进程会把这两列静默丢掉**（MyBatis 默认 PARTIAL 自动映射不报错），
+界面上"剔掉了多少"那句话要等一次完整重启才出现。曲线本身已经是新口径（SQL 侧生效）。

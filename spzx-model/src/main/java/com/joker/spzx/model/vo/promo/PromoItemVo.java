@@ -68,4 +68,34 @@ public class PromoItemVo {
     private Integer cartCount;
 
     private Integer collectTotal;
+
+    @Schema(description = "进价：已绑货源的最低 SKU 价，null=这个宝贝没绑货源")
+    private BigDecimal sourcePrice;
+
+    @Schema(description = "平台技术服务费率(%)，来自 fee_benchmark 按平台均值")
+    private BigDecimal commissionRate;
+
+    @Schema(description = "支付费率(%)，来自 fee_benchmark 按平台均值")
+    private BigDecimal paymentFeeRate;
+
+    @Schema(description = "运费(卖家寄出)，null=库里没填；全库 4711 个商品只有 17 个填了")
+    private BigDecimal freight;
+
+    @Schema(description = "货成本 = 进价 × 成交件数；件数只有笔数(order_total)可用，一单多件会低估")
+    private BigDecimal goodsCost;
+
+    @Schema(description = "平台佣金 + 支付手续费 = 成交额 × (技术服务费率 + 支付费率)")
+    private BigDecimal platformFee;
+
+    @Schema(description = "运费合计 = 运费 × 成交笔数")
+    private BigDecimal freightCost;
+
+    @Schema(description = "净利 = 成交额 − 货成本 − 佣金手续费 − 推广花费；**不含运费**（与商品运营台的 margin 同一口径，含进去两个页面的毛利就对不上了）；原料缺失时为 null（不是 0）")
+    private BigDecimal netProfit;
+
+    @Schema(description = "净利 / 推广花费，花费为 0 时为 null 而非 0")
+    private BigDecimal netRoi;
+
+    @Schema(description = "算不出净利时缺了哪几项（如「缺进价、缺费率」），仅在真有成交时才判；null=原料齐全")
+    private String profitGaps;
 }

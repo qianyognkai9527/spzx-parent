@@ -83,7 +83,14 @@
 `source_config.py` 配置类目/关键词/价格门槛。**CDP_URL=9222**（用tb-auto的Chrome，与抖店9223分流）。
 
 - `source_1688.py`：搜索1688→抓商品卡片→存`sourcing_raw.jsonl`（支持`--kw`/`--pages`/`--test`/`--finalize`）
-- `import_to_db.py`：JSONL→MySQL（`source_product`+`source_factory`），调`grade_quality.py`评级
+- `import_to_db.py`：JSONL→MySQL（`source_product`+`source_factory`），调`grade_quality.py`评级。
+  ⚠️ **它有几列是写死占位的，别当成"这家货源没数据"**（2026-10-04 按 5373 行实测填充率核过）：
+  `eval_with_image_count` INSERT 里直接写 `0`（全库 5373 行恒 0，没有任何采集器填它）；
+  `logistics_name`、`dispatch_time` 全库 100% 空；`source_product_sales_history` **0 行**
+  （所以"近14天销量"派生不出任何东西）。真正在采的只有
+  `repurchase_rate`/`trust_years`/`sales_count`（1707 行，32% 覆盖）、`steady_status`、`category_name`（50%）、
+  `quality_grade`（186 行）。前端 `production.vue` 已把"带图评价数"标成"(未采)"并在表头上方挂了说明条。
+  评价缺口页（`EvalGapMapper`）的"货源带图评价数"用的就是这个恒 0 列 → **缺口恒等于 0，该页没有数据地基**（菜单也已停用）。
 - `fetch_freight.py`：补抓运费（CDP 9223，`--limit`/`--test`）
 - `grade_quality.py`：纯DB评级，幂等全量重算
 
