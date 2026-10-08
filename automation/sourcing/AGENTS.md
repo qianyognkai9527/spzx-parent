@@ -76,7 +76,7 @@
 
 ## MySQL
 
-`localhost:3306`, `root`/`root123456`, `db_spzx`。CLI: `/usr/local/mysql/bin/mysql`。启动需`launchctl load`（见tb-auto AGENTS.md）。
+`localhost:3306`, user `root`, 库 `db_spzx`；**口令不在脚本里**——`dbconf.py` 读 `~/.spzx/db.cnf`（由 `python3 scripts/mysql-cnf.py` 生成）。CLI: `/usr/local/mysql/bin/mysql`。启动需`launchctl load`（见tb-auto AGENTS.md）。
 
 ## 1688选品流程
 
@@ -134,9 +134,19 @@
 - 提取方式（`#sell-field-tbExtractWay`）默认已选"使用物流配送"，未选时点第一个选项。
 - 上架时间（`#sell-field-startTime`）读当前状态**原样维持**：仓库商品保持「放入仓库」、在售商品保持「立刻上架」，不碰 radio 防误上架；2026-09-24 起支持在售商品（探路验收通过）。
 - **每商品必须 `ctx.new_page()` 新开 tab**（SPA 同 URL goto 不重渲染），用完只关自己的 tab；用 `connect_cdp(9222, keep_urls=["myseller.taobao.com","item.upload.taobao.com"])` 保护用户页面。
-- **数据问题商品标 skipped 不再自动重试**（`--retry-failed` 只重试 failed）：商品属性必填未填、销售规格必填未填、`CHK_VIDEO_RATIO_INVALID_ERROR`（视频比例）都需人工修数据，重试永远失败。
+- **永久失败项不再自动重试**（2026-10-07）：`compliance_filler.is_permanent_failure` 判 `数据问题`/`PIC_STEAL`/`CHK_VIDEO_RATIO_INVALID_ERROR`/`类目设置失败` 等永久失败；`build_todo` 在 `--retry-failed` 下剔除它们（启动日志 `失败 N(永久M不再自动重试)`），只重试瞬时失败（超时/网络/假失败）。要补跑永久项用 `--ids id1,id2` 显式定向（`--ids` 可放行 skipped/failed 的永久项）。
 - 节奏（2026-08-30 提速后）：间隔 3-5s、每 30 个休息 25-35s。实测单商品 ~60-80s，其中大量时间花在等 submit 响应/弹框处理。
-- **Chrome 9222 target 耗尽**：长跑后 CDP 浏览器接口活着但 `/json/list` 返回空，playwright 连接报 `Browser context management is not supported` → `pkill -f "remote-debugging-port=9222"` 后重启（**窗口模式** `--window-position=-32000,-32000`，勿用 run_chrome.sh 的 headless，淘宝 session 在窗口模式才保持；重启后登录态保留）。
+- **Chrome 9222 target 耗尽**：长跑后 CDP 浏览器接口活着但 `/json/list` 返回空，playwright 连接报 `Browser context management is not supported` → `pkill -f "remote-debugging-port=9222"` 后重启（**窗口模式** `--window-position=-32000,-32000`，勿用 run_chrome.sh 的 headless，淘宝 session 在窗口模式才保持；重启后登录态保留）。**2026-10-08 起 `run_cat_v2.sh` 会在非风控退出且末段日志含连接错时自动执行这套重启再续**（此前遇 `exit code=1` 会静默结束、曾停摆 9 小时）。
+
+### 淘宝品牌/标题批处理（edit_brand_title_batch.py, 2026-10-07）
+
+淘宝「睡衣/家居服」店铺分类商品：设品牌=瑰若 → 导购标题 AI → 主标题 AI（须瑰若开头）→ 提交，**原上下架状态不变**（不动价格/店铺分类/SKU/图片）。CDP 9222，清单 `brand_title_targets.jsonl`、进度 `brand_title_progress.json`，CLI `--enumerate/--test/--limit/--start/--retry-failed/--ids`。**与归类 v2 共用一个淘宝账号的 RGV587 额度，一次只跑一个**。
+
+- **圈选 = 店铺分类筛选**：列表页 `input#queryShopCategoryId` 的 tree-select，**必须点 `.next-tree-node-inner`（`role=treeitem`）才写入值**；点 `.next-tree-node-label`（纯文本 div）是假阳性（回显空、搜索不生效）。选完读 `.next-select-values em` 文本校验。
+- **出售中路由 = `SellManage/on_sale`**（`?current=1&pageSize=20`），**不是 `sold_out`**——后者是含仓库项的大视图（实测 4228），会让 `in_stock`(仓库中，3125) 全成其子集被 `dedup_targets` 清空。仓库中=`SellManage/in_stock`。`enumerate_targets` 有「两池 itemId 交集 > 50% 就报错」护栏。
+- **品牌下拉是可搜索虚拟列表**：列表本身很短、常不含目标品牌，**光滚动永远命中不了** → 往弹层 `.next-overlay-inner.next-select-popup-wrap input` 输入品牌名，再点 `.options-item[title=品牌]`（`_pick_option_with_scroll`）。
+- **受控输入「改 DOM 不写 React 模型」两个坑**（都表现为提交值 ≠ 输入框显示值）：①主标题超 30 汉字/60 字符（服务端 `CHK_BASIC_LENGTH_LONG_BYTE: 不能超过30个汉字或60个字符`）——原生 setter 只改显示不改模型，**必须用 Playwright `fill`**（`#sell-field-title input`）；②**吊牌价（`#sell-field-p-344943689`）是遗留必填**（`fill` 也写不进）——**必须键盘输入**（`click`+`Meta+A`+`type`+`Tab`）。吊牌价按合规口径填**=一口价**（`docs/ECOMMERCE_RULES.md` §2，别做无依据划线价）。
+- 提交前复用归类 v2 的 `run_compliance_fill` + `remove_videos`（`from assign_shop_category_v2 import ...`）+ `ensure_extract_way`，补铺货后遗留的必填项（是否商场同款/功能/适用场景等）与删横版视频。
 
 ### 双 worker 并行（`--worker K N`，2026-08-30 踩坑后结论：别用）
 
@@ -158,9 +168,13 @@
 ### 淘宝提交风控（2026-08-30 实测）
 
 - 高频提交触发**账号级风控**：提交被拦、页面/响应出现 **RGV587 / x5sec 拼图滑块**，冷却需**数小时-24h**。响应从 `globalMessage` warning 变回正常 = 冷却解除。
+- **2026-10-07/08 实测节流曲线：账号级 RGV587 把提交速率封在 ~10 件/小时**——每轮爆发约 22–35 件（跑 ~35 分钟）后被拦，冷却 2h；缩短冷却到 20m/40m 常 0 产出（账号没凉）。**别频繁手动重启 wrapper**（会把冷却阶梯重置成短的，反更慢）；**两个淘宝写任务（归类 v2、品牌批处理）共用一个账号，只能串行**，并行只会更早触发。
 - **「提交超时未确认」多为假失败**（实际已提交成功，仅响应确认超时），会进 failed 数组；`--retry-failed` 重试时已成功的会被再次提交（幂等，仅重复设类目）。真风控拦截的特征是响应含 `FAIL_SYS_USER_VALIDATE`/`captchacappuzzle`。
-- **一直出验证码时应停止提交等冷却**（2026-08-30 11:00 后持续出验证码，暂停处理中），不要硬冲。
+- **一直出验证码时应停止提交等冷却**，不要硬冲。
 
-### 当前进度（2026-08-30 暂停中）
+### 进度与调度（2026-10-08）
 
-因风控暂停。已处理 580/1961（done 325 / failed 245 / skipped 10），剩余 1381（2026-09-01 核）。⚠️ 2026-08-31 晚续跑 75 个 0 成功（45 提交超时假失败 + 29 数据问题 PIC_STEAL 为主 + 4 风控），失败率较 08-30 恶化，恢复后先 `--test` 探路。续跑用单 worker：`assign_shop_category.py`（不带 `--worker`），进度自动跳过已 done。
+- **进度以文件为准**：归类 v2 `shop_cat_v2_progress.json`、品牌 `brand_title_progress.json`——本文档不写会过期的行数。
+- **归类 v2 与品牌批处理共用同一个淘宝账号 → 必须串行**；2026-10-07 用户决定**先跑完归类 v2 再开品牌**。
+- 续跑归类 v2：`cd automation/sourcing && nohup ./run_cat_v2.sh --retry-failed > /tmp/cat_v2_wrap.log 2>&1 &`（自愈：exit 42 阶梯冷却续跑、CDP 掉线自动重杀/重启 9222）。
+- 跑品牌：`nohup /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python edit_brand_title_batch.py > /tmp/brand_run.log 2>&1 &`（先 `--enumerate` 生成清单、`--test` 单件验证）。

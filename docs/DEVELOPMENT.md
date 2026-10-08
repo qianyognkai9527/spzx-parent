@@ -68,7 +68,7 @@ spzx (parent)
 
 | 服务 | 端口 | 说明 |
 |------|------|------|
-| MySQL 8.0 | 3306 | 数据库 `db_spzx`，用户 `root/root123456` |
+| MySQL 8.0 | 3306 | 数据库 `db_spzx`，用户 `root`，口令见 gitignore 的 `application-local.yml` |
 | Redis | 6379 | 无密码，Lettuce 单连接多路复用 |
 | RocketMQ NameServer | 9876 | 支付事件投递 |
 | Elasticsearch 7.17.9 | 9200 | 无密码，操作日志检索 |
@@ -80,7 +80,7 @@ spzx (parent)
 | 变量 | 用途 | 默认值 |
 |------|------|--------|
 | `SPRING_DATASOURCE_USERNAME` | MySQL 用户名 | `root` |
-| `SPRING_DATASOURCE_PASSWORD` | MySQL 密码 | `root123456` |
+| `SPRING_DATASOURCE_PASSWORD` | MySQL 密码 | 本机值在 `application-local.yml`（不入库） |
 | `ROCKETMQ_NAME_SERVER` | RocketMQ 地址 | `localhost:9876` |
 
 ---
