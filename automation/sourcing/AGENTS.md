@@ -178,3 +178,18 @@
 - **归类 v2 与品牌批处理共用同一个淘宝账号 → 必须串行**；2026-10-07 用户决定**先跑完归类 v2 再开品牌**。
 - 续跑归类 v2：`cd automation/sourcing && nohup ./run_cat_v2.sh --retry-failed > /tmp/cat_v2_wrap.log 2>&1 &`（自愈：exit 42 阶梯冷却续跑、CDP 掉线自动重杀/重启 9222）。
 - 跑品牌：`nohup /Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python edit_brand_title_batch.py > /tmp/brand_run.log 2>&1 &`（先 `--enumerate` 生成清单、`--test` 单件验证）。
+- **每完成一件活立即留痕**（`python3 spzx-parent/scripts/log_work.py`）：手做的自动化活不进 `ingest_batch`，不记就只在进度文件里、事后无从按模块排查。长任务用 `--merge` 合并当天同模块同标题一条并刷新进度，零散小活直接追加。样例：
+  ```bash
+  # 归类 v2 告一段落（文件自动解析 done/skipped/failed）
+  python3 /Users/qyk9527/ideaProject/spzx-parent/scripts/log_work.py --module 淘宝归类 \
+    --title "归类v2 第N轮" --progress-file shop_cat_v2_progress.json --merge
+  # 品牌批处理
+  python3 .../scripts/log_work.py --module 品牌标题 --title "品牌=瑰若批处理" \
+    --progress-file brand_title_progress.json --merge
+  # PDD 直铺
+  python3 .../scripts/log_work.py --module PDD铺货 --title "穿戴甲1688直铺" \
+    --progress-file /Users/qyk9527/ideaProject/spzx-parent/automation/pdd-auto/pdd_create_progress_1688.json --merge
+  # 1688 选品
+  python3 .../scripts/log_work.py --module 1688选品 --title "穿戴甲选品" --progress "1061 条入库"
+  ```
+  模块建议清单：淘宝归类、品牌标题、PDD铺货、1688选品、AI选词、视频生成、对账、小说、系统、其它。详见根 `AGENTS.md`。

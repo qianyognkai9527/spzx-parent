@@ -192,8 +192,8 @@ def commit_tasks(date, bucket):
 
 def upsert_day(conn, date, user_id, tasks, dry):
     cur = conn.cursor()
-    summary = "%d 项：%d 项已完成" % (len(tasks), sum(1 for t in tasks if t["is_complete"]))
     if dry:
+        summary = "%d 项：%d 项已完成" % (len(tasks), sum(1 for t in tasks if t["is_complete"]))
         print("=== %s（dry-run，不写库）===" % date)
         for i, t in enumerate(tasks, 1):
             print("  %2d. [%s] %s | %s" % (i, "完成" if t["is_complete"] else "未完", t["title"], t["remark"]))
@@ -205,15 +205,16 @@ def upsert_day(conn, date, user_id, tasks, dry):
     row = cur.fetchone()
     if row:
         schedule_id = int(row[0])
-        cur.execute("UPDATE sys_user_schedule SET remark=%s, status=0, update_time=NOW() WHERE id=%s",
-                    (summary, schedule_id))
+        cur.execute("UPDATE sys_user_schedule SET status=0, update_time=NOW() WHERE id=%s",
+                    (schedule_id,))
     else:
         cur.execute(
             "INSERT INTO sys_user_schedule (user_id, date_str, task_count, complete_count, status, "
-            "create_by, create_time, update_time, remark) VALUES (%s,%s,0,0,0,%s,NOW(),NOW(),%s)",
-            (user_id, date, user_id, summary))
+            "create_by, create_time, update_time) VALUES (%s,%s,0,0,0,%s,NOW(),NOW())",
+            (user_id, date, user_id))
         schedule_id = int(cur.lastrowid)
-    # 只清自己写的条目：create_by=0 是「脚本代笔」的标记，人工加的在页面上不会丢
+    # 只清自己写的条目：create_by=0 是「脚本代笔」的标记，人工加的和 log_work 代记的
+    # （create_by=-1）在页面上不会丢
     cur.execute("DELETE FROM sys_user_schedule_task WHERE schedule_id=%s AND create_by=%s",
                 (schedule_id, AUTO_CREATE_BY))
     for i, t in enumerate(tasks, 1):
@@ -223,12 +224,16 @@ def upsert_day(conn, date, user_id, tasks, dry):
             "VALUES (%s,%s,%s,%s,%s,0,%s,NOW(),NOW(),%s)",
             (schedule_id, t["title"], i, 100 if t["is_complete"] else 0, t["is_complete"],
              AUTO_CREATE_BY, t["remark"]))
-    # 进度条读的是父表这两列，算法与 SysUserScheduleTaskServiceImpl.updateCompleteValue 一致
+    # 进度条读的是父表这两列，算法与 SysUserScheduleTaskServiceImpl.updateCompleteValue 一致；
+    # 注意是「全部 status=0 行」，含人工与 log_work 代记的条目 —— 故 remark 也必须用同一个全量
+    # 口径重算，否则当天有手工条目时「N 项」与 task_count 对不上（见 work_log spec 4.4）
     cur.execute("SELECT COUNT(*), SUM(is_complete = 1) FROM sys_user_schedule_task "
                 "WHERE schedule_id=%s AND status=0", (schedule_id))
     total, done = cur.fetchone()
-    cur.execute("UPDATE sys_user_schedule SET task_count=%s, complete_count=%s, update_time=NOW() WHERE id=%s",
-                (int(total or 0), int(done or 0), schedule_id))
+    total, done = int(total or 0), int(done or 0)
+    cur.execute("UPDATE sys_user_schedule SET task_count=%s, complete_count=%s, remark=%s, "
+                "update_time=NOW() WHERE id=%s",
+                (total, done, "%d 项：%d 项已完成" % (total, done), schedule_id))
     cur.close()
     conn.commit()
     return len(tasks)

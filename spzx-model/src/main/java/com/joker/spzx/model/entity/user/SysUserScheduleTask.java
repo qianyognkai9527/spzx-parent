@@ -40,6 +40,10 @@ public class SysUserScheduleTask extends Model<SysUserScheduleTask> {
     @TableField("task_title")
     private String taskTitle;
 
+    @Schema(description = "任务模块（自由文本，AI 留痕用）")
+    @TableField("module")
+    private String module;
+
     @Schema(description = "排序值")
     @TableField("sort")
     private Integer sort;

@@ -125,7 +125,11 @@ else
       | awk '$1=="D" && $2 ~ /src\/main\/.*\.(java|yml|xml)$/ {print $2; exit}')"
   if [ ! -f "$JAR" ] || [ -n "$newest_src" ] || [ -n "$deleted_src" ]; then
     say "  jar 缺失或落后于源码（比 ${JAR} 新的源文件：${newest_src:-无}；被删的源文件：${deleted_src:-无}）→ 打包"
-    if pgrep -f "$MVN_BIN/mvn|plexus-classworlds" >/dev/null 2>&1; then
+    # 只认「真的在跑构建」的 maven：mvn 最终 exec 的主类是 classworlds.launcher.Launcher。
+    # 早先这里还匹配了裸 "plexus-classworlds"，结果 IDEA 常驻的 RemoteMavenServer36
+    # （classpath 里带着那个 jar，但主类不是 Launcher）也被当成"有 maven 在跑"——
+    # 只要 IDEA 开着就永远打包不了（2026-10-08 实测：IDE 服务 pid 35269 命中老判据、不命中新判据）。
+    if pgrep -f "org[.]codehaus[.]plexus[.]classworlds[.]launcher[.]Launcher|$MVN_BIN/mvn" >/dev/null 2>&1; then
       die "已经有一个 maven 在跑。这台机器同时跑两个 maven 会互相拖死（16G 超售），等它结束再双击。"
     fi
     export PATH="$MVN_BIN:$PATH"
