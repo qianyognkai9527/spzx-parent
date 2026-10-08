@@ -16,9 +16,11 @@ from cdp_utils import connect_cdp
 from brand_title_rules import ensure_guiruo_prefix, TITLE_MAX, dedup_targets, merge_progress
 from assign_shop_category import (
     log, handle_recommend_dialog, wait_edit_ready, scroll_edit_page,
-    check_listing_mode, click_submit, cleanup_leaked_tabs,
+    check_listing_mode, click_submit, cleanup_leaked_tabs, ensure_extract_way,
 )
 from compliance_filler import clear_overlays
+# 复用归类 v2 的合规填充/删横版视频: 铺货后未再编辑的商品有遗留必填项, 提交会报「数据问题」
+from assign_shop_category_v2 import run_compliance_fill, remove_videos
 
 CDP_PORT = 9222
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -279,14 +281,15 @@ async def ai_main_title(page, prefix=BRAND):
     new_title = await read_main_title(page)
     fixed = ensure_guiruo_prefix(new_title, prefix=prefix, max_len=TITLE_MAX)
     if fixed != new_title:
-        await page.evaluate(r"""(val) => {
-            const inp = document.querySelector('#sell-field-title input, input[placeholder*="标题"], input[name*="title"]');
-            if (!inp) return;
-            const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-            setter.call(inp, val);
-            inp.dispatchEvent(new Event('input', {bubbles:true}));
-            inp.dispatchEvent(new Event('change', {bubbles:true}));
-        }""", fixed)
+        # 2026-10-06 修复: 原生 setter 只改 DOM 显示值, 不写 React 表单模型 →
+        # 提交时仍是 AI 原始长标题(实测 42 字符, 服务端报 CHK_BASIC_LENGTH_LONG_BYTE:
+        # "不能超过30个汉字或60个字符")。改用 Playwright fill 真正写入模型
+        # (实测: 提交 title 变为截断后长度, submit ok=True)。
+        loc = page.locator('#sell-field-title input')
+        if await loc.count() == 0:
+            loc = page.locator('input[placeholder*="标题"], input[name*="title"]')
+        await loc.first.fill(fixed)
+        await page.keyboard.press('Tab')
         await asyncio.sleep(0.5)
     final = await read_main_title(page)
     if not final.startswith(prefix):
@@ -474,6 +477,37 @@ def build_todo(targets, prog, retry_failed=False, start=0, limit=0, test=False, 
     return todo
 
 
+TAG_PRICE_ID = 'sell-field-p-344943689'
+
+
+async def ensure_tag_price(page):
+    """遗留必填项「吊牌价」空 → 前端校验拦提交(必填项吊牌价不能为空), 且不发 submit 请求。
+    合规口径(见 docs/ECOMMERCE_RULES.md §2): 吊牌价按「一口价」填, 不主张折扣, 避免无依据划线价。
+    返回 (ok, msg)。"""
+    r = await page.evaluate(r"""(tid) => {
+        const tag = document.querySelector('#'+tid+' input');
+        if (!tag) return {found: false};
+        if ((tag.value || '').trim()) return {found: true, had: tag.value};
+        const pin = document.querySelector('#sell-field-price input');
+        return {found: true, had: '', pin: pin ? (pin.value||'').replace(/[^\d.]/g,'') : ''};
+    }""", TAG_PRICE_ID)
+    if not r.get('found') or r.get('had'):
+        return True, f"吊牌价已有({r.get('had')})" if r.get('had') else '无吊牌价字段'
+    val = r.get('pin')
+    if not val:
+        return False, '吊牌价空且一口价读不到'
+    loc = page.locator(f'#{TAG_PRICE_ID} input').first
+    await loc.scroll_into_view_if_needed()
+    await loc.click()
+    await asyncio.sleep(0.2)
+    # 该字段是受控数字输入: Playwright fill 只改 DOM 不写模型(实测填完仍报必填), 必须键盘输入
+    await page.keyboard.press('Meta+A')
+    await page.keyboard.type(val)
+    await page.keyboard.press('Tab')
+    await asyncio.sleep(0.4)
+    return True, f'吊牌价={val}'
+
+
 async def process_one(ctx, rec):
     item_id = str(rec['itemId'])
     page = None
@@ -500,6 +534,24 @@ async def process_one(ctx, rec):
         mok, mmsg = await ai_main_title(page, prefix=BRAND)
         if not mok:
             return 'fail', mmsg
+        # 补遗留必填项(铺货后未再编辑的商品会因缺必填被「数据问题」拦提交) + 删横版视频
+        await ensure_extract_way(page)
+        title_txt = await read_main_title(page)
+        gaps, filled_msgs, err = await run_compliance_fill(page, title_txt)
+        if err:
+            return 'fail', err
+        if gaps:
+            return 'fail', f'合规字段未清零: {[g["name"] for g in gaps]}'
+        if filled_msgs:
+            log(f'  · 合规填充: {" | ".join(filled_msgs)}')
+        tok, tmsg = await ensure_tag_price(page)
+        if not tok:
+            return 'fail', f'吊牌价填充失败: {tmsg}'
+        if tmsg.startswith('吊牌价='):
+            log(f'  · {tmsg}')
+        vok, vremoved = await remove_videos(page)
+        if vremoved:
+            log(f'  · 已删除横版视频 {vremoved} 个')
         sok, smsg, risk = await click_submit(page)
         if risk:
             return 'risk', smsg

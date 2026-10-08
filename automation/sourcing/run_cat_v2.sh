@@ -32,6 +32,20 @@ while [ $ATTEMPT -lt $MAX_RETRY ]; do
         echo "[$(date '+%m-%d %H:%M:%S')] 冷却 ${CDM} 后自动续跑..." >> $LOG
         sleep $CD
     else
+        # 非风控退出: 若因 CDP 连接失败(长跑 target 耗尽 / Chrome 掉线), 自动重启 9222 后重试,
+        # 避免静默停摆(2026-10-08 曾因此停了 9 小时)。仅当最近日志确有连接错时触发。
+        if tail -n 25 "$LOG" | grep -qE 'Browser context management is not supported|connect_over_cdp|connect ECONNREFUSED'; then
+            echo "[$(date '+%m-%d %H:%M:%S')] CDP 连接失败(疑似 target 耗尽), 重启 9222 Chrome 后重试" >> $LOG
+            pkill -f "remote-debugging-port=9222"; sleep 3
+            nohup arch -arm64 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --remote-debugging-port=9222 \
+              --user-data-dir=/Users/qyk9527/ideaProject/spzx-parent/automation/tb-auto/chrome-profile --no-first-run --disable-extensions \
+              --disable-features=TranslateUI,site-per-process --disable-background-timers \
+              --disable-backgrounding-occluded-windows --disable-background-networking \
+              --renderer-process-limit=6 --js-flags="--max-old-space-size=512" \
+              --window-position=-32000,-32000 --window-size=1400,900 "https://myseller.taobao.com/home.htm" > /tmp/chrome9222_boot.log 2>&1 &
+            sleep 15
+            continue
+        fi
         echo "[$(date '+%m-%d %H:%M:%S')] 非风控退出(完成或异常), 循环结束" >> $LOG
         break
     fi
