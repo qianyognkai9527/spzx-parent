@@ -216,6 +216,21 @@
    "launchCmd": "bash /Users/qyk9527/ideaProject/spzx-parent/automation/tb-auto/cron_alimama_promo.sh"
   },
   {
+   "key": "daily_schedule",
+   "name": "每日日程台账",
+   "category": "scheduled",
+   "tags": [
+    "纯DB",
+    "LaunchAgent"
+   ],
+   "port": 0,
+   "schedule": "每日 23:30（LaunchAgent，非 crontab）",
+   "type": "process_only",
+   "script": "daily_schedule.py",
+   "logPath": "/tmp/daily_schedule_launchd.log",
+   "launchCmd": "cd /Users/qyk9527/ideaProject/spzx-parent && automation/venv/bin/python scripts/daily_schedule.py --days 3"
+  },
+  {
    "key": "taobao_cat_v2",
    "name": "淘宝归类调价v2",
    "category": "manual",

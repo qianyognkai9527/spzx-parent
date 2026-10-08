@@ -41,9 +41,12 @@ public class SysUserScheduleServiceImpl extends ServiceImpl<SysUserScheduleMappe
     public IPage<SysUserSchedule> pageList(UserScheduleDtp userScheduleDtp) {
         IPage<SysUserSchedule> page = userScheduleDtp.getPage();
         LambdaQueryWrapper<SysUserSchedule> eq = lambdaQuery().getWrapper()
-                .gt(StringUtils.isNotBlank(userScheduleDtp.getDateStart()), SysUserSchedule::getDateStr, userScheduleDtp.getDateStart())
-                .lt(StringUtils.isNotBlank(userScheduleDtp.getDateEnd()), SysUserSchedule::getDateStr, userScheduleDtp.getDateEnd())
-                .eq(SysUserSchedule::getUserId, AuthContextUtil.getUser().getId());
+                // 日期范围是闭区间：原来用 gt/lt 会把起止两天各自排除在外
+                .ge(StringUtils.isNotBlank(userScheduleDtp.getDateStart()), SysUserSchedule::getDateStr, userScheduleDtp.getDateStart())
+                .le(StringUtils.isNotBlank(userScheduleDtp.getDateEnd()), SysUserSchedule::getDateStr, userScheduleDtp.getDateEnd())
+                .eq(SysUserSchedule::getUserId, AuthContextUtil.getUser().getId())
+                // 不排序就按主键升序出，翻开的永远是最早那几天
+                .orderByDesc(SysUserSchedule::getDateStr, SysUserSchedule::getId);
         page(page, eq);
         return page;
     }
