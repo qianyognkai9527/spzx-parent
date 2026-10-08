@@ -35,6 +35,28 @@ die() { printf '\033[31m✗ %s\033[0m\n' "$*" >&2; exit 1; }
 spawn() { # spawn <日志文件> <工作目录> <命令...>  → stdout 打印子进程 pid
   local log=$1 cwd=$2
   shift 2
+  # 继承来的代理要是没人监听，子进程所有外网请求都会 Connection refused，
+  # 而界面只显示"脚本执行失败"（2026-10-07 00:39 主图重算就是这么挂的：那次后端
+  # 从带 http_proxy=127.0.0.1:18080 的会话里起，代理进程早退了）。起之前探一次，
+  # 不通就摘掉并说明。警告必须走 stderr——本函数 stdout 只准吐 pid。
+  local v hp
+  for v in http_proxy https_proxy all_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY; do
+    eval "hp=\${$v:-}"   # 本机 bash 3.2，不用 ${!v} 间接展开
+    [ -z "$hp" ] && continue
+    if ! python3 -c '
+import socket, sys, re
+m = re.search(r"([^:/]+):(\d+)/?$", sys.argv[1])
+if not m:
+    sys.exit(1)
+try:
+    socket.create_connection((m.group(1), int(m.group(2))), timeout=1).close()
+except Exception:
+    sys.exit(1)
+' "$hp"; then
+      printf '  %s=%s 连不上 → 已从子进程环境里摘掉（留着只会让外网请求全失败）\n' "$v" "$hp" >&2
+      unset "$v"
+    fi
+  done
   /usr/bin/python3 - "$log" "$cwd" "$@" <<'PY'
 import signal, subprocess, sys
 log, cwd, cmd = sys.argv[1], sys.argv[2], sys.argv[3:]
@@ -97,15 +119,25 @@ else
   # 只比运行期源码：src/test 下有 165 个文件比 jar 新，但测试代码不进 jar，为它打包是白等两分钟
   newest_src="$(find "$REPO/spzx-manager/src/main" "$REPO/spzx-model/src/main" "$REPO/spzx-common" \
       \( -name '*.java' -o -name '*.yml' -o -name '*.xml' \) ! -path '*/target/*' -newer "$JAR" -print 2>/dev/null | head -1)"
-  if [ ! -f "$JAR" ] || [ -n "$newest_src" ]; then
-    say "  jar 缺失或落后于源码（比 $JAR 新的源文件：${newest_src:-无}）→ 打包"
+  # 删掉的源文件不会让任何**现存**文件变新，光比 mtime 会拿旧 jar 起（旧 jar 里那些类还在，
+  # 端点照旧能通，验的却不是你眼前的代码）。2026-10-07 删死模块当场踩到，让 git 来报删除。
+  deleted_src="$(cd "$REPO" && git status --porcelain 2>/dev/null \
+      | awk '$1=="D" && $2 ~ /src\/main\/.*\.(java|yml|xml)$/ {print $2; exit}')"
+  if [ ! -f "$JAR" ] || [ -n "$newest_src" ] || [ -n "$deleted_src" ]; then
+    say "  jar 缺失或落后于源码（比 ${JAR} 新的源文件：${newest_src:-无}；被删的源文件：${deleted_src:-无}）→ 打包"
     if pgrep -f "$MVN_BIN/mvn|plexus-classworlds" >/dev/null 2>&1; then
       die "已经有一个 maven 在跑。这台机器同时跑两个 maven 会互相拖死（16G 超售），等它结束再双击。"
     fi
     export PATH="$MVN_BIN:$PATH"
     jar_before="$(stat -f %m "$JAR" 2>/dev/null || echo 0)"
-    say "  mvn package -pl spzx-manager -am -DskipTests（约 1~2 分钟，日志 $RUN/package.log）"
-    ( cd "$REPO" && mvn package -pl spzx-manager -am -DskipTests -q ) > "$RUN/package.log" 2>&1
+    # 有源文件被删时必须 clean：不带 clean 的 package 只覆盖不删除，
+    # 已删掉的 mapper XML 还留在 target/classes/mapper/ 里跟着进 jar，
+    # 启动时 MyBatis 解析它、去找已删除的实体 → ClassNotFoundException 整个上下文起不来
+    # （2026-10-07 删死模块实测：编译与 144 个单测全绿，jar 却起不来）
+    mvn_args=(package -pl spzx-manager -am -DskipTests -q)
+    [ -n "$deleted_src" ] && mvn_args=(clean "${mvn_args[@]}")
+    say "  mvn ${mvn_args[*]}（约 1~2 分钟，日志 $RUN/package.log）"
+    ( cd "$REPO" && mvn "${mvn_args[@]}" ) > "$RUN/package.log" 2>&1
     jar_after="$(stat -f %m "$JAR" 2>/dev/null || echo 0)"
     # 不看 mvn 的退出码：管道/插件告警会把它弄得不可信，只认 jar 是不是变新了
     [ "$jar_after" -gt "$jar_before" ] || die "打包后 jar 没变新，看 $RUN/package.log 最后 40 行：

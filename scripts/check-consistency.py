@@ -9,6 +9,10 @@
   B 契约：前端 src/api 声明的 (method, path) 必须在后端 controller 有能匹配上的端点。
   C 判据：异常流量判据在 DashboardMapper 与 ItemOpsMapper.xml 各一份 —— 这一条已由
           ItemOpsParamTest 逐字钉住，本门只断言"那条测试还在"，不重抄规则。
+  D 销案：cron_alert.py 的每处调用必须带 --dataset 且指向注册表里的数据集 —— 没有它，
+          后端拿不到"这个作业后来跑成了"的依据，提醒只会越积越多（顶栏 badge 永不回落）。
+  E 凭据：代码与配置里不得出现库口令 —— Python 走 automation/sourcing/dbconf.py 读仓库外的
+          600 文件，Java 走 gitignore 的 application-local.yml。历史交付台账里的明文不在射程内。
 
 退出码：0 全过 / 1 有漂移 / 2 有一维根本没扫到（扫不到东西不等于没问题）。
 先跑 --selftest 证明这些判据报得出红，再相信它报的绿。
@@ -32,7 +36,7 @@ FRONTEND_CANDIDATES = [
 
 # 覆盖面下限：低于这个数说明扫描面缩了（路径变了/目录没检出），这次的结论不可信
 FLOOR = {"crontab": 5, "launchd": 1, "registry": 8, "progress_scheduled": 5,
-         "frontend_urls": 150, "backend_routes": 150}
+         "frontend_urls": 150, "backend_routes": 150, "alert_callers": 14, "secret_scanned": 600}
 
 
 def strip_comments(text):
@@ -326,6 +330,113 @@ def check_copied_predicate(report):
         report.ok("C", "判据副本由 ItemOpsParamTest 守着（本门不重抄规则）")
 
 
+# ---------------------------------------------------------------- D 告警销案
+ALERT_CALL_RE = re.compile(r"--key\s+\"?([\w$-]+)\"?")
+DATASET_ARG_RE = re.compile(r"--dataset\s+\"?([\w$-]+)\"?")
+
+
+def check_alert_resolution(report, registry):
+    """cron_alert.py 写的提醒必须带 --dataset，否则后端没有销案依据、提醒永远挂着。
+    2026-10-07 查出来的洞：10-02/10-03 那批 cron_skipped 全空着 dataset_code，
+    作业早就跑成了，顶栏还挂着「待处理提醒 7」。"""
+    writer = REPO / "automation" / "sourcing" / "cron_alert.py"
+    if not writer.exists():
+        report.fail("D", "cron_alert.py 不在了 —— 这条判据无从核对")
+        return
+    body = writer.read_text(encoding="utf-8", errors="ignore")
+    ins = re.search(r"INSERT INTO sync_alert \(([^)]*)\)", body)
+    if not ins or "dataset_code" not in ins.group(1):
+        report.fail("D", "cron_alert.py 的 INSERT 不再写 dataset_code —— 提醒会永久挂着")
+        return
+    callers, missing, unknown = 0, [], []
+    # 扫所有 .sh 而不是 cron_*.sh：inventory_cron.sh 不以 cron_ 开头，按名字筛会整文件漏掉，
+    # 而"没扫到"不会报红——只认内容里有没有调 cron_alert。
+    for sh in sorted((REPO / "automation").rglob("*.sh")):
+        if "_archive" in str(sh):
+            continue
+        text = sh.read_text(encoding="utf-8", errors="ignore")
+        if "$ALERT" not in text:
+            continue
+        # 调用会折行（`--type cron_failed \` 换行接 --msg），先把续行拼成一条再找
+        flat = re.sub(r"\\\s*\n\s*", " ", text)
+        for cmd in [ln for ln in flat.splitlines() if "$ALERT" in ln and "cron_alert.py" not in ln]:
+            callers += 1
+            hit = ALERT_CALL_RE.search(cmd)
+            key = hit.group(1) if hit else "?"
+            got = DATASET_ARG_RE.search(cmd)
+            if not got:
+                missing.append("%s: %s" % (sh.name, key))
+                continue
+            code = got.group(1)
+            if code.startswith("$"):                # $DS / $DS_ALERT：回到本文件查赋值
+                var = code[1:]
+                assign = re.search(r"^%s=(\S+)" % re.escape(var), text, re.M)
+                code = assign.group(1) if assign else ""
+            if code not in registry:
+                unknown.append("%s: %s→%s（注册表里没有这个 code）"
+                               % (sh.name, key, code or "%s 没赋值" % got.group(1)))
+    if missing:
+        report.fail("D", "%d 处 cron_alert 调用没带 --dataset，这类提醒写进去就关不掉：%s"
+                    % (len(missing), "; ".join(missing)))
+    if unknown:
+        report.fail("D", "%d 处 --dataset 指向注册表里没有的数据集：%s" % (len(unknown), "; ".join(unknown)))
+    if not callers:
+        report.fail("D", "一处 cron_alert 调用都没找到 —— 扫描面坏了，别把这次的绿当结论")
+        return
+    report.count("alert_callers", callers)
+    if not missing and not unknown:
+        report.ok("D", "%d 处 cron_alert 调用都带 --dataset 且指向注册表里的数据集（销案有依据）" % callers)
+
+
+# ---------------------------------------------------------------- E 凭据外泄
+# 要防的那串口令本身也不写进本仓库（否则这条检查自己就是泄漏点）：从库参数文件现读，
+# 口令换了检查自动跟着换。
+CNF_CANDIDATES = (os.environ.get("SPZX_MYSQL_CNF"), "/tmp/spzx_my.cnf",
+                 os.path.expanduser("~/.spzx/db.cnf"))
+SECRET_SCOPE = ("automation", "spzx-manager/src/main/java", "spzx-manager/src/main/resources",
+                "spzx-model/src", "spzx-common", "scripts")
+
+
+def current_secret():
+    for p in CNF_CANDIDATES:
+        if p and os.path.isfile(p):
+            hit = re.search(r"^password=(.+)$",
+                            open(p, encoding="utf-8", errors="ignore").read(), re.M)
+            if hit:
+                return hit.group(1).strip()
+    return ""
+
+
+def check_no_secrets(report):
+    """代码与配置里不得出现库口令 —— Python 走 automation/sourcing/dbconf.py 读仓库外的
+    600 文件，Java 走 gitignore 的 application-local.yml。
+    docs/superpowers 与 .superpowers 是交付台账（历史记录），改写历史等于伪造现场，
+    那里的明文靠"换口令"解决，所以不在射程内。"""
+    secret = current_secret()
+    if not secret:
+        report.warn("E", "拿不到口令样本（%s 都不存在），这道检查没跑 —— 别把这次的绿当结论"
+                    % " / ".join([c for c in CNF_CANDIDATES if c]))
+        return
+    # 只判 git 真会带走的东西：application-local.yml 本来就该放着口令，但它被 ignore 了，
+    # 按目录扫工作树会把它误报成泄漏。
+    listing = sh(["git", "-C", str(REPO), "ls-files"] + [b for b in SECRET_SCOPE])
+    if not listing.strip():
+        report.warn("E", "git ls-files 在这几个目录下没列到任何文件（不是 git 仓库？），这道检查没跑")
+        return
+    hits = [rel for rel in listing.splitlines()
+            if "_archive" not in rel and rel.rsplit(".", 1)[-1] in ("py", "java", "yml", "sh", "xml")
+            and (REPO / rel).is_file()      # 已跟踪但工作区里删掉的，read 会炸
+            and secret in (REPO / rel).read_text(encoding="utf-8", errors="ignore")]
+    # 扫了多少个文件要报出来：D 那道就是靠文件名筛，整份 inventory_cron.sh 掉出扫描面还一路绿灯
+    report.count("secret_scanned", sum(1 for rel in listing.splitlines()
+                                       if rel.rsplit(".", 1)[-1] in ("py", "java", "yml", "sh", "xml")))
+    if hits:
+        report.fail("E", "%d 个已跟踪文件把库口令写进了仓库：%s —— 改读 dbconf.py / application-local.yml"
+                    % (len(hits), ", ".join(hits[:6])))
+    else:
+        report.ok("E", "已跟踪的代码与配置里没有库口令（Python 走 dbconf.py，Java 走 application-local.yml）")
+
+
 # ---------------------------------------------------------------- 框架
 class Report:
     def __init__(self):
@@ -356,6 +467,8 @@ def run(frontend=None):
     if frontend:
         check_contract(frontend, rep)
     check_copied_predicate(rep)
+    check_alert_resolution(rep, reg)
+    check_no_secrets(rep)
     return rep
 
 
@@ -438,7 +551,76 @@ def selftest(tmp):
     finally:
         REPO = old
     assert rep.failures, "夹具：测试被改名却没报 → C 这道判据是假的"
-    print("selftest: A 埋 5 种情形 / B 解析与匹配 / C 改名检测，全部按预期报出")
+
+    # D：三种坏形各造一条 —— 没带 --dataset / 指向没注册的数据集 / 写入方不再写 dataset_code
+    dbox = pathlib.Path(tmp) / "d"
+    (dbox / "automation" / "sourcing").mkdir(parents=True)
+    (dbox / "automation" / "tb-auto").mkdir(parents=True)
+    (dbox / "automation" / "sourcing" / "cron_alert.py").write_text(
+        'cur.execute("INSERT INTO sync_alert (alert_type, dataset_code, shop_id, old_value, '
+        'message, status, create_time) VALUES (%s,%s,%s,%s,%s,0,%s)")', encoding="utf-8")
+    (dbox / "automation" / "sourcing" / "cron_bad_nodash.sh").write_text(
+        'ALERT=$DIR/cron_alert.py\n$PY "$ALERT" --key job_x --msg "没带 dataset" > /dev/null 2>&1\n',
+        encoding="utf-8")
+    (dbox / "automation" / "sourcing" / "cron_bad_unknown.sh").write_text(
+        'DS=not_registered\n$PY "$ALERT" --key job_y --dataset "$DS" --msg "x"\n', encoding="utf-8")
+    (dbox / "automation" / "tb-auto" / "cron_bad_writer.sh").write_text(
+        '$PY "$ALERT" --key job_z --platform 1 --type cron_failed \\\n'
+        '  --dataset item_daily_sycm --msg "折行也要认出来"\n', encoding="utf-8")
+    rep = Report()
+    old, REPO = REPO, dbox
+    try:
+        check_alert_resolution(rep, {"item_daily_sycm": {}})
+    finally:
+        REPO = old
+    d = "\n".join(m for c, m in rep.failures)
+    assert "没带 --dataset" in d and "job_x" in d, "夹具：漏 --dataset 没报 → %s" % d
+    assert "注册表里没有" in d and "not_registered" in d, "夹具：dataset 写错没报 → %s" % d
+    assert "job_z" not in d, "夹具：折行的正常调用被误报 → %s" % d
+    # 写入方不再写 dataset_code 时要报红
+    (dbox / "automation" / "sourcing" / "cron_alert.py").write_text(
+        'cur.execute("INSERT INTO sync_alert (alert_type, shop_id, old_value, message, status, '
+        'create_time) VALUES (%s,%s,%s,%s,%s,0,%s)")', encoding="utf-8")
+    rep = Report()
+    old, REPO = REPO, dbox
+    try:
+        check_alert_resolution(rep, {"item_daily_sycm": {}})
+    finally:
+        REPO = old
+    assert "INSERT 不再写 dataset_code" in "\n".join(m for c, m in rep.failures), \
+        "夹具：写入方掉了 dataset_code 没报 → D 这道判据是假的"
+
+    # E：口令回到仓库时要报红（放一个假的 .py 进扫描范围）。
+    # 口令样本从库参数文件现读，判据才不是"只认某一串写死的字符串"。
+    secret = current_secret()
+    if not secret:
+        print("selftest: A/B/C/D 已验；E 跳过（库参数文件都不存在，取不到口令样本，别以为 E 验过）")
+    elif subprocess.run(["git", "--version"], capture_output=True).returncode != 0:
+        print("selftest: E 跳过（没有 git，判不了「已跟踪」这个口径）")
+    else:
+        # E 判的是「git 会带走的文件」，所以夹具要先落文件、再 git add，删完还要同步索引
+        subprocess.run(["git", "init", "-q"], cwd=str(box), capture_output=True)
+        leaky = box / "automation" / "sourcing" / "leaky.py"
+        leaky.write_text('DB = {"password": "%s"}' % secret, encoding="utf-8")
+        subprocess.run(["git", "add", "-A"], cwd=str(box), capture_output=True)
+        rep = Report()
+        old, REPO = REPO, box
+        try:
+            check_no_secrets(rep)
+        finally:
+            REPO = old
+        assert rep.failures and "leaky.py" in rep.failures[0][1], \
+            "夹具：口令回潮没报 → E 这道判据是假的"
+        leaky.unlink()
+        subprocess.run(["git", "add", "-A"], cwd=str(box), capture_output=True)
+        rep = Report()
+        old, REPO = REPO, box
+        try:
+            check_no_secrets(rep)
+        finally:
+            REPO = old
+        assert not rep.failures, "夹具：删掉口令后仍报红 → %s" % rep.failures
+    print("selftest: A 埋 5 种情形 / B 解析与匹配 / C 改名检测 / D 三种销案缺陷 / E 口令回潮，全部按预期报出")
 
 
 def main():
