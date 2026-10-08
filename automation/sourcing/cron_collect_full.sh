@@ -11,7 +11,7 @@ DS=source_sku
 
 skip() {
   echo "[$(date '+%m-%d %H:%M')] $1, 跳过"
-  $PY "$ALERT" --key collect_1688_full --msg "1688详情周采集未落库: $1" > /dev/null 2>&1
+  $PY "$ALERT" --key collect_1688_full --dataset "$DS" --msg "1688详情周采集未落库: $1" > /dev/null 2>&1
   local bid
   bid=$($PY "$BATCH" begin --dataset "$DS")
   $PY "$BATCH" end --id "$bid" --status failed --error "$1" > /dev/null 2>&1
@@ -30,5 +30,5 @@ if [ "$rc" = "0" ]; then
   $PY "$BATCH" end --id "$BID" --status success > /dev/null 2>&1
 else
   $PY "$BATCH" end --id "$BID" --status failed --error "脚本异常退出 rc=$rc" > /dev/null 2>&1
-  $PY "$ALERT" --key collect_1688_full --type cron_failed --msg "1688详情周采集脚本异常退出 rc=$rc" > /dev/null 2>&1
+  $PY "$ALERT" --key collect_1688_full --dataset "$DS" --type cron_failed --msg "1688详情周采集脚本异常退出 rc=$rc" > /dev/null 2>&1
 fi

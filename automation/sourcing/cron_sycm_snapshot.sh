@@ -11,7 +11,7 @@ DS=item_daily_sycm
 # 跳过也留一行批次台账：跑批历史必须完整，否则"没跑"和"跑了没记录"分不开
 skip() {
   echo "[$(date '+%F %T')] $1, 跳过快照" >> "$LOG"
-  $PY "$ALERT" --key sycm_snapshot --platform 1 --msg "生意参谋每日快照未落库: $1" > /dev/null 2>&1
+  $PY "$ALERT" --key sycm_snapshot --dataset "$DS" --platform 1 --msg "生意参谋每日快照未落库: $1" > /dev/null 2>&1
   local bid
   bid=$($PY "$BATCH" begin --dataset "$DS" --platform 1)
   $PY "$BATCH" end --id "$bid" --status failed --error "$1" > /dev/null 2>&1
@@ -42,16 +42,16 @@ if [ "$rc" = "0" ]; then
   if [ "$V" = "partial" ]; then
     $PY "$BATCH" end --id "$BID" --status partial --rows-total "${ROWS:-0}" --rows-ok "${ROWS:-0}" \
       --error "仅落库 ${ROWS:-0} 条，远低于近 5 轮中位数（多半只采到第一页或中途断）" > /dev/null 2>&1
-    $PY "$ALERT" --key sycm_snapshot --platform 1 --type cron_failed \
+    $PY "$ALERT" --key sycm_snapshot --dataset "$DS" --platform 1 --type cron_failed \
       --msg "生意参谋快照本轮只落了 ${ROWS:-0} 条（明显少于近期基线），商品效果/成交数据不完整，别拿去算利润" > /dev/null 2>&1
   else
     $PY "$BATCH" end --id "$BID" --status success --rows-total "${ROWS:-0}" --rows-ok "${ROWS:-0}" > /dev/null 2>&1
   fi
 elif [ "$rc" = "42" ]; then
   $PY "$BATCH" end --id "$BID" --status failed --error "触发风控(rc=42), 已入库 ${ROWS:-0} 条" > /dev/null 2>&1
-  $PY "$ALERT" --key sycm_snapshot --platform 1 --type cron_failed --msg "生意参谋快照触发风控 rc=42（可能只落了部分页）" > /dev/null 2>&1
+  $PY "$ALERT" --key sycm_snapshot --dataset "$DS" --platform 1 --type cron_failed --msg "生意参谋快照触发风控 rc=42（可能只落了部分页）" > /dev/null 2>&1
 else
   $PY "$BATCH" end --id "$BID" --status failed --error "脚本异常退出 rc=$rc" > /dev/null 2>&1
-  $PY "$ALERT" --key sycm_snapshot --platform 1 --type cron_failed --msg "生意参谋快照脚本异常退出 rc=${rc}（1=报错）" > /dev/null 2>&1
+  $PY "$ALERT" --key sycm_snapshot --dataset "$DS" --platform 1 --type cron_failed --msg "生意参谋快照脚本异常退出 rc=${rc}（1=报错）" > /dev/null 2>&1
 fi
 exit $rc

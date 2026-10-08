@@ -108,4 +108,43 @@ class IngestFreshnessServiceTest {
         String msg = IngestFreshnessService.alertMessage(d, NOW.minusHours(9999), 9999);
         assertTrue(msg.length() <= 500, "message varchar(500) 装不下: " + msg.length());
     }
+
+    @Test
+    void skipped提醒后续落库即销案_含partial() {
+        // 实况：10-03 06:00 报「生意参谋每日快照未落库」，10-06 06:00 落了 10 行（partial）
+        var landed = new IngestFreshnessService.Landed(LocalDateTime.of(2026, 10, 6, 6, 0), null);
+        assertTrue(IngestFreshnessService.recoveredBy("cron_skipped",
+                LocalDateTime.of(2026, 10, 3, 6, 0), landed), "真写了行，「未落库」就该翻篇");
+    }
+
+    @Test
+    void failed提醒只认success_否则覆盖率闸门白装() {
+        var partialOnly = new IngestFreshnessService.Landed(LocalDateTime.of(2026, 10, 6, 6, 0), null);
+        assertFalse(IngestFreshnessService.recoveredBy("cron_failed",
+                LocalDateTime.of(2026, 10, 6, 6, 0), partialOnly),
+                "下一轮同样 partial 不能把自己吞掉（10-06 那条只落 10 行的告警至今未恢复）");
+        var thenSuccess = new IngestFreshnessService.Landed(
+                LocalDateTime.of(2026, 10, 7, 6, 0), LocalDateTime.of(2026, 10, 7, 6, 0));
+        assertTrue(IngestFreshnessService.recoveredBy("cron_failed",
+                LocalDateTime.of(2026, 10, 6, 6, 0), thenSuccess), "来一次干净成功才算恢复");
+    }
+
+    @Test
+    void 同一轮的台账不能给自己销案() {
+        // 同一轮里 cron_batch 先 end、cron_alert 后写，时刻只差几秒
+        var same = new IngestFreshnessService.Landed(LocalDateTime.of(2026, 10, 6, 6, 0, 37), null);
+        assertFalse(IngestFreshnessService.recoveredBy("cron_skipped",
+                LocalDateTime.of(2026, 10, 6, 6, 0, 38), same), "必须严格晚于提醒本身");
+        assertFalse(IngestFreshnessService.recoveredBy("cron_skipped",
+                LocalDateTime.of(2026, 10, 6, 6, 0, 37), same), "相等也不算");
+    }
+
+    @Test
+    void 没落过库或提醒没时间就不销案() {
+        assertFalse(IngestFreshnessService.recoveredBy("cron_skipped", NOW, null), "台账里没这个数据集");
+        assertFalse(IngestFreshnessService.recoveredBy("cron_skipped", null,
+                new IngestFreshnessService.Landed(NOW, NOW)), "create_time 为空时无从比较");
+        assertFalse(IngestFreshnessService.recoveredBy("cron_failed", NOW,
+                new IngestFreshnessService.Landed(NOW.plusDays(1), null)), "只有 partial 不算 success");
+    }
 }

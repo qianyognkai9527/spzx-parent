@@ -13,7 +13,7 @@ DS_ALERT=source_alert_detect
 
 skip() {
   echo "[$(date '+%m-%d %H:%M')] $1, 跳过本轮"
-  $PY "$ALERT" --key inventory_sync --msg "库存日同步未跑: $1" > /dev/null 2>&1
+  $PY "$ALERT" --key inventory_sync --dataset "$DS" --msg "库存日同步未跑: $1" > /dev/null 2>&1
   local bid
   bid=$($PY "$BATCH" begin --dataset "$DS")
   $PY "$BATCH" end --id "$bid" --status failed --error "$1" > /dev/null 2>&1
@@ -61,16 +61,16 @@ if [ "$rc" = "0" ]; then
   # 停摆探测器：池子非空却一个都没查，说明变化检测又变成了"每天扫 0 个报 success"
   # —— 那正是它悄悄停摆七周的形态（永久 done 名单），必须当场报而不是等人事后翻流水
   if [ -n "$CANDIDATES" ] && [ "$CANDIDATES" != "0" ] && [ "${CHECKED:-0}" = "0" ]; then
-    $PY "$ALERT" --key inventory_sync --type cron_failed \
+    $PY "$ALERT" --key inventory_sync --dataset "$DS" --type cron_failed \
       --msg "库存变化检测本轮扫 0 个（池子有 ${CANDIDATES} 个候选）：检测名单可能又被写成了永久跳过，库存数据在腐烂" > /dev/null 2>&1
   fi
 else
   $PY "$BATCH" end --id "$BID" --status failed --error "detect_stock_change 异常退出 rc=$rc" > /dev/null 2>&1
-  $PY "$ALERT" --key inventory_sync --type cron_failed --msg "库存日同步脚本异常退出 rc=$rc" > /dev/null 2>&1
+  $PY "$ALERT" --key inventory_sync --dataset "$DS" --type cron_failed --msg "库存日同步脚本异常退出 rc=$rc" > /dev/null 2>&1
 fi
 if [ "$arc" = "0" ]; then
   $PY "$BATCH" end --id "$ARB" --status success --rows-total "${ALERT_ROWS:-0}" > /dev/null 2>&1
 else
   $PY "$BATCH" end --id "$ARB" --status failed --error "detect_alerts 异常退出 rc=$arc" > /dev/null 2>&1
-  $PY "$ALERT" --key alert_detect --type cron_failed --msg "货源下架/变价提醒检测异常退出 rc=${arc}（product_down/sku_down/price_change 三类提醒停摆）" > /dev/null 2>&1
+  $PY "$ALERT" --key alert_detect --dataset "$DS_ALERT" --type cron_failed --msg "货源下架/变价提醒检测异常退出 rc=${arc}（product_down/sku_down/price_change 三类提醒停摆）" > /dev/null 2>&1
 fi

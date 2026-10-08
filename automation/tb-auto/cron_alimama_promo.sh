@@ -15,13 +15,14 @@ ALERT=$SRC/cron_alert.py
 BATCH=$SRC/cron_batch.py
 DATASETS="promo_cost promo_cost_detail"
 KEY=alimama_promo
+DS=promo_cost   # 提醒销案认这个数据集code（该作业还会写 promo_cost_detail，取主口径那个）
 DAYS=15
 
 # 跳过也要留一行批次台账 + 一条提醒：跑批历史必须完整，否则"没跑"和"跑了没记录"分不开；
 # 而台账记 failed 不会把新鲜度顶成"刚采过"（lastBatchAt 只认 success/partial）。
 skip() {
   echo "[$(date '+%F %T')] $1, 跳过采集" >> "$LOG"
-  $PY "$ALERT" --key "$KEY" --platform 1 --msg "推广日报采集未落库: $1" > /dev/null 2>&1
+  $PY "$ALERT" --key "$KEY" --dataset "$DS" --platform 1 --msg "推广日报采集未落库: $1" > /dev/null 2>&1
   for ds in $DATASETS; do
     local bid
     bid=$($PY "$BATCH" begin --dataset "$ds" --platform 1)
@@ -48,8 +49,8 @@ echo "[$(date '+%F %T')] 退出码 $rc" >> "$LOG"
 # 台账由 python 自己收尾，这里只补运维提醒：新鲜度巡检最快一小时后才从库里判出来，
 # 这段静默窗口要靠告警补齐。
 if [ "$rc" = "42" ]; then
-  $PY "$ALERT" --key "$KEY" --platform 1 --type cron_failed --msg "推广日报采集触发风控 rc=42（可能只采到部分天，已自动冷却等待下轮）" > /dev/null 2>&1
+  $PY "$ALERT" --key "$KEY" --dataset "$DS" --platform 1 --type cron_failed --msg "推广日报采集触发风控 rc=42（可能只采到部分天，已自动冷却等待下轮）" > /dev/null 2>&1
 elif [ "$rc" != "0" ]; then
-  $PY "$ALERT" --key "$KEY" --platform 1 --type cron_failed --msg "推广日报采集异常退出 rc=${rc}（1=有错误或未采全）" > /dev/null 2>&1
+  $PY "$ALERT" --key "$KEY" --dataset "$DS" --platform 1 --type cron_failed --msg "推广日报采集异常退出 rc=${rc}（1=有错误或未采全）" > /dev/null 2>&1
 fi
 exit $rc

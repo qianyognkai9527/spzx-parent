@@ -10,7 +10,7 @@ DS=source_freight
 
 skip() {
   echo "[$(date '+%m-%d %H:%M')] $1, 跳过"
-  $PY "$ALERT" --key fetch_freight --msg "运费周补抓未落库: $1" > /dev/null 2>&1
+  $PY "$ALERT" --key fetch_freight --dataset "$DS" --msg "运费周补抓未落库: $1" > /dev/null 2>&1
   local bid
   bid=$($PY "$BATCH" begin --dataset "$DS")
   $PY "$BATCH" end --id "$bid" --status failed --error "$1" > /dev/null 2>&1
@@ -29,5 +29,5 @@ if [ "$rc" = "0" ]; then
   $PY "$BATCH" end --id "$BID" --status success > /dev/null 2>&1
 else
   $PY "$BATCH" end --id "$BID" --status failed --error "脚本异常退出 rc=$rc" > /dev/null 2>&1
-  $PY "$ALERT" --key fetch_freight --type cron_failed --msg "运费周补抓脚本异常退出 rc=$rc" > /dev/null 2>&1
+  $PY "$ALERT" --key fetch_freight --dataset "$DS" --type cron_failed --msg "运费周补抓脚本异常退出 rc=$rc" > /dev/null 2>&1
 fi

@@ -5,10 +5,14 @@
 只有脚本自己知道"今天没跑成"；后端的新鲜度巡检最快也要一小时后才从库里判出来，
 这段静默窗口靠本脚本补齐。纯 DB 写入，不需要 Chrome。
 
-用法: cron_alert.py --key sycm_snapshot --msg "Chrome 9222 不在线, 每日快照未落库" [--platform 1]
+用法: cron_alert.py --key sycm_snapshot --dataset item_daily_sycm --msg "Chrome 9222 不在线, 每日快照未落库" [--platform 1]
       --type cron_skipped(默认，守卫主动跳过) | cron_failed(作业自己跑挂了)
 去重: 同一 (type, key) 存在未读提醒时不再重复插入 —— 运营读完之后下一次跳过才会再报。
 退出码恒为 0：告警写失败不能把整条 cron 链拖成失败。
+
+--dataset 不是可选项而是这条提醒的**销案依据**：后端只按 `ingest_batch` 里该数据集后来有没有
+再落库来判断"这个作业已经恢复"，dataset_code 为空它就永远关不掉（2026-10-07 查出来的洞：
+10-02/10-03 那批 cron_skipped 全空着，作业早就跑成了，顶栏还挂着"待处理提醒 7"）。
 """
 import argparse
 import sys
@@ -17,10 +21,7 @@ from datetime import datetime
 import pymysql
 from shop_ref import default_shop_id
 
-DB_CONFIG = {
-    "host": "localhost", "port": 3306, "user": "root",
-    "password": "root123456", "database": "db_spzx", "charset": "utf8mb4",
-}
+from dbconf import DB_CONFIG
 ALERT_TYPE = "cron_skipped"
 FAILED_TYPE = "cron_failed"
 
@@ -38,10 +39,11 @@ def _utf8_safe(text, limit):
     return text.encode("utf-8", "replace").decode("utf-8")[:limit]
 
 
-def write_alert(key, msg, platform=None, alert_type=ALERT_TYPE):
+def write_alert(key, msg, platform=None, alert_type=ALERT_TYPE, dataset=None):
     """写一条运维提醒；返回 True 表示本轮确实新插入。任何异常都吞掉——告警不能拖垮作业。"""
     key = _utf8_safe(key, 100)
     msg = _utf8_safe(msg, 500)
+    dataset = _utf8_safe(dataset, 32)
     try:
         conn = pymysql.connect(**DB_CONFIG)
     except Exception as e:
@@ -56,13 +58,15 @@ def write_alert(key, msg, platform=None, alert_type=ALERT_TYPE):
             log(f"{key} 已有未读提醒, 不重复插入")
             return False
         shop_id = default_shop_id(cur, platform) if platform else None
+        if not dataset:
+            log(f"提醒 {key} 没带 --dataset，后端无法自动销案，只能人工清")
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cur.execute(
-            "INSERT INTO sync_alert (alert_type, shop_id, old_value, message, status, create_time) "
-            "VALUES (%s,%s,%s,%s,0,%s)",
-            (alert_type, shop_id, key, msg, now))
+            "INSERT INTO sync_alert (alert_type, dataset_code, shop_id, old_value, message, "
+            "status, create_time) VALUES (%s,%s,%s,%s,%s,0,%s)",
+            (alert_type, dataset, shop_id, key, msg, now))
         conn.commit()
-        log(f"已写入提醒 type={alert_type} key={key} shop_id={shop_id}")
+        log(f"已写入提醒 type={alert_type} key={key} dataset={dataset} shop_id={shop_id}")
         return True
     except Exception as e:
         log(f"写入提醒失败, 跳过告警未记录: {e}")
@@ -74,6 +78,8 @@ def write_alert(key, msg, platform=None, alert_type=ALERT_TYPE):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--key", required=True, help="任务标识, 用于去重与溯源")
+    parser.add_argument("--dataset", default=None,
+                        help="该作业写入的 ingest_dataset.code；后端靠它销案，不传就永远挂着")
     parser.add_argument("--msg", required=True, help="跳过原因与影响")
     parser.add_argument("--type", default=ALERT_TYPE, choices=[ALERT_TYPE, FAILED_TYPE],
                         help="cron_skipped=守卫主动跳过; cron_failed=作业跑挂")
@@ -81,7 +87,8 @@ def main():
                         help="平台 code(1淘宝/2抖音/3拼多多); 上游1688类任务不传, 归属留空")
     args = parser.parse_args()
 
-    write_alert(args.key, args.msg, platform=args.platform, alert_type=args.type)
+    write_alert(args.key, args.msg, platform=args.platform, alert_type=args.type,
+                dataset=args.dataset)
     return 0
 
 

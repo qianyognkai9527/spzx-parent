@@ -33,6 +33,12 @@ import java.util.regex.Pattern;
  *
  * 告警落 sync_alert，复用 SyncAlertNotifyTask 已打通的钉钉通道；一轮过期只告一次，
  * 恢复后清 stale_since，下次再过期重新计时。
+ *
+ * sync_alert 里三类行的销案路径不同，别当成一套：
+ * - ingest_stale（本类写的）：数据集恢复新鲜时按 dataset_code 关。
+ * - cron_skipped / cron_failed（cron_alert.py 写的）：按「该数据集之后是否又有落库批次」关，
+ *   见 {@link #recoveredBy}。这类提醒以前没有 dataset_code，写进去就永远挂着——顶栏那个
+ *   只会涨不会消的"待处理提醒 N"就是这么来的（2026-10-07 修）。
  */
 @Slf4j
 @Service
@@ -132,7 +138,7 @@ public class IngestFreshnessService {
         return out;
     }
 
-    /** 定时入口：判定 → 状态流转 → 写告警。返回本轮新增告警条数 */
+    /** 定时入口：判定 → 状态流转 → 写告警 → 销案。返回本轮新增告警条数 */
     public int scanStaleness() {
         LocalDateTime now = LocalDateTime.now();
         List<IngestDataset> rows = datasetMapper.selectList(
@@ -145,6 +151,12 @@ public class IngestFreshnessService {
                 // 单个数据集判定失败不影响其余；不写状态，下轮重试
                 log.warn("ingest 新鲜度判定失败 dataset={}: {}", d.getCode(), e.getMessage());
             }
+        }
+        try {
+            closeResolvedJobAlerts();
+        } catch (Exception e) {
+            // 销案失败不影响判定：提醒多挂一小时不算事故，漏判才是
+            log.warn("作业级提醒销案失败: {}", e.getMessage());
         }
         return alerts;
     }
@@ -207,6 +219,77 @@ public class IngestFreshnessService {
                 .eq(SyncAlert::getAlertType, ALERT_TYPE)
                 .eq(SyncAlert::getDatasetCode, d.getCode())
                 .eq(SyncAlert::getStatus, SyncAlert.STATUS_UNREAD));
+    }
+
+    /** cron 侧自己报的作业级提醒（cron_alert.py 写的），销案判据见 {@link #recoveredBy} */
+    static final List<String> JOB_ALERT_TYPES = List.of("cron_skipped", "cron_failed");
+
+    /** 某数据集「最近一次真的落了库」与「最近一次干净成功」的时刻 */
+    record Landed(LocalDateTime landedAt, LocalDateTime successAt) {
+    }
+
+    private Map<String, Landed> landedByDataset() {
+        Map<String, Landed> out = new HashMap<>();
+        for (Map<String, Object> r : jdbcTemplate.queryForList(
+                "SELECT dataset, "
+                        + "MAX(CASE WHEN status IN ('success','partial') THEN finished_at END) landed_at, "
+                        + "MAX(CASE WHEN status = 'success' THEN finished_at END) success_at "
+                        + "FROM ingest_batch GROUP BY dataset")) {
+            out.put(String.valueOf(r.get("dataset")),
+                    new Landed(ts(r.get("landed_at")), ts(r.get("success_at"))));
+        }
+        return out;
+    }
+
+    /**
+     * 作业级提醒算不算已经恢复（纯函数，单测钉住）。两种提醒的"恢复"不是一回事：
+     *
+     * - cron_skipped 说的是「这轮根本没跑/没落库」⇒ 之后只要真落了库就算翻篇，
+     *   含 partial —— 少一批但确实写了行，"未落库"那句话已经过期（sycm 06:00 只写 10 行就是这样）。
+     * - cron_failed 说的是「跑挂了/采得不全」⇒ 必须等到一次 success，否则下一轮同样 partial
+     *   会把告警自己吞掉，覆盖率闸门白装。
+     *
+     * 时刻必须**严格晚于**提醒本身：同一轮里台账先写、提醒后写，用 ≥ 会让失败的那轮自己销案。
+     */
+    static boolean recoveredBy(String alertType, LocalDateTime alertCreatedAt, Landed landed) {
+        if (landed == null || alertCreatedAt == null) {
+            return false;
+        }
+        LocalDateTime since = "cron_skipped".equals(alertType) ? landed.landedAt() : landed.successAt();
+        return since != null && since.isAfter(alertCreatedAt);
+    }
+
+    /**
+     * 未读的作业级提醒里，把已经恢复的置为已自动解决。
+     * 不依赖 ingest_dataset 的 monitor 开关，也不等 SLA：周采集（source_sku / source_freight）
+     * 的 SLA 是 192 小时，按新鲜度销案要挂五天，而台账里有没有后续批次当场就能判。
+     */
+    public int closeResolvedJobAlerts() {
+        List<SyncAlert> open = syncAlertMapper.selectList(Wrappers.<SyncAlert>lambdaQuery()
+                .select(SyncAlert::getId, SyncAlert::getAlertType,
+                        SyncAlert::getDatasetCode, SyncAlert::getCreateTime)
+                .in(SyncAlert::getAlertType, JOB_ALERT_TYPES)
+                .eq(SyncAlert::getStatus, SyncAlert.STATUS_UNREAD)
+                .isNotNull(SyncAlert::getDatasetCode));
+        if (open.isEmpty()) {
+            return 0;
+        }
+        Map<String, Landed> landed = landedByDataset();
+        List<Long> recovered = new ArrayList<>();
+        for (SyncAlert a : open) {
+            if (recoveredBy(a.getAlertType(), a.getCreateTime(), landed.get(a.getDatasetCode()))) {
+                recovered.add(a.getId());
+            }
+        }
+        if (recovered.isEmpty()) {
+            return 0;
+        }
+        syncAlertMapper.update(null, Wrappers.<SyncAlert>lambdaUpdate()
+                .set(SyncAlert::getStatus, SyncAlert.STATUS_RESOLVED)
+                .set(SyncAlert::getNotified, 1)
+                .in(SyncAlert::getId, recovered));
+        log.info("作业级提醒自动销案 {} 条（该数据集之后又有落库批次）ids={}", recovered.size(), recovered);
+        return recovered.size();
     }
 
     private void insertAlert(IngestDataset d, LocalDateTime lastWriteAt, long ageHours) {
