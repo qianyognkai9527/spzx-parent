@@ -27,7 +27,7 @@ STOCK_SRC = "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/guiruo_d
 MIN_STOCK = 20
 CREATE_URL = "https://fxg.jinritemai.com/ffa/g/create"
 LIST_URL = "https://fxg.jinritemai.com/ffa/g/list"
-DB = dict(host="127.0.0.1", user="root", password="root123456", database="db_spzx", port=3306)
+from dbconf import DB_CONFIG as DB
 DELAY_MIN, DELAY_MAX = 8, 15
 
 

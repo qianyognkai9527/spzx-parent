@@ -24,10 +24,7 @@ import time
 import pymysql
 from shop_ref import default_shop_id
 
-DB_CONFIG = {
-    "host": "localhost", "port": 3306, "user": "root",
-    "password": "root123456", "database": "db_spzx", "charset": "utf8mb4",
-}
+from dbconf import DB_CONFIG
 TERMINAL = ("success", "partial", "failed")
 LANDED = ("success", "partial")
 # 超过这个小时数还挂在 running 就是没人收尾（进程被 kill / 机器关机），补成 failed 说明真相

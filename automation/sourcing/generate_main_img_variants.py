@@ -18,7 +18,7 @@ import pymysql
 import numpy as np
 from PIL import Image, ImageEnhance, ImageFilter
 
-DB = dict(host="127.0.0.1", user="root", password="root123456", database="db_spzx", port=3306)
+from dbconf import DB_CONFIG as DB
 OUT_DIR = "/Users/qyk9527/tb/headImges"
 RULES = ["brighten", "bokeh", "crop", "dark", "warm"]
 

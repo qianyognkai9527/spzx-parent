@@ -12,7 +12,7 @@ import pymysql
 from playwright.async_api import async_playwright
 
 CDP = "http://127.0.0.1:9223"
-DB = {"host": "localhost", "port": 3306, "user": "root", "password": "root123456", "database": "db_spzx", "charset": "utf8mb4"}
+from dbconf import DB_CONFIG as DB
 PROGRESS_FILE = "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/freight_progress.json"
 COOLDOWN = 1200  # 触发风控冷却秒数 (20分钟, 减少反复风控)
 MAX_RETRY = 1

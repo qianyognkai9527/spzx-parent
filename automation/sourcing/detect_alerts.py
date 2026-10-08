@@ -12,10 +12,7 @@ from datetime import datetime
 import pymysql
 from shop_ref import shop_id_of_product
 
-DB_CONFIG = {
-    "host": "localhost", "port": 3306, "user": "root",
-    "password": "root123456", "database": "db_spzx", "charset": "utf8mb4",
-}
+from dbconf import DB_CONFIG
 LAST_PRICES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "last_prices.json")
 
 

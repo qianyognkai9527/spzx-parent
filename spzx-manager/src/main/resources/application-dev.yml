@@ -23,7 +23,9 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/db_spzx?characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true&connectTimeout=3000&socketTimeout=10000
     username: root
-    password: root123456
+    # 口令不进仓库：真值在 application-local.yml（已 gitignore），或环境变量 SPRING_DATASOURCE_PASSWORD。
+    # 两处都没有时这里解析成空串，MySQL 会直接报 Access denied——比留一份明文在库里好查。
+    password: ${SPRING_DATASOURCE_PASSWORD:}
     hikari:
       maximum-pool-size: 5
       minimum-idle: 2

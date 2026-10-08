@@ -19,10 +19,7 @@ from source_config import (
     FACTORY_GRADE_A, FACTORY_GRADE_B,
 )
 
-DB_CONFIG = {
-    "host": "localhost", "port": 3306, "user": "root",
-    "password": "root123456", "database": "db_spzx", "charset": "utf8mb4",
-}
+from dbconf import DB_CONFIG
 DATASET = "source_quality_grade"
 ALERT_KEY = "grade_quality"
 

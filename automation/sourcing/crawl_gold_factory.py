@@ -24,8 +24,7 @@ from playwright.async_api import async_playwright
 CDP = "http://127.0.0.1:9223"
 GOLD_URL = "https://sale.1688.com/factory/bd_jpzz.html?__existtitle__=1&__removesafearea__=1"
 RAW_FILE = "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/gold_factory.jsonl"
-DB = {"host": "localhost", "port": 3306, "user": "root",
-      "password": "root123456", "database": "db_spzx", "charset": "utf8mb4"}
+from dbconf import DB_CONFIG as DB
 
 # 目标类目 tab (金牌榜上的名称)
 TARGET_TABS = ["女装", "内衣", "服饰配饰"]

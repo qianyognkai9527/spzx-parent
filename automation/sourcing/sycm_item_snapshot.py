@@ -31,8 +31,7 @@ import pymysql  # noqa: E402
 PAGE_URL = "https://sycm.taobao.com/cc/item_rank"
 API_MARK = "/cc/item/view/top.json"
 
-DB = dict(host="localhost", user="root", password="root123456",
-          database="db_spzx", charset="utf8mb4")
+from dbconf import DB_CONFIG as DB
 
 
 def log(msg):

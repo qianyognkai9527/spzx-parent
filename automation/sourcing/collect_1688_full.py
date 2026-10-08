@@ -17,7 +17,7 @@ import pymysql
 from playwright.async_api import async_playwright
 
 CDP = "http://127.0.0.1:9222"
-DB_CONFIG = {"host": "localhost", "port": 3306, "user": "root", "password": "root123456", "database": "db_spzx", "charset": "utf8mb4"}
+from dbconf import DB_CONFIG
 PROGRESS_FILE = "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/collect_full_progress.json"
 SKU_API = "mtop.1688.wosc.queryofferskuselectormodel"
 COOLDOWN = 1200

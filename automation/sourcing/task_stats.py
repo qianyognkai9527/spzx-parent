@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """任务完成度+上次执行时间统计（读 task-progress-config.json）"""
+from dbconf import connect
 import json, os, time, collections
 import pymysql
 
@@ -37,10 +38,7 @@ def mtime_str(paths):
 
 def mysql_rows(sql):
     try:
-        conn = pymysql.connect(
-            host="127.0.0.1", port=3306, user="root",
-            password="root123456", database="db_spzx", charset="utf8mb4",
-        )
+        conn = connect()
         with conn.cursor() as cur:
             cur.execute(sql)
             rows = cur.fetchall()

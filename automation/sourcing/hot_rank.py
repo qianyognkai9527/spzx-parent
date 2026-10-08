@@ -20,8 +20,7 @@ from datetime import datetime
 
 import pymysql
 
-DB = dict(host="localhost", user="root", password="root123456",
-          database="db_spzx", charset="utf8mb4")
+from dbconf import DB_CONFIG as DB
 BIND_FILE = "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/taobao_isv_bind.jsonl"
 
 

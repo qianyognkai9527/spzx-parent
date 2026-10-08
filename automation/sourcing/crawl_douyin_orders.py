@@ -17,8 +17,7 @@ from shop_ref import default_shop_id, PLATFORM_DOUYIN
 
 CDP = "http://127.0.0.1:9223"
 ORDER_URL = "https://fxg.jinritemai.com/ffa/morder/order/list"
-DB = {"host": "localhost", "port": 3306, "user": "root",
-      "password": "root123456", "database": "db_spzx", "charset": "utf8mb4"}
+from dbconf import DB_CONFIG as DB
 
 STATUS_MAP = {"待支付": 0, "待发货": 1, "已发货": 2, "已完成": 3, "已取消": -1,
               "待付款": 0, "部分发货": 2, "关闭": -1}

@@ -10,7 +10,7 @@ import requests
 import numpy as np
 from PIL import Image
 
-DB = dict(host="127.0.0.1", user="root", password="root123456", database="db_spzx", port=3306)
+from dbconf import DB_CONFIG as DB
 UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
 
 

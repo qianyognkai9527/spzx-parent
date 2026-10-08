@@ -27,10 +27,7 @@ import time
 import pymysql
 from playwright.async_api import async_playwright
 
-DB_CONFIG = {
-    "host": "localhost", "port": 3306, "user": "root",
-    "password": "root123456", "database": "db_spzx", "charset": "utf8mb4",
-}
+from dbconf import DB_CONFIG
 CDP = "http://127.0.0.1:9223"
 STOCK_URL = "https://fxg.jinritemai.com/ffa/g/stock-manage/list"
 

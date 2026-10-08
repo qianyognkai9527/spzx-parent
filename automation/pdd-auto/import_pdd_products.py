@@ -18,7 +18,9 @@ import pymysql
 
 import pdd_config as C
 
-DB = dict(host="127.0.0.1", user="root", password="root123456", database="db_spzx", port=3306, charset="utf8mb4")
+import os as _os, sys as _sys  # dbconf 在 automation/sourcing 下，跨目录脚本按既有约定把它加进搜索路径
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), _os.pardir, "sourcing"))
+from dbconf import DB_CONFIG as DB
 PDD_PLATFORM = 3
 PDD_SHOP_ID = 3
 SNAPSHOT = os.path.join(C.BASE, "pdd_store_snapshot.json")

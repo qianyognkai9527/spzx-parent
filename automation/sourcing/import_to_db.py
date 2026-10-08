@@ -13,10 +13,7 @@ from source_config import MIN_TRUST_YEARS
 from grade_quality import grade_product, grade_factory
 
 RAW_FILE = "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/sourcing_raw.jsonl"
-DB_CONFIG = {
-    "host": "localhost", "port": 3306, "user": "root",
-    "password": "root123456", "database": "db_spzx", "charset": "utf8mb4",
-}
+from dbconf import DB_CONFIG
 
 
 def parse_sales(s):

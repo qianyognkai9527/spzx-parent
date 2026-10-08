@@ -42,8 +42,7 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 PLAN_FILE = os.path.join(BASE, "shop_cat_plan.json")
 PROGRESS_FILE = os.path.join(BASE, "shop_cat_v2_progress.json")
 EDIT_URL = "https://item.upload.taobao.com/sell/v2/publish.htm?itemId={id}&fromAIPublish=true"
-DB_CONFIG = {"host": "localhost", "port": 3306, "user": "root",
-             "password": "root123456", "database": "db_spzx", "charset": "utf8mb4"}
+from dbconf import DB_CONFIG
 PRICE_ADD = 130          # 新价 = 货源价 + 130
 DEFAULT_RATIO = 3.9      # 无货源价时按历史均值反推
 PRICE_MIN, PRICE_MAX = 60, 500   # 合理区间告警线(不拦截只告警)

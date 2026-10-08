@@ -10,6 +10,9 @@
 为什么单独一个脚本而不是接进发布流程：存量 256 件已经卖出去了，闸门只能拦新的；
 存量要不要动、怎么动（改标题/改参考价）是经营决定，所以这里只出证据。
 """
+import os as _os, sys as _sys  # dbconf 在 automation/sourcing 下，跨目录脚本按既有约定把它加进搜索路径
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), _os.pardir, "sourcing"))
+from dbconf import connect
 import argparse
 import json
 import os
@@ -44,8 +47,7 @@ def sales_evidence():
     """有没有可核实的成交记录。order_info 是 2023 演示数据，这里按"2024 年起有没有订单"判。"""
     try:
         import pymysql
-        conn = pymysql.connect(host="127.0.0.1", user="root", password="root123456",
-                               database="db_spzx", port=3306, charset="utf8mb4")
+        conn = connect()
         try:
             with conn.cursor() as cur:
                 cur.execute("SELECT COUNT(*) FROM order_info WHERE create_time >= '2024-01-01'")
