@@ -347,7 +347,7 @@ Expected: 返回 token。若 redis-cli 取不到验证码值，`redis-cli --scan
 kill $(cat /tmp/spzx_native_run.pid)
 ./spzx-manager/target/spzx-manager \
   --spring.profiles.active=dev --server.port=8511 \
-  -Dspringdoc.api-docs.enabled=false > /tmp/spzx_native_run.log 2>&1 &
+  --springdoc.api-docs.enabled=false > /tmp/spzx_native_run.log 2>&1 &
 echo $! > /tmp/spzx_native_run.pid
 ```
 
