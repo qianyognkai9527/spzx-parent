@@ -24,7 +24,7 @@ import java.util.Map;
  * Redis 缓存配置
  * 启用 Spring Cache，使用 JSON 序列化，按 cacheName 分级 TTL
  */
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @EnableCaching
 public class RedisCacheConfig {
 

@@ -87,9 +87,19 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     @Override
     public ValidateCodeVo genVarifyCode() {
-        CircleCaptcha circleCaptcha = CaptchaUtil.createCircleCaptcha(150, 48, 4, 2);
-        String code = circleCaptcha.getCode();
-        String imageBase64 = circleCaptcha.getImageBase64();
+        String code;
+        String imageBase64;
+        if (org.springframework.core.NativeDetector.inNativeImage()) {
+            // GraalVM native image 不支持 AWT，hutool 验证码（Graphics2D 画图）在
+            // native 下会 NoClassDefFoundError: java.awt.Color（2026-10-22 试验实测）。
+            // native 分支改随机码 + 1x1 占位 PNG，登录校验逻辑不变（前端不要在 native 模式用）。
+            code = UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+            imageBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+        } else {
+            CircleCaptcha circleCaptcha = CaptchaUtil.createCircleCaptcha(150, 48, 4, 2);
+            code = circleCaptcha.getCode();
+            imageBase64 = circleCaptcha.getImageBase64();
+        }
 
         String key = UUID.randomUUID().toString().replace("-", "");
         // 将验证码存储到Redis中

@@ -7,7 +7,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.ThreadPoolExecutor;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 public class AsyncConfig implements AsyncConfigurer {
 
     @Bean("SpzxManagerThreadPoolTaskExecutor")
