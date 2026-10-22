@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joker.spzx.manager.mapper.LowStockMapper">
+
+    <!-- 低库存规格页（只读），三段式现算：
+         1. 分组的货源页（IPage 自动分页）；
+         2. 该页货源的淘宝映射（taobao_offer_map，可空）；
+         3. 该页货源的低规格明细。
+         不 GROUP_CONCAT 聚合成一个 JSON（有截断风险），由 service 装配。
+         <10 红 / 10~19 橙的红线在前端固定展示，与 threshold 档位无关。
+         用户口径（2026-10-17）：只显示淘宝铺货商品对应的1688货源，
+         没有淘宝映射的纯选品货源不进页面（LowStockParamTest 钉住这条 EXISTS）。 -->
+    <select id="selectLowStockGroups" resultType="com.joker.spzx.model.vo.mall.LowStockRowVo">
+        SELECT sp.id                  AS sourceProductId,
+               sp.source_product_name AS title,
+               sp.source_product_url  AS sourceUrl,
+               sp.source_status       AS sourceStatus,
+               MIN(sku.stock)         AS minStock,
+               COUNT(*)               AS lowSpecCount,
+               h.handle_type          AS handleType,
+               DATE_FORMAT(h.handle_time, '%Y-%m-%d %H:%i') AS handleTime
+        FROM source_sku sku
+        JOIN source_product sp ON sp.id = sku.source_product_id AND sp.is_deleted = 0
+        LEFT JOIN low_stock_handle h ON h.source_product_id = sp.id
+        WHERE sku.is_deleted = 0
+          AND sku.stock IS NOT NULL
+          AND sku.stock &lt; #{threshold}
+          AND EXISTS (
+              SELECT 1 FROM taobao_offer_map tm
+              WHERE tm.source_product_id = sp.id
+          )
+        <if test="handleStatus == 'pending'">
+            AND h.source_product_id IS NULL
+        </if>
+        <if test="handleStatus == 'done'">
+            AND h.source_product_id IS NOT NULL
+        </if>
+        <if test="keyword != null">
+            AND sp.source_product_name LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        GROUP BY sp.id, sp.source_product_name, sp.source_product_url, sp.source_status, h.handle_type, h.handle_time
+        ORDER BY minStock ASC, sp.id ASC
+    </select>
+
+    <select id="selectTaobaoItems" resultType="com.joker.spzx.model.vo.mall.LowStockTaobaoItemVo">
+        SELECT m.source_product_id AS sourceProductId,
+               m.taobao_item_id    AS taobaoItemId,
+               m.offer_id          AS offerId
+        FROM taobao_offer_map m
+        WHERE m.source_product_id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+        ORDER BY m.taobao_item_id
+    </select>
+
+    <select id="selectLowSpecs" resultType="com.joker.spzx.model.vo.mall.LowStockSpecVo">
+        SELECT sku.source_product_id AS sourceProductId,
+               sku.sku_key           AS skuKey,
+               sku.stock             AS stock,
+               sku.price             AS price
+        FROM source_sku sku
+        WHERE sku.is_deleted = 0
+          AND sku.stock IS NOT NULL
+          AND sku.stock &lt; #{threshold}
+          AND sku.source_product_id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+        ORDER BY sku.stock ASC, sku.sku_key ASC
+    </select>
+
+    <!-- 货源失效视图（spec 2026-10-18 P3）：死链建档无 SKU 行，FROM source_sku 的主查询永远带不出，
+         必须 source_product 驱动。低库存/失效是两个口径，本查询忽略库存阈值。 -->
+    <select id="selectDeadGroups" resultType="com.joker.spzx.model.vo.mall.LowStockRowVo">
+        SELECT sp.id                  AS sourceProductId,
+               sp.source_product_name AS title,
+               sp.source_product_url  AS sourceUrl,
+               sp.source_status       AS sourceStatus,
+               0                      AS lowSpecCount,
+               h.handle_type          AS handleType,
+               DATE_FORMAT(h.handle_time, '%Y-%m-%d %H:%i') AS handleTime
+        FROM source_product sp
+        LEFT JOIN low_stock_handle h ON h.source_product_id = sp.id
+        WHERE sp.is_deleted = 0
+          AND sp.source_status = 0
+          AND EXISTS (
+              SELECT 1 FROM taobao_offer_map tm
+              WHERE tm.source_product_id = sp.id
+          )
+        <if test="handleStatus == 'pending'">
+            AND h.source_product_id IS NULL
+        </if>
+        <if test="handleStatus == 'done'">
+            AND h.source_product_id IS NOT NULL
+        </if>
+        <if test="keyword != null">
+            AND sp.source_product_name LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        ORDER BY sp.id ASC
+    </select>
+
+    <!-- 人工处理标记（页面按钮只是留痕，不动库存/淘宝）；重复标记原地覆盖 -->
+    <insert id="upsertHandle">
+        INSERT INTO low_stock_handle (source_product_id, handle_type, handle_by, handle_time, update_time)
+        VALUES (#{sourceProductId}, #{handleType}, #{handleBy}, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE
+            handle_type = VALUES(handle_type),
+            handle_by   = VALUES(handle_by),
+            handle_time = NOW(),
+            update_time = NOW()
+    </insert>
+
+    <delete id="clearHandle">
+        DELETE FROM low_stock_handle WHERE source_product_id = #{sourceProductId}
+    </delete>
+</mapper>

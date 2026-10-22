@@ -20,6 +20,7 @@
       <module name="common-log" options="-parameters" />
       <module name="common-service" options="-parameters" />
       <module name="common-util" options="-parameters" />
+      <module name="spzx" options="-parameters" />
       <module name="spzx-common" options="-parameters" />
       <module name="spzx-manager" options="-parameters" />
       <module name="spzx-model" options="-parameters" />

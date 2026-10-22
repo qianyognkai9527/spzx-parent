@@ -33,6 +33,9 @@ PLAN_FILE = os.path.join(BASE, "shop_cat_plan.json")
 PROGRESS_FILE = os.path.join(BASE, "shop_cat_progress.json")
 EDIT_URL = "https://item.upload.taobao.com/sell/v2/publish.htm?itemId={id}&fromAIPublish=true"
 CATS = ['家居服/睡衣', '牛仔短裤', '秋冬款', '连衣裙', '长裤', '半身裙', '美甲', 'other']
+# 淘宝店铺分类显示名变更（2026-10-09 用户确认）：树里已无「长裤」，改为「休闲裤」。
+# 内部 plan/分类桶仍用「长裤」, 仅在写入分类树时映射, 免动 plan 与进度文件。
+SHOPCAT_ALIAS = {'长裤': '休闲裤'}
 
 
 def log(msg):
@@ -179,6 +182,7 @@ async def ensure_extract_way(page):
 
 async def set_shop_category(page, target):
     """设置店铺中分类: 清空已勾选 → 勾目标类目. 返回 (ok, msg)"""
+    target = SHOPCAT_ALIAS.get(target, target)   # 长裤→休闲裤(淘宝改名)
     # 展开
     ok = await page.evaluate("""() => {
         const t = document.querySelector('#sell-field-shopcat .next-select-trigger');

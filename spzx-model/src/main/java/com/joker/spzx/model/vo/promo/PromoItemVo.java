@@ -49,6 +49,12 @@ public class PromoItemVo {
 
     private Long click;
 
+    @Schema(description = "该宝贝各人群点击之和（只有关键词标准计划的单元采了人群层）；null=没有人群数据")
+    private Long crowdClick;
+
+    @Schema(description = "推广人群占比 = 人群点击 / 总点击 × 100（百分数，如 30.00）；click=0 或无人群数据为 null")
+    private BigDecimal crowdClickShare;
+
     private BigDecimal ctrPercent;
 
     private BigDecimal cpc;

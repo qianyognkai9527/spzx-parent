@@ -126,10 +126,11 @@
                         抄的是商品运营台 itemOpsBase 的同一套口径：两处公式一旦不一样，
                         同一个宝贝在两个页面上就会给出对不上的毛利。
                         派生表都按 product_id / platform_type 聚成一行再 join，避免绑定关系把行数放大。 -->
-                   MAX(src.source_price)                                             AS sourcePrice,
+                    MAX(src.source_price)                                             AS sourcePrice,
                    MAX(p.freight)                                                    AS freight,
                    MAX(fee.commission_rate)                                          AS commissionRate,
-                   MAX(fee.payment_fee_rate)                                         AS paymentFeeRate
+                   MAX(fee.payment_fee_rate)                                         AS paymentFeeRate,
+                   MAX(cc.crowd_click)                                               AS crowdClick
             FROM promo_cost_item_daily i
                      LEFT JOIN platform_product p
                                ON p.code = i.item_id COLLATE utf8mb4_unicode_ci
@@ -150,8 +151,24 @@
                                        ROUND(AVG(commission_rate), 2)  AS commission_rate,
                                        ROUND(AVG(payment_fee_rate), 3) AS payment_fee_rate
                                 FROM fee_benchmark
-                                WHERE is_deleted = 0
-                                GROUP BY platform_type) fee ON fee.platform_type = p.platform_type
+                                 WHERE is_deleted = 0
+                                 GROUP BY platform_type) fee ON fee.platform_type = p.platform_type
+                     <!-- 人群点击：只有 #1 关键词标准计划的单元有人群行(dimension='crowd')。
+                          按 item_id 先聚成一行再 join，避免多个人群把 item 行数放大。
+                          过滤口径与 item 行一致(date/plan_type/campaignId)，keyword 不参与——
+                          keyword 只决定哪些宝贝显示，不改变某个宝贝内部的人群构成。 -->
+                     LEFT JOIN (SELECT c.item_id                                             AS item_id,
+                                       SUM(c.click)                                           AS crowd_click
+                                FROM promo_cost_item_daily c
+                                WHERE c.dimension = 'crowd'
+                                  AND c.stat_date BETWEEN #{dateFrom} AND #{dateTo}
+                                  <if test="planType != null and planType != '' and planType != 'all'">
+                                      AND c.plan_type = #{planType}
+                                  </if>
+                                  <if test="campaignId != null and campaignId != ''">
+                                      AND c.campaign_id = #{campaignId}
+                                  </if>
+                                GROUP BY c.item_id) cc ON cc.item_id = i.item_id
             <where>
                 i.dimension = 'item'
                 AND i.stat_date BETWEEN #{dateFrom} AND #{dateTo}

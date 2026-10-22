@@ -39,6 +39,10 @@ RAW_DIR = os.path.join(BASE, "alimama_promo_raw")
 DATASET = "promo_cost"
 DATASET_DETAIL = "promo_cost_detail"
 ADGROUP_URL = "https://one.alimama.com/adgroup/horizontal/findPage.json"
+CROWD_URL = "https://one.alimama.com/crowd/horizontal/findPage.json"
+# 词层报表接口 —— URL 与 sourceList 均为探针实测形态(2026-10-19, spec §2.1);
+# 若平台改路径, 只改这一行
+WORD_URL = "https://one.alimama.com/bidword/findList.json"
 PLATFORM_CODE = 1  # 淘宝
 
 # 两个推广产品: bizCode → 我们表里的 plan_type
@@ -124,6 +128,19 @@ def is_standard(bid_type, only_standard=True):
     if not only_standard:
         return True
     return (bid_type or "") in STANDARD_BID_TYPES
+
+
+def wants_item(level):
+    """item 层是人群层/词层的前提（都要 join 单元拿 item_id），凡采人群或词都包含 item。"""
+    return level in ("item", "both", "crowd", "all", "word")
+
+
+def wants_crowd(level):
+    return level in ("crowd", "all")
+
+
+def wants_word(level):
+    return level in ("word", "all")
 
 
 def date_range(dfrom, dto):
@@ -226,6 +243,99 @@ def map_adgroup_row(adgroup, stat_date, plan_type, shop_id, report_source):
         "unit_name": title,
         "report_source": report_source,
         "raw_json": json.dumps(info, ensure_ascii=False),
+    }
+    for src, col, kind in FIELD_MAP:
+        row[col] = cast(info.get(src), kind)
+    return row, None
+
+
+def map_crowd_row(crowd_row, adgroup, stat_date, shop_id, plan_type, report_source):
+    """一个 (单元,人群) 节点 → 一行 promo_cost_item_daily。
+
+    reportInfoList 里没有 charge 键 = 该人群当天在该单元没有投放数据, 不写 0 行。
+    entity_key 必须 "<adgroupId>:<crowdId>" —— crowdId 是每单元实例化的, 单用不唯一。
+    item_id 只能从单元层 join 回来: 人群行本身不带 material。
+    """
+    rl = crowd_row.get("reportInfoList")
+    info = rl[0] if isinstance(rl, list) and rl else None
+    if not isinstance(info, dict) or "charge" not in info:
+        return None, "no_data"
+    cid = crowd_row.get("campaignId") or adgroup.get("campaignId")
+    if cid is None:
+        return None, "no_campaign"
+    crowd_id = str(crowd_row.get("crowdId") or "")
+    if not crowd_id:
+        return None, "no_crowd_id"
+    unit_id = str(crowd_row.get("adgroupId") or adgroup.get("adgroupId") or "")
+    item_id = item_id_of(adgroup)
+    if not item_id:
+        return None, "no_item_id"
+    crowd = crowd_row.get("crowd") or {}
+    title = adgroup.get("adgroupName") or info.get("adgroupName")
+    row = {
+        "shop_id": shop_id if shop_id is not None else 0,
+        "platform_code": PLATFORM_CODE,
+        "stat_date": stat_date,
+        "plan_type": plan_type,
+        "dimension": "crowd",
+        "entity_key": f"{unit_id}:{crowd_id}",
+        "entity_id": crowd_id,
+        "entity_name": crowd.get("crowdName") or info.get("crowdName"),
+        "item_id": item_id,
+        "item_name": title,
+        "campaign_id": str(cid),
+        "campaign_name": adgroup.get("campaignName"),
+        "unit_id": unit_id,
+        "unit_name": title,
+        "report_source": report_source,
+        "raw_json": json.dumps(crowd_row, ensure_ascii=False),
+    }
+    for src, col, kind in FIELD_MAP:
+        row[col] = cast(info.get(src), kind)
+    return row, None
+
+
+def map_word_row(word_row, adgroup, stat_date, shop_id, plan_type, report_source):
+    """一个 (单元,词) 节点 → 一行 promo_cost_item_daily。
+
+    entity_key 必须 "<adgroupId>:<词文本>" —— 同一个词会被多个单元共用(计划级词库),
+    光用词文本做键, 两个单元的同名词行会在唯一键 (shop_id, dimension, entity_key,
+    campaign_id, stat_date) 上互踩、upsert 互相覆盖。复合模式对齐 crowd 行的
+    "<adgroupId>:<crowdId>"。词 id 平台侧有就存 entity_id, 没有留空串(表注释已说明
+    「关键词本身没有 id」)。item_id 只能从单元层 join 回来: 词行不带 material。
+    """
+    rl = word_row.get("reportInfoList")
+    info = rl[0] if isinstance(rl, list) and rl else None
+    if not isinstance(info, dict) or "charge" not in info:
+        return None, "no_data"
+    cid = word_row.get("campaignId") or adgroup.get("campaignId")
+    if cid is None:
+        return None, "no_campaign"
+    wid, word = word_of(word_row)
+    if not word:
+        return None, "no_word"
+    unit_id = str(word_row.get("adgroupId") or adgroup.get("adgroupId") or "")
+    item_id = item_id_of(adgroup)
+    if not item_id:
+        return None, "no_item_id"
+    title = adgroup.get("adgroupName")
+    row = {
+        "shop_id": shop_id if shop_id is not None else 0,
+        "platform_code": PLATFORM_CODE,
+        "stat_date": stat_date,
+        "plan_type": plan_type,
+        "dimension": "keyword",
+        "entity_key": f"{unit_id}:{word}",
+        "entity_id": wid,
+        "entity_name": word,
+        "item_id": item_id,
+        "item_name": title,
+        "campaign_id": str(cid),
+        "campaign_name": adgroup.get("campaignName"),
+        "unit_id": unit_id,
+        "unit_name": title,
+        "report_source": report_source,
+        "raw_json": json.dumps(word_row, ensure_ascii=False),
     }
     for src, col, kind in FIELD_MAP:
         row[col] = cast(info.get(src), kind)
@@ -360,13 +470,128 @@ async def fetch_adgroups(page, tpl, biz_code, campaign_id, day, offset, page_siz
     return r["status"], r["text"]
 
 
+def crowd_body(tpl, biz_code, campaign_id, day, offset, page_size):
+    """人群层请求体。sourceList 必须放在 rptQuery.conditionList 里; 不给 adgroupIdList
+    —— 实测按 campaignIdList 一次就返回该计划全部单元的人群行(276 行 / 69 单元)。"""
+    return {
+        "offset": offset, "pageSize": page_size, "orderField": "", "orderBy": "",
+        "bizCode": biz_code, "mx_bizCode": biz_code,
+        "campaignIdList": [str(campaign_id)],
+        "rptQuery": {"fields": FIELDS_STR, "conditionList": [{
+            "sourceList": ["adgroup_detail", "crowd_list"],
+            "startTime": day, "endTime": day, "isRt": False}]},
+        "csrfId": tpl["body"].get("csrfId"),
+        "loginPointId": tpl["body"].get("loginPointId"),
+    }
+
+
+def word_body(tpl, biz_code, campaign_id, day, offset, page_size, unit_id):
+    """词层请求体。sourceList 必须放在 rptQuery.conditionList 里(单元/人群层同一个坑,
+    放顶层被忽略回上层汇总); adgroupIdList 必须给(2026-10-19 dry-run 实测: 不给报
+    "adgroupIdList不能为空", 与 crowd 层"不给回全计划"相反) → 逐单元采集, spec §2.1。"""
+    return {
+        "offset": offset, "pageSize": page_size, "orderField": "", "orderBy": "",
+        "bizCode": biz_code, "mx_bizCode": biz_code,
+        "campaignIdList": [str(campaign_id)],
+        "adgroupIdList": [str(unit_id)],
+        "rptQuery": {"fields": FIELDS_STR, "conditionList": [{
+            "sourceList": ["adgroup_detail", "bidword_list"],
+            "startTime": day, "endTime": day, "isRt": False}]},
+        "csrfId": tpl["body"].get("csrfId"),
+        "loginPointId": tpl["body"].get("loginPointId"),
+    }
+
+
+def word_of(word_row):
+    """词行的 (词id, 词文本)。字段名以探针产物为准 —— 这里的候选链按「与 crowd 同构」
+    的预期写的; 探针若发现平台用的别的名字, 只改这里(单测 fixture 同步改)。"""
+    wid = word_row.get("bidwordId") or word_row.get("wordId") or ""
+    w = word_row.get("word") or (word_row.get("bidword") or {}).get("word") \
+        or (word_row.get("keyword") or {}).get("word") or ""
+    return str(wid), w
+
+
+async def fetch_crowds(page, tpl, biz_code, campaign_id, day, offset, page_size):
+    body = crowd_body(tpl, biz_code, campaign_id, day, offset, page_size)
+    url = CROWD_URL + "?csrfId=" + str(tpl["body"].get("csrfId")) + "&bizCode=" + biz_code
+    r = await page.evaluate("""async ([u, h, b]) => {
+        const res = await fetch(u, {method:'POST', headers:h, body:JSON.stringify(b), credentials:'include'});
+        return {status: res.status, text: await res.text()};
+    }""", [url, tpl["headers"], body])
+    return r["status"], r["text"]
+
+
+async def fetch_words(page, tpl, biz_code, campaign_id, day, offset, page_size, unit_id):
+    body = word_body(tpl, biz_code, campaign_id, day, offset, page_size, unit_id)
+    url = WORD_URL + "?csrfId=" + str(tpl["body"].get("csrfId")) + "&bizCode=" + biz_code
+    r = await page.evaluate("""async ([u, h, b]) => {
+        const res = await fetch(u, {method:'POST', headers:h, body:JSON.stringify(b), credentials:'include'});
+        return {status: res.status, text: await res.text()};
+    }""", [url, tpl["headers"], body])
+    return r["status"], r["text"]
+
+
+async def collect_words(page, tpl, biz_code, campaign_id, day, adgroup_by_id, plan_type, args):
+    """词层逐单元采集 —— adgroupIdList 必须给(2026-10-19 dry-run 实测: 不给报
+    "adgroupIdList不能为空", 与 crowd 层"不给回全计划"相反), spec §2.1。
+
+    只对当天有投放的单元发请求(判据与单元行一致: reportInfoList[0] 是 dict 且含 charge 键)；
+    词行有没有数据仍由 map_word_row 的 no_data 口径跳过, 不在单元层预判。
+    词行自带 adgroupId, 传进来的单元对象只作 join item_id 用。返回 (行, 扫到的词行总数, 总页数)。
+    """
+    rows, seen, pages = [], 0, 0
+    for unit_id, adg in adgroup_by_id.items():
+        if not unit_id:
+            continue
+        rl = adg.get("reportInfoList")
+        info = rl[0] if isinstance(rl, list) and rl else None
+        if not isinstance(info, dict) or "charge" not in info:
+            continue
+        useen, offset, upages = 0, 0, 0
+        while upages < MAX_PAGES:
+            status, text = await fetch_words(page, tpl, biz_code, campaign_id, day,
+                                             offset, args.word_page_size, unit_id)
+            if hit_risk(text):
+                log(f"!! 词层 {day} 计划{campaign_id} 单元{unit_id} 命中风控")
+                return rows, seen, pages
+            try:
+                j = json.loads(text)
+            except Exception:
+                log(f"  词层非 JSON 响应 HTTP {status} 计划{campaign_id} 单元{unit_id} offset={offset}")
+                break
+            data = j.get("data") or {}
+            lst = data.get("list") or []
+            seen += len(lst)
+            useen += len(lst)
+            for wr in lst:
+                row, _reason = map_word_row(wr, adg, day, args.shop_id, plan_type,
+                                            f"alimama-keyword:{biz_code}")
+                if row is not None:
+                    rows.append(row)
+            with open(os.path.join(RAW_DIR, f"words_{campaign_id}_{unit_id}_{day}_{offset}.json"),
+                      "w", encoding="utf-8") as f:
+                f.write(text)
+            pages += 1
+            upages += 1
+            count = data.get("count") or useen
+            if offset + args.word_page_size >= int(count) or not lst:
+                break
+            offset += args.word_page_size
+            await asyncio.sleep(args.gap)
+        await asyncio.sleep(args.gap)
+    return rows, seen, pages
+
+
 async def collect_items(page, tpl, biz_code, campaign_id, day, args, plan_type):
-    """按计划翻完所有单元(=宝贝)。返回 (可入库的行, 扫到的单元总数, 翻了几页)。
+    """按计划翻完所有单元(=宝贝)。返回 (可入库的行, 扫到的单元总数, 翻了几页, adgroup 原始列表)。
+
+    第四项给人群层 join item_id 用：人群行不带 material，只能靠 adgroupId 从单元对象里取。
 
     第一页的 data.count 决定要翻几页；一个 507 单元的计划里通常只有十几个宝贝当天有数，
     所以"扫到的单元数"和"写入库的行数"差一个量级是正常的，不是漏采。
     """
     rows, seen, offset, pages = [], 0, 0, 0
+    adgroups = []
     while pages < MAX_PAGES:
         status, text = await fetch_adgroups(page, tpl, biz_code, campaign_id, day,
                                             offset, args.page_size)
@@ -383,6 +608,7 @@ async def collect_items(page, tpl, biz_code, campaign_id, day, args, plan_type):
         lst = data.get("list") or []
         seen += len(lst)
         for a in lst:
+            adgroups.append(a)
             row, _reason = map_adgroup_row(a, day, plan_type, args.shop_id,
                                            f"alimama-adgroup:{biz_code}")
             if row is not None:
@@ -396,6 +622,46 @@ async def collect_items(page, tpl, biz_code, campaign_id, day, args, plan_type):
             break
         offset += args.page_size
         await asyncio.sleep(args.gap)
+    return rows, seen, pages, adgroups
+
+
+async def collect_crowds(page, tpl, biz_code, campaign_id, day, adgroup_by_id, plan_type, args):
+    """按计划采一次人群层(不给 adgroupIdList → 一次回全计划行)。返回 (行, 扫到行数, 页数)。
+
+    adgroup_by_id 里没有的单元跳过：拿不到 material → 没有 item_id，落了也 join 不上商品。
+    """
+    rows, seen, offset, pages = [], 0, 0, 0
+    while pages < MAX_PAGES:
+        status, text = await fetch_crowds(page, tpl, biz_code, campaign_id, day,
+                                          offset, args.crowd_page_size)
+        if hit_risk(text):
+            log(f"!! 人群层 {day} 计划{campaign_id} 命中风控")
+            break
+        try:
+            j = json.loads(text)
+        except Exception:
+            log(f"  人群层非 JSON 响应 HTTP {status} offset={offset}")
+            break
+        data = j.get("data") or {}
+        lst = data.get("list") or []
+        seen += len(lst)
+        for cr in lst:
+            adg = adgroup_by_id.get(str(cr.get("adgroupId") or ""))
+            if adg is None:
+                continue
+            row, _reason = map_crowd_row(cr, adg, day, args.shop_id, plan_type,
+                                         f"alimama-crowd:{biz_code}")
+            if row is not None:
+                rows.append(row)
+        with open(os.path.join(RAW_DIR, f"crowds_{campaign_id}_{day}_{offset}.json"), "w",
+                  encoding="utf-8") as f:
+            f.write(text)
+        pages += 1
+        count = data.get("count") or seen
+        if offset + args.crowd_page_size >= int(count) or not lst:
+            break
+        offset += args.crowd_page_size
+        await asyncio.sleep(args.gap)
     return rows, seen, pages
 
 
@@ -405,7 +671,11 @@ async def run(args):
     if not days:
         log(f"日期区间非法或超过 90 天: {args.dfrom}~{args.dto}")
         return 2
+    crowd_cids = {s.strip() for s in (args.crowd_campaign_ids or "").split(",") if s.strip()}
+    word_cids = {s.strip() for s in (args.word_campaign_ids or "").split(",") if s.strip()}
+    include_cids = {s.strip() for s in (args.include_campaign_ids or "").split(",") if s.strip()}
     log(f"待采 {len(days)} 天 × {len(BIZ)} 个推广产品；标准计划判据 bidType∈{STANDARD_BID_TYPES}")
+    log(f"人群层白名单 {sorted(crowd_cids)}；词层白名单 {sorted(word_cids)}；单元级强制包含 {sorted(include_cids)}")
 
     b, ctx = await connect_cdp(PORT, keep_urls=["taobao.com", "1688.com", "alimama.com"], log=log)
     conn = None if args.dry_run else connect_db()
@@ -414,7 +684,7 @@ async def run(args):
     # 新鲜度判定就会把"没采到"当成"刚采过"，30 小时 SLA 永远不告警。
     bid = None if args.dry_run else begin_batch(
         DATASET, channel="api", platform=PLATFORM_CODE, biz_from=days[0], biz_to=days[-1])
-    bid_item = None if (args.dry_run or args.level == "campaign") else begin_batch(
+    bid_item = None if (args.dry_run or not wants_item(args.level)) else begin_batch(
         DATASET_DETAIL, channel="api", platform=PLATFORM_CODE, biz_from=days[0], biz_to=days[-1])
     total = ok = skipped_noreport = skipped_bidtype = failed = 0
     item_total = item_ok = 0
@@ -452,7 +722,9 @@ async def run(args):
                     rows = []
                     for c in lst:
                         total += 1
-                        if not is_standard(c.get("bidType"), not args.all_bid_types):
+                        keep = (is_standard(c.get("bidType"), not args.all_bid_types)
+                                or str(c.get("campaignId")) in include_cids)
+                        if not keep:
                             skipped_bidtype += 1
                             continue
                         row, reason = map_row(c, day, plan_type, args.shop_id, batch_tag)
@@ -476,12 +748,12 @@ async def run(args):
                         f"无投放数据{sum(1 for c in lst if not c.get('reportInfoList'))}")
                     await asyncio.sleep(args.gap)
 
-                    # 宝贝粒度：只对"当天确实花了钱"的标准计划下钻，其余计划没有可归因的东西
-                    if args.level not in ("item", "both"):
+                    # 宝贝粒度：只对"当天确实花了钱"的计划下钻，其余计划没有可归因的东西
+                    if not wants_item(args.level):
                         continue
                     plan_charge = {r["campaign_id"]: r["charge"] for r in rows}
                     for cid in plan_charge:
-                        item_rows, cnt, pages = await collect_items(
+                        item_rows, cnt, pages, adgroups = await collect_items(
                             page, tpl, biz_code, cid, day, args, plan_type)
                         item_total += cnt
                         for r in item_rows:
@@ -505,6 +777,37 @@ async def run(args):
                             # 记进台账当数据质量注记，但**不算作业失败**，否则 cron 每天误报一次。
                             drift.append(f"{day} {plan_type} 计划{cid}: 宝贝合计{round(s,2)}"
                                          f"/计划{want} 差{round(s - want, 2)}")
+
+                        by_id = {str(a.get("adgroupId")): a for a in adgroups
+                                 if a.get("adgroupId") is not None}
+                        # 人群层：只对白名单计划（默认 #1 关键词标准），且要采人群的 level
+                        if wants_crowd(args.level) and str(cid) in crowd_cids:
+                            crowd_rows, cseen, cpages = await collect_crowds(
+                                page, tpl, biz_code, cid, day, by_id, plan_type, args)
+                            for r in crowd_rows:
+                                r["import_batch"] = batch_tag
+                            if crowd_rows:
+                                if args.dry_run:
+                                    item_ok += len(crowd_rows)
+                                else:
+                                    item_ok += upsert(conn, "promo_cost_item_daily", ITEM_COLS,
+                                                      crowd_rows, batch_tag)
+                            item_total += cseen
+                            log(f"    人群 {cid}: 有数{len(crowd_rows)}/{cseen} 页{cpages}")
+                        # 词层：只对白名单计划（默认 84290744044 reprice 对象），且要采词的 level
+                        if wants_word(args.level) and str(cid) in word_cids:
+                            word_rows, wseen, wpages = await collect_words(
+                                page, tpl, biz_code, cid, day, by_id, plan_type, args)
+                            for r in word_rows:
+                                r["import_batch"] = batch_tag
+                            if word_rows:
+                                if args.dry_run:
+                                    item_ok += len(word_rows)
+                                else:
+                                    item_ok += upsert(conn, "promo_cost_item_daily", ITEM_COLS,
+                                                      word_rows, batch_tag)
+                            item_total += wseen
+                            log(f"    词 {cid}: 有数{len(word_rows)}/{wseen} 页{wpages}")
                         await asyncio.sleep(args.gap)
             finally:
                 try:
@@ -536,8 +839,8 @@ async def run(args):
 
     log(f"\n完成[{status}]: 计划层 扫到 {total} 写入 {ok} (非标准计划跳过 {skipped_bidtype}, "
         f"当天无投放数据 {skipped_noreport}, 失败 {failed})")
-    if args.level in ("item", "both"):
-        log(f"              宝贝层 扫到 {item_total} 写入 {item_ok}")
+    if wants_item(args.level):
+        log(f"              宝贝+人群层 扫到 {item_total} 写入 {item_ok}")
     if drift:
         log(f"归因偏差 {len(drift)} 处(平台侧全站/智能扩量流量不落单元, 非采集失败): "
             + "; ".join(drift[:5]))
@@ -566,8 +869,18 @@ def main():
     ap.add_argument("--days", type=int, default=0, help="快捷: 只采最近 N 天")
     ap.add_argument("--shop-id", type=int, default=None)
     ap.add_argument("--gap", type=float, default=4.0, help="两次查询之间的间隔秒数")
-    ap.add_argument("--level", choices=("campaign", "item", "both"), default="campaign",
-                    help="campaign=只采计划日报 item=只采宝贝粒度 both=两层都采")
+    ap.add_argument("--level", choices=("campaign", "item", "crowd", "word", "both", "all"),
+                    default="campaign",
+                    help="campaign=只采计划日报 item/both=计划+宝贝 crowd=计划+宝贝+人群 "
+                         "word=计划+宝贝+词 all=全部")
+    ap.add_argument("--crowd-campaign-ids", default="83392643008",
+                    help="只对这些计划采人群层(逗号分隔); 默认 #1 关键词标准计划")
+    ap.add_argument("--word-campaign-ids", default="84290744044",
+                    help="只对这些计划采词层(逗号分隔); 默认 84290744044(reprice 对象)")
+    ap.add_argument("--include-campaign-ids", default="83949710619,83340870410",
+                    help="这些计划不论 bidType 都收单元行(逗号分隔); 默认 #2 关键词智能 / #4 人群控投产")
+    ap.add_argument("--crowd-page-size", type=int, default=500, help="人群层分页大小")
+    ap.add_argument("--word-page-size", type=int, default=500, help="词层分页大小")
     ap.add_argument("--page-size", type=int, default=200, help="宝贝层分页大小")
     ap.add_argument("--all-bid-types", action="store_true", help="不只采 custom_bid(标准计划)")
     ap.add_argument("--dry-run", action="store_true", help="只采集打印, 不写库也不进台账")

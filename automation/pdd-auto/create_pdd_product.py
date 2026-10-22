@@ -86,6 +86,35 @@ TITLE_SEL = "input[placeholder*='商品标题组成']"
 RECO_JS = "() => (document.body.innerText||'').includes('查看更多推荐')"
 TITLE_VALUE_JS = ("() => { const el=document.querySelector(\"input[placeholder*='商品标题组成']\"); "
                   "return el ? el.value : ''; }")
+# (n/10) 且 n>=1：老写法的 \(\d+/10\) 会把 (0/10) 也匹配掉，等于上传失败也判成功
+UPLOADED_JS = "() => /\\([1-9]\\d*\\/10\\)/.test(document.body.innerText||'')"
+
+
+async def upload_images(page, files, settle=4, log=None):
+    """上传主图。PDD 2026-10-08 前端更新后上传控件不再响应 Playwright 的合成 change：
+    必须 ① 等 React 挂载完成（太早填的文件会被页面自身的异步逻辑丢弃）
+    ② set_input_files 之后再显式派发 input+change，否则后端一个上传请求都不发（实测）。
+    返回是否成功（以页面 (n/10) 计数 n>=1 为准）。"""
+    if log:
+        log(f"    等页面就绪 {settle}s 后上传 {len(files)} 张图")
+    await asyncio.sleep(settle)
+    try:
+        await page.set_input_files("input[type=file]", files)
+    except Exception as e:
+        if log:
+            log(f"    set_input_files 失败: {str(e)[:120]}")
+        return False
+    try:
+        await page.evaluate(
+            "() => { const i=document.querySelector('input[type=file]'); if(i){"
+            "i.dispatchEvent(new Event('input',{bubbles:true}));"
+            "i.dispatchEvent(new Event('change',{bubbles:true})); } }")
+    except Exception:
+        pass
+    ok = await wait_until(page, UPLOADED_JS, 30, step=0.5, log=log)
+    if not ok and log:
+        log("    ⚠ 30s 内主图计数仍为 0/10，上传可能失败")
+    return ok
 
 
 async def ensure_category_recommendations(page, title, timeout_each=8, tries=3, log=None):
@@ -115,21 +144,12 @@ async def ensure_category_recommendations(page, title, timeout_each=8, tries=3, 
 async def reach_step2(page, rec):
     """Step1: 上传主图+标题+选类目 -> 下一步. 返回 True 到 Step2."""
     await page.goto(C.MMS_GOODS_PUBLISH, wait_until="domcontentloaded", timeout=40000)
-    if C.FAST_WAIT:
-        # 等上传控件出现即可，别赌 5 秒
-        if not await wait_until(page, "() => !!document.querySelector('input[type=file]')", 25, log=log):
-            await asyncio.sleep(5)
-    else:
+    # 等上传控件出现即可，别赌 5 秒
+    if not await wait_until(page, "() => !!document.querySelector('input[type=file]')", 25, log=log):
         await asyncio.sleep(5)
     if not rec["images"]:
         return False
-    await page.set_input_files("input[type=file]", rec["images"])
-    if C.FAST_WAIT:
-        # 上传完页面会出现 "(n/10)" 计数；等它比睡 4 秒更准
-        if not await wait_until(page, "() => /\\(\\d+\\/10\\)/.test(document.body.innerText||'')", 30, log=log):
-            await asyncio.sleep(4)
-    else:
-        await asyncio.sleep(4)
+    await upload_images(page, rec["images"], log=log)
     if C.FAST_WAIT:
         await ensure_category_recommendations(page, rec["title"], log=log)
     else:

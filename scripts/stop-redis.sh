@@ -46,7 +46,7 @@ fi
 # ── 影响面：把"停了会打断谁"算出来给人看 ──
 CLIENTS="$("$REDIS_CLI" -h 127.0.0.1 -p "$PORT" -t 2 info clients 2>/dev/null | awk -F: '/connected_clients/{gsub(/\r/,"",$2); print $2}')"
 CHANGES="$("$REDIS_CLI" -h 127.0.0.1 -p "$PORT" -t 2 info persistence 2>/dev/null | awk -F: '/rdb_changes_since_last_save/{gsub(/\r/,"",$2); print $2}')"
-say "=== 停 Redis 的影响（$PORT）==="
+say "=== 停 Redis 的影响（${PORT}）==="
 say "  正在连接的客户端：${CLIENTS:-未知} 个"
 say "  只活在内存里、还没落盘的变更：${CHANGES:-未知} 处（save 规则 60s/10000、300s/100、3600s/1）"
 say "  连着它的本地进程："
@@ -74,7 +74,7 @@ for _ in $(seq 1 20); do
   [ -z "$(listening)" ] && DOWN=1 && break
   sleep 0.5
 done
-[ "$DOWN" = 1 ] || die "10 秒了端口还在听，没停住。看 brew services info $SERVICE。"
+[ "$DOWN" = 1 ] || die "10 秒了端口还在听，没停住。看 brew services info ${SERVICE}。"
 
 # 复查：KeepAlive 要是还挂着，launchd 会在这里把它拉回来——那就不算停
 sleep 3
@@ -87,7 +87,7 @@ fi
 RDB_AFTER="$(stat -f %m "$RDB" 2>/dev/null || echo 0)"
 say "=== 已停止：$PORT 空着，且 3 秒后没被 launchd 拉回来 ==="
 if [ "$RDB_AFTER" -gt "$RDB_BEFORE" ]; then
-  say "  退出时落了新快照：$RDB（$(stat -f '%z 字节，%Sm' "$RDB" 2>/dev/null)）"
+  say "  退出时落了新快照：${RDB}（$(stat -f '%z 字节，%Sm' "$RDB" 2>/dev/null)）"
 else
   say "  没落新快照（退出前没有待落盘变更，或落盘被跳过）：$RDB 仍是 $(stat -f %Sm "$RDB" 2>/dev/null)"
 fi

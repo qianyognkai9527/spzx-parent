@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 窗口外收 9222：13:10（中午窗口尾）。05:10 条目 2026-10-19 删除——夜窗链
+     run_night_window.sh 末尾自己收（spec schedule-optimization §3）。
+     任务由 chrome_guard.sh ensure_chrome 静默自启，本作业负责「用完即走」的「走」。 -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.spzx.chrome-kill</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/chrome_kill.sh</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>13</integer>
+        <key>Minute</key>
+        <integer>10</integer>
+    </dict>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>LANG</key>
+        <string>en_US.UTF-8</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/chrome_kill_launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/chrome_kill_launchd.log</string>
+</dict>
+</plist>

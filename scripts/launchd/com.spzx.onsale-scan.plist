@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 每日 12:50（中午只读窗口第三棒, spec schedule-optimization §3） 铺货平台在售扫描 (spec onsale-refactor §3.1)：销售中(889) → onsale_snapshot。
+     Chrome 由 run_onsale_scan.sh 内的 chrome_guard.sh 静默自启，13:10 由 chrome-kill 收走。 -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.spzx.onsale-scan</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/run_onsale_scan.sh</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>12</integer>
+        <key>Minute</key>
+        <integer>50</integer>
+    </dict>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>LANG</key>
+        <string>en_US.UTF-8</string>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing</string>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/onsale_scan_launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/onsale_scan_launchd.log</string>
+</dict>
+</plist>

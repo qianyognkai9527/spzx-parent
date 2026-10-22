@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- [已并入 2026-10-19] 本 LaunchAgent 已撤下：备份逻辑并入 scripts/db_daily.sh（每日 04:30 crontab，
+     顺序 = 备份 → 还原验证 → 告警检测 → 质量分级）。本副本仅留档，机器上不再注册。 -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.spzx.db-backup</string>
+
+    <!-- 每天 04:10：先全量备份，再立刻把这份备份还原进临时库验一遍。
+         只 dump 不验的备份等于没备份（少表、字符集错位、过程没带上，出事那天才发现）。
+         校验只花几秒，所以每晚都做，不攒到周末。 -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>cd /Users/qyk9527/ideaProject/spzx-parent &amp;&amp; scripts/backup-db.sh &amp;&amp; scripts/verify-restore.sh</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>4</integer>
+        <key>Minute</key>
+        <integer>10</integer>
+    </dict>
+
+    <!-- 03:00/03:30 是周六的 1688 全量采集与运费，05:00 库存、05:30 质量分、06:00 生意参谋、
+         22:00 推广、23:30 日程——04:10 这个钟点是空的，且 :10 避开每小时整点那个自动化任务 -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/mysql/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>LANG</key>
+        <string>en_US.UTF-8</string>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/qyk9527/ideaProject/spzx-parent</string>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/db_backup_launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/db_backup_launchd.log</string>
+</dict>
+</plist>

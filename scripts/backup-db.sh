@@ -52,9 +52,9 @@ OUT="$DEST/${DB}_$STAMP.sql.gz"
 # ── 库里到底该有多少张表（备份可信度的基准）──
 EXPECT_TABLES="$("$MYSQL" --defaults-extra-file="$DUMPCNF" -N -s -e \
   "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$DB' AND table_type='BASE TABLE';" 2>/dev/null)"
-[[ "$EXPECT_TABLES" =~ ^[0-9]+$ ]] || die "查不到 $DB 的表数，连接或权限有问题（cnf=$CNF）"
+[[ "$EXPECT_TABLES" =~ ^[0-9]+$ ]] || die "查不到 $DB 的表数，连接或权限有问题（cnf=${CNF}）"
 
-note "开始备份 $DB（$EXPECT_TABLES 张表）→ $OUT"
+note "开始备份 ${DB}（$EXPECT_TABLES 张表）→ $OUT"
 # routines/triggers/events 都要带上：少了事件=少了每晚那批定时作业的定义，
 # 真出事时恢复出来的库不会自己跑采集，那是个"看起来恢复了"的空壳。
 #
@@ -71,7 +71,7 @@ fi
 [ -s "$OUT" ] || { rm -f "$OUT"; die "dump 出来是空文件"; }
 
 # ── 三条完整性判据 ──
-gzip -t "$OUT" || die "gzip 校验不过：$OUT（写坏了或磁盘满）"
+gzip -t "$OUT" || die "gzip 校验不过：${OUT}（写坏了或磁盘满）"
 # 先解压再取尾巴：对 .gz 直接 tail -c 拿到的是半个压缩流，gunzip 必然失败
 # （第一版就是这么写的，把一次完好的小备份判成了"中途被截断"）
 gunzip -c "$OUT" | tail -c 2048 | grep -q "Dump completed" || die "dump 没有收尾行 → 中途被截断"
@@ -81,7 +81,7 @@ if [ "$GOT_TABLES" != "$EXPECT_TABLES" ]; then
 fi
 
 SIZE="$(du -h "$OUT" | cut -f1 | tr -d ' ')"
-note "完成：$OUT（$SIZE，$GOT_TABLES/$EXPECT_TABLES 张表）"
+note "完成：${OUT}（${SIZE}，$GOT_TABLES/$EXPECT_TABLES 张表）"
 
 # ── 保留策略：只删本脚本命名规则的文件，且必须满 KEEP_DAYS 天 ──
 DELETED=0

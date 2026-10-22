@@ -14,6 +14,8 @@ import pymysql
 from playwright.async_api import async_playwright
 
 from dbconf import DB_CONFIG
+from offer_fetch import fetch_offer
+from cdp_utils import new_page_quiet
 CDP = "http://127.0.0.1:9222"
 SKU_API = "mtop.1688.wosc.queryofferskuselectormodel"
 PROGRESS_FILE = "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/detect_stock_pool_progress.json"
@@ -61,6 +63,18 @@ POOL_SQL = {
         "WHERE sp.is_deleted=0 AND sp.source_product_url LIKE '%detail.1688.com/offer/%'"
     ),
 }
+
+# 分级刷新宇宙：铺货绑定的货源（淘宝映射 ∪ 平台商品绑定），不带绑定的纯选品候选不进日常刷新
+TIERED_SQL = (
+    "SELECT DISTINCT sp.id, sp.source_product_url FROM source_product sp "
+    "WHERE sp.is_deleted=0 AND sp.source_product_url LIKE '%detail.1688.com/offer/%' "
+    "AND ( EXISTS (SELECT 1 FROM taobao_offer_map tm WHERE tm.source_product_id = sp.id) "
+    "   OR EXISTS (SELECT 1 FROM product_bind_relation br WHERE br.source_productId = sp.id AND br.is_deleted = 0))"
+)
+MIN_STOCK_SQL = (
+    "SELECT source_product_id, MIN(stock) FROM source_sku "
+    "WHERE is_deleted=0 AND status=1 AND stock IS NOT NULL GROUP BY source_product_id"
+)
 
 
 def load_products(limit, test, pool="ab"):
@@ -207,6 +221,39 @@ def due_by_staleness(checked, stale_days, today=None):
     return out
 
 
+def select_tiered(universe, checked, min_stocks, dead_ids, day_of_year, t1_threshold=100, monday=False):
+    """返回 (t1, t2, t3)。T1=低库存/从未刷新/无SKU 每日刷；T2=其余按 (pid+doy)%7 每周一天；
+    T3=失效周检(仅周一)。纯函数，日期无关可测。"""
+    t1, t2, t3 = [], [], []
+    for pid, _oid in universe:
+        pid = int(pid)
+        if pid in dead_ids:
+            if monday:
+                t3.append(pid)
+            continue
+        ms = min_stocks.get(pid)
+        if (ms is not None and ms < t1_threshold) or ms is None or pid not in checked:
+            t1.append(pid)
+            continue
+        if (pid + int(day_of_year)) % 7 == 0:
+            t2.append(pid)
+    return t1, t2, t3
+
+
+def mark_source_status(product_id, status):
+    """tiered 路径的货源生死落库：1=正常(仅 NULL/0 时升级，不覆盖人工标记)
+    0=失效(gone；本轮不动 SKU 由调用方保证)。"""
+    conn = pymysql.connect(**DB_CONFIG)
+    cur = conn.cursor()
+    if status == 1:
+        cur.execute("UPDATE source_product SET source_status=1 WHERE id=%s AND (source_status IS NULL OR source_status=0)", (product_id,))
+    else:
+        cur.execute("UPDATE source_product SET source_status=0 WHERE id=%s", (product_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
 def ensure_guard_tab():
     """浏览器至少留1个标签, 防 0 target 导致下次 connect 报 Browser context management not supported"""
     try:
@@ -222,8 +269,13 @@ async def main():
     pool = "ab"
     stale_days = 14
     limit = None
-    max_per_run = 60
-    delay = 10.0
+    tiered = "--tiered" in sys.argv
+    # tiered 分级刷新的默认节奏与 --pool 系不同：量大（宇宙是全部绑定货源）、
+    # 请求更密一档也安全（每日只刷 T1 小头 + T2 七分之一轮转）
+    max_per_run = 600 if tiered else 60
+    delay = 5.0 if tiered else 10.0
+    t1_threshold = 100
+    stop_hour = 0
     for i, a in enumerate(sys.argv):
         if a == "--pool":
             pool = "ab"
@@ -241,25 +293,69 @@ async def main():
             delay = max(2.0, float(sys.argv[i + 1]))
         elif a == "--limit" and i + 1 < len(sys.argv):
             limit = int(sys.argv[i + 1])
-    products = load_products(limit, test, pool)
-    checked = load_progress()
-    # 只重查"到期"的：stale_days 天内查过的跳过。旧格式(永久 done 名单)一律视为到期
-    due = due_by_staleness(checked, stale_days)
-    todo = [(pid, oid) for pid, oid in products if pid in due or pid not in checked]
-    # 单轮上限：1688 是账号级风控、跨 Chrome 实例也会互触，而兄弟脚本 collect_1688_full
-    # 用的是 15~25 秒间隔 + 1200 秒冷却。这里靠"量少 + 间隔大"把 851 个池子摊到多天，
-    # 而不是像以前那样一轮扫完 —— 宁可库存数据晚几天新鲜，也不拿账号去换。
-    deferred = max(0, len(todo) - max_per_run)
-    if not test and not limit:
-        todo = todo[:max_per_run]
-    log(f"池={pool} 候选 {len(products)} 个，本轮重查 {len(todo)} 个"
-        f"（{stale_days} 天内查过的跳过 {len(products) - len(todo) - deferred} 个，"
-        f"受单轮上限 {max_per_run} 顺延 {deferred} 个）")
+        elif a == "--t1-threshold" and i + 1 < len(sys.argv):
+            t1_threshold = max(1, int(sys.argv[i + 1]))
+        elif a == "--stop-hour" and i + 1 < len(sys.argv):
+            stop_hour = max(0, int(sys.argv[i + 1]))
+    tier_counts = None
+    if tiered:
+        conn = pymysql.connect(**DB_CONFIG)
+        cur = conn.cursor()
+        cur.execute(TIERED_SQL)
+        universe = []
+        for p, u in cur.fetchall():
+            m = re.search(r"offer/(\d+)", u or "")
+            if m:
+                universe.append((int(p), m.group(1)))
+        cur.execute(MIN_STOCK_SQL)
+        min_stocks = {int(r[0]): int(r[1]) for r in cur.fetchall()}
+        cur.execute("SELECT id FROM source_product WHERE is_deleted=0 AND source_status=0")
+        dead_ids = {int(r[0]) for r in cur.fetchall()}
+        cur.close()
+        conn.close()
+        checked = load_progress()
+        monday = datetime.now().weekday() == 0
+        t1, t2, t3 = select_tiered(universe, checked, min_stocks, dead_ids,
+                                   datetime.now().timetuple().tm_yday,
+                                   t1_threshold=t1_threshold, monday=monday)
+        oid_of = dict(universe)
+        selected = t1 + t2 + t3
+        pre = len(selected)
+        if test:
+            selected = selected[:3]           # --test 只试 3 个（与旧路径 load_products 的 LIMIT 3 同义）
+        elif limit:
+            selected = selected[:int(limit)]
+        else:
+            selected = selected[:max_per_run]
+        deferred = max(0, pre - len(selected))
+        todo = [(pid, oid_of[pid]) for pid in selected]
+        products = universe
+        tier_counts = (len(t1), len(t2), len(t3))
+        pool = "tiered"
+        log(f"tiered: T1={len(t1)} T2={len(t2)} T3={len(t3)} 本轮={len(todo)}"
+            f"（t1_threshold={t1_threshold}, 死链复查{'含' if monday else '不含(非周一)'}, "
+            f"受单轮上限 {max_per_run} 顺延 {deferred} 个）")
+    else:
+        products = load_products(limit, test, pool)
+        checked = load_progress()
+        # 只重查"到期"的：stale_days 天内查过的跳过。旧格式(永久 done 名单)一律视为到期
+        due = due_by_staleness(checked, stale_days)
+        todo = [(pid, oid) for pid, oid in products if pid in due or pid not in checked]
+        # 单轮上限：1688 是账号级风控、跨 Chrome 实例也会互触，而兄弟脚本 collect_1688_full
+        # 用的是 15~25 秒间隔 + 1200 秒冷却。这里靠"量少 + 间隔大"把 851 个池子摊到多天，
+        # 而不是像以前那样一轮扫完 —— 宁可库存数据晚几天新鲜，也不拿账号去换。
+        deferred = max(0, len(todo) - max_per_run)
+        if not test and not limit:
+            todo = todo[:max_per_run]
+        log(f"池={pool} 候选 {len(products)} 个，本轮重查 {len(todo)} 个"
+            f"（{stale_days} 天内查过的跳过 {len(products) - len(todo) - deferred} 个，"
+            f"受单轮上限 {max_per_run} 顺延 {deferred} 个）")
     async with async_playwright() as pw:
         b = await pw.chromium.connect_over_cdp(CDP)
         ctx = b.contexts[0]
-        page = await ctx.new_page()
+        page = await new_page_quiet(ctx)
         total_changed = 0
+        processed = 0
         sku_counts_file = "/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/sku_counts.json"
         try:
             sku_counts = json.load(open(sku_counts_file)) if os.path.exists(sku_counts_file) else {}
@@ -267,14 +363,31 @@ async def main():
             sku_counts = {}
         today = datetime.now().strftime("%Y-%m-%d")
         for pid, offer_id in todo:
+            # 硬停钟：到点后不再开新页（把 9222 让给 05:30 ISV 同步），只对 tiered 生效
+            if tiered and stop_hour and int(time.strftime('%H')) >= stop_hour and not test:
+                log("硬停钟触发, 提前收工")
+                break
             try:
-                skus = await asyncio.wait_for(fetch_source_skus(page, offer_id), timeout=FETCH_TIMEOUT)
-                changed, total = process_changes(pid, skus)
-                total_changed += changed
-                if skus:
-                    sku_counts[offer_id] = {"count": len(skus), "time": datetime.now().strftime("%Y-%m-%d %H:%M")}
-                if changed:
-                    log(f"  product={pid} offer={offer_id} -> {changed}/{total} SKU 有变化")
+                if tiered:
+                    res = await asyncio.wait_for(fetch_offer(page, offer_id), timeout=FETCH_TIMEOUT)
+                    if res.get("gone"):
+                        # 已失效：标 source_status=0，本轮不动 SKU；周一 T3 复查，复活则标回 1
+                        mark_source_status(pid, 0)
+                        skus = None
+                        log(f"  ✗ product={pid} offer={offer_id} 已失效(下架/不存在), source_status=0")
+                    else:
+                        skus = res.get("skus") or []
+                        if skus:
+                            mark_source_status(pid, 1)
+                else:
+                    skus = await asyncio.wait_for(fetch_source_skus(page, offer_id), timeout=FETCH_TIMEOUT)
+                if skus is not None:
+                    changed, total = process_changes(pid, skus)
+                    total_changed += changed
+                    if skus:
+                        sku_counts[offer_id] = {"count": len(skus), "time": datetime.now().strftime("%Y-%m-%d %H:%M")}
+                    if changed:
+                        log(f"  product={pid} offer={offer_id} -> {changed}/{total} SKU 有变化")
             except asyncio.TimeoutError:
                 log(f"  ✗ product={pid} 抓取超时({FETCH_TIMEOUT}s), 跳过")
             except Exception as e:
@@ -283,6 +396,7 @@ async def main():
             # 报错本身已经逐条打出来了，不会因为记了日期就看不见。
             checked[pid] = today
             save_progress(checked)
+            processed += 1
             if len(checked) % 20 == 0:
                 json.dump(sku_counts, open(sku_counts_file, "w"), ensure_ascii=False)
             await asyncio.sleep(delay)
@@ -290,9 +404,10 @@ async def main():
         ensure_guard_tab()
         await page.close()
     # 机器可解析的一行，供 inventory_cron.sh 写台账：扫了 0 个也要能被发现
-    print(f"SUMMARY pool={pool} candidates={len(products)} checked={len(todo)} "
-          f"changed={total_changed} deferred={deferred}")
-    log(f"完成: 检测 {len(todo)} 个货源, {total_changed} 个 SKU 有变化, 已写流水")
+    tier_part = f" tier=t1:{tier_counts[0]},t2:{tier_counts[1]},t3:{tier_counts[2]}" if tier_counts else ""
+    print(f"SUMMARY pool={pool} candidates={len(products)} checked={processed} "
+          f"changed={total_changed} deferred={deferred}{tier_part}")
+    log(f"完成: 检测 {processed} 个货源, {total_changed} 个 SKU 有变化, 已写流水")
 
 
 if __name__ == "__main__":

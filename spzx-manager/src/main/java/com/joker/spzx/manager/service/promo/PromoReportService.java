@@ -129,6 +129,7 @@ public class PromoReportService {
                 normalizeChoice(facet, FACETS, "all"),
                 normalizeChoice(sort, SORTS, "charge"));
         res.getRecords().forEach(PromoReportService::applyProfit);
+        res.getRecords().forEach(PromoReportService::applyCrowdShare);
         return res;
     }
 
@@ -186,6 +187,24 @@ public class PromoReportService {
                     : net.divide(charge, 2, RoundingMode.HALF_UP));
         }
         vo.setProfitGaps(gaps.isEmpty() ? null : String.join("、", gaps));
+    }
+
+    /**
+     * 纯函数：推广人群占比 = 人群点击 / 总点击 × 100（百分数）。
+     *
+     * 分子已在 SQL 里按 item_id 汇总好，这里只做除法 —— 与「比率一律用汇总后的分子分母重算」
+     * 同一条纪律。总点击为 0 或没采到人群（crowdClick=null）都出 null，不粉饰成 0。
+     */
+    public static void applyCrowdShare(PromoItemVo vo) {
+        Long cc = vo.getCrowdClick();
+        Long click = vo.getClick();
+        if (cc == null || click == null || click == 0) {
+            vo.setCrowdClickShare(null);
+            return;
+        }
+        vo.setCrowdClickShare(BigDecimal.valueOf(cc)
+                .multiply(HUNDRED)
+                .divide(BigDecimal.valueOf(click), 2, RoundingMode.HALF_UP));
     }
 
     /** 宝贝维度各筛选项的条数：一次查完，口径与 items 一致 */

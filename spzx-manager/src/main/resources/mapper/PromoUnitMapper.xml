@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joker.spzx.manager.mapper.PromoUnitMapper">
+
+    <!-- 推广·单元日报：全部只读聚合 promo_cost_item_daily。
+         纪律（同 PromoReportMapper）：
+         1) 比率一律用汇总后的分子分母重算，SQL 里 NULLIF 出 NULL，不粉饰成 0；
+            占比(crowdClickShare)连 SQL 都不算 —— 只出分子 crowdClick 与分母 click，service 先加总再除。
+         2) 四条 SQL 都不 join promo_plan（campaign_name 就在明细行上），无 COLLATE 坑。
+         3) 排序只走 <choose> 白名单，不拼接 —— 天然防注入。 -->
+    <select id="selectUnits" resultType="com.joker.spzx.model.vo.promo.PromoUnitVo">
+        SELECT i.unit_id                                                     AS unitId,
+               MAX(i.unit_name)                                              AS unitName,
+               MAX(i.campaign_id)                                            AS campaignId,
+               MAX(i.campaign_name)                                          AS campaignName,
+               COUNT(DISTINCT i.stat_date)                                   AS days,
+               ROUND(SUM(i.charge), 2)                                       AS charge,
+               SUM(i.ad_pv)                                                  AS adPv,
+               SUM(i.click)                                                  AS click,
+               ROUND(SUM(i.click) / NULLIF(SUM(i.ad_pv), 0) * 100, 4)         AS ctrPercent,
+               ROUND(SUM(i.charge) / NULLIF(SUM(i.click), 0), 4)              AS cpc,
+               ROUND(SUM(i.gmv_total), 2)                                    AS gmvTotal,
+               SUM(i.order_total)                                            AS orderTotal,
+               ROUND(SUM(i.gmv_total) / NULLIF(SUM(i.charge), 0), 2)          AS roi,
+               SUM(i.cart_count)                                             AS cartCount,
+               SUM(i.collect_total)                                          AS collectTotal,
+               MAX(cc.crowd_click)                                           AS crowdClick
+        FROM promo_cost_item_daily i
+                 LEFT JOIN (SELECT c.unit_id, SUM(c.click) AS crowd_click
+                            FROM promo_cost_item_daily c
+                            WHERE c.dimension = 'crowd'
+                              AND c.stat_date BETWEEN #{dateFrom} AND #{dateTo}
+                              AND c.campaign_id = #{campaignId}
+                            GROUP BY c.unit_id) cc ON cc.unit_id = i.unit_id
+        WHERE i.dimension = 'item'
+          AND i.campaign_id = #{campaignId}
+          AND i.stat_date BETWEEN #{dateFrom} AND #{dateTo}
+        GROUP BY i.unit_id
+        <choose>
+            <when test="sort == 'click'">ORDER BY click IS NULL, click DESC</when>
+            <when test="sort == 'roi'">ORDER BY roi IS NULL, roi DESC</when>
+            <when test="sort == 'gmv'">ORDER BY gmvTotal IS NULL, gmvTotal DESC</when>
+            <when test="sort == 'crowdClick'">ORDER BY crowdClick IS NULL, crowdClick DESC</when>
+            <otherwise>ORDER BY charge IS NULL, charge DESC</otherwise>
+        </choose>
+    </select>
+
+    <select id="selectUnitTrend" resultType="com.joker.spzx.model.vo.promo.PromoUnitTrendVo">
+        SELECT i.stat_date                                                   AS statDate,
+               ROUND(SUM(i.charge), 2)                                       AS charge,
+               SUM(i.ad_pv)                                                  AS adPv,
+               SUM(i.click)                                                  AS click,
+               ROUND(SUM(i.click) / NULLIF(SUM(i.ad_pv), 0) * 100, 4)         AS ctrPercent,
+               ROUND(SUM(i.charge) / NULLIF(SUM(i.click), 0), 4)              AS cpc,
+               ROUND(SUM(i.gmv_total), 2)                                    AS gmvTotal,
+               SUM(i.order_total)                                            AS orderTotal,
+               ROUND(SUM(i.gmv_total) / NULLIF(SUM(i.charge), 0), 2)          AS roi,
+               SUM(i.cart_count)                                             AS cartCount,
+               SUM(i.collect_total)                                          AS collectTotal,
+               MAX(cc.crowd_click)                                           AS crowdClick
+        FROM promo_cost_item_daily i
+                 LEFT JOIN (SELECT c.stat_date, SUM(c.click) AS crowd_click
+                            FROM promo_cost_item_daily c
+                            WHERE c.dimension = 'crowd'
+                              AND c.stat_date BETWEEN #{dateFrom} AND #{dateTo}
+                              AND c.campaign_id = #{campaignId}
+                              AND c.unit_id = #{unitId}
+                            GROUP BY c.stat_date) cc ON cc.stat_date = i.stat_date
+        WHERE i.dimension = 'item'
+          AND i.campaign_id = #{campaignId}
+          AND i.unit_id = #{unitId}
+          AND i.stat_date BETWEEN #{dateFrom} AND #{dateTo}
+        GROUP BY i.stat_date
+        ORDER BY i.stat_date
+    </select>
+
+    <select id="selectUnitKeywords" resultType="com.joker.spzx.model.vo.promo.PromoUnitKeywordVo">
+        SELECT MAX(i.entity_name)                                            AS keyword,
+               MAX(i.entity_id)                                              AS bidwordId,
+               COUNT(DISTINCT i.stat_date)                                   AS days,
+               ROUND(SUM(i.charge), 2)                                       AS charge,
+               SUM(i.click)                                                  AS click,
+               ROUND(SUM(i.charge) / NULLIF(SUM(i.click), 0), 4)              AS cpc,
+               ROUND(SUM(i.gmv_total), 2)                                    AS gmvTotal,
+               SUM(i.order_total)                                            AS orderTotal,
+               ROUND(SUM(i.gmv_total) / NULLIF(SUM(i.charge), 0), 2)          AS roi,
+               SUM(i.cart_count)                                             AS cartCount,
+               SUM(i.collect_total)                                          AS collectTotal
+        FROM promo_cost_item_daily i
+        WHERE i.dimension = 'keyword'
+          AND i.campaign_id = #{campaignId}
+          AND i.unit_id = #{unitId}
+          AND i.stat_date BETWEEN #{dateFrom} AND #{dateTo}
+        GROUP BY i.entity_name
+        <choose>
+            <when test="sort == 'click'">ORDER BY click IS NULL, click DESC</when>
+            <when test="sort == 'roi'">ORDER BY roi IS NULL, roi DESC</when>
+            <when test="sort == 'gmv'">ORDER BY gmvTotal IS NULL, gmvTotal DESC</when>
+            <otherwise>ORDER BY charge IS NULL, charge DESC</otherwise>
+        </choose>
+    </select>
+
+    <!-- 人群行按 entity_key 分组（"<adgroupId>:<crowdId>" 已含单元，单元内天然唯一）；
+         unitClick 用标量子查询带在每行上（同单元每行相同），占比由 service 统一算。 -->
+    <select id="selectUnitCrowds" resultType="com.joker.spzx.model.vo.promo.PromoUnitCrowdVo">
+        SELECT MAX(i.entity_id)                                              AS crowdId,
+               MAX(i.entity_name)                                            AS crowdName,
+               COUNT(DISTINCT i.stat_date)                                   AS days,
+               SUM(i.click)                                                  AS click,
+               ROUND(SUM(i.charge), 2)                                       AS charge,
+               (SELECT SUM(x.click) FROM promo_cost_item_daily x
+                 WHERE x.dimension = 'item'
+                   AND x.campaign_id = #{campaignId}
+                   AND x.unit_id = #{unitId}
+                   AND x.stat_date BETWEEN #{dateFrom} AND #{dateTo})         AS unitClick
+        FROM promo_cost_item_daily i
+        WHERE i.dimension = 'crowd'
+          AND i.campaign_id = #{campaignId}
+          AND i.unit_id = #{unitId}
+          AND i.stat_date BETWEEN #{dateFrom} AND #{dateTo}
+        GROUP BY i.entity_key
+        ORDER BY click IS NULL, click DESC
+    </select>
+</mapper>

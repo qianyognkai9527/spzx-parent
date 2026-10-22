@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 2026-10-08 重建：原文件被 `plutil -extract StartCalendarInterval json <file>` 原地覆写成了
+     22 字节的 `{"Hour":22,"Minute":0}`（那个命令不带 -o - 就是会改文件本身）。
+     下面这些字段是从 `launchctl print gui/501/com.spzx.alimama-promo` 的内存定义逐项抄回来的：
+     program=/bin/bash、arguments=本仓 automation/tb-auto/cron_alimama_promo.sh、
+     working directory=automation/tb-auto、日志=/tmp/alimama_promo_launchd.log、
+     env PATH/LANG、Nice=5、日历 22:00。原文件里的注释没法恢复。 -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.spzx.alimama-promo</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/qyk9527/ideaProject/spzx-parent/automation/tb-auto/cron_alimama_promo.sh</string>
+    </array>
+
+    <!-- 每日 12:06（2026-10-19 由 22:00 改，spec onsale-refactor §3.4）：只采 D-1 及以前
+         （--to 默认昨天，collect_alimama_promo.py:866），中午静默窗口内跑，避开晚间饿死 -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>12</integer>
+        <key>Minute</key>
+        <integer>6</integer>
+    </dict>
+
+    <key>Nice</key>
+    <integer>5</integer>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>LANG</key>
+        <string>en_US.UTF-8</string>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/qyk9527/ideaProject/spzx-parent/automation/tb-auto</string>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/alimama_promo_launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/alimama_promo_launchd.log</string>
+</dict>
+</plist>

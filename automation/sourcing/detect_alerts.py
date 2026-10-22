@@ -178,12 +178,51 @@ def detect_price_change(conn):
     return created
 
 
+def dead_alert_message(sp_name, sp_id, item_ids):
+    """source_dead 告警文案（纯函数）。D1 口径：只告警，下架人工做。"""
+    name = sp_name or f"货源{sp_id}"
+    msg = f"货源已失效(1688商品下架/打不开): {name}(#{sp_id})"
+    if item_ids:
+        msg += f" -> 淘宝商品 {','.join(str(x) for x in item_ids)}"
+    msg += "，ISV同步推不动，请人工下架"
+    return msg
+
+
+def detect_source_dead(conn):
+    """货源整个失效(source_status=0)且有淘宝绑定 -> source_dead；复活(source_status=1)自动销案(status=2)。"""
+    cur = conn.cursor()
+    created = 0
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cur.execute(
+        "SELECT a.id FROM sync_alert a JOIN source_product sp ON sp.id=a.source_product_id "
+        "WHERE a.alert_type='source_dead' AND a.status=0 AND sp.source_status=1")
+    for (aid,) in cur.fetchall():
+        cur.execute("UPDATE sync_alert SET status=2 WHERE id=%s", (aid,))
+        log(f"  [source_dead] 复活销案 alert={aid}")
+    cur.execute(
+        "SELECT sp.id, sp.source_product_name FROM source_product sp "
+        "WHERE sp.is_deleted=0 AND sp.source_status=0 "
+        "AND EXISTS (SELECT 1 FROM taobao_offer_map tm WHERE tm.source_product_id = sp.id)")
+    for sp_id, sp_name in cur.fetchall():
+        if has_unread(cur, "source_dead", source_product_id=sp_id):
+            continue
+        cur.execute("SELECT taobao_item_id FROM taobao_offer_map WHERE source_product_id=%s", (sp_id,))
+        item_ids = [r[0] for r in cur.fetchall()]
+        insert_alert(cur, "source_dead", dead_alert_message(sp_name, sp_id, item_ids),
+                     source_product_id=sp_id)
+        created += 1
+        log(f"  [source_dead] sp={sp_id} {sp_name} -> items={item_ids}")
+    conn.commit()
+    cur.close()
+    return created
+
+
 def main():
     alert_type = "all"
     for i, a in enumerate(sys.argv):
         if a == "--type" and i + 1 < len(sys.argv):
             alert_type = sys.argv[i + 1]
-    valid = {"product_down", "sku_down", "price_change", "all"}
+    valid = {"product_down", "sku_down", "price_change", "source_dead", "all"}
     if alert_type not in valid:
         log(f"非法 --type: {alert_type}, 可选 {valid}")
         sys.exit(1)
@@ -202,6 +241,10 @@ def main():
     if alert_type in ("price_change", "all"):
         n = detect_price_change(conn)
         log(f"price_change: 新增 {n} 条")
+        total += n
+    if alert_type in ("source_dead", "all"):
+        n = detect_source_dead(conn)
+        log(f"source_dead: 新增 {n} 条")
         total += n
     conn.close()
     log(f"=== 完成: 共新增 {total} 条提醒 ===")

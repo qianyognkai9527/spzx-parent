@@ -31,9 +31,40 @@ def _is_orphan(url: str, keep_urls) -> bool:
     return True
 
 
-async def connect_cdp(port: int, keep_urls=None, log=print):
+async def minimize_windows(ctx, log=print):
+    """把该 Chrome 实例的窗口最小化.
+
+    两个已知弹窗来源的对策 (2026-10-16 实测):
+      1. macOS 把 --window-position=-32000 的离屏窗口钳回可视区;
+      2. 新开标签(ctx.new_page)会把最小化窗口顶回前台.
+    CDP Browser.setWindowBounds 无辅助功能权限问题。headless 实例无窗口,
+    CDP 调用异常逐页吞掉即可。
+    """
+    done = set()
+    for page in list(ctx.pages):
+        try:
+            s = await ctx.new_cdp_session(page)
+            info = await s.send("Browser.getWindowForTarget")
+            wid = info.get("windowId")
+            if not wid or wid in done:
+                continue
+            cur = (info.get("bounds") or {}).get("windowState")
+            if cur != "minimized":
+                await s.send("Browser.setWindowBounds",
+                             {"windowId": wid, "bounds": {"windowState": "minimized"}})
+            done.add(wid)
+        except Exception:
+            continue
+    if done:
+        log(f"[cdp_utils] 窗口已最小化: {sorted(done)}")
+    return sorted(done)
+
+
+async def connect_cdp(port: int, keep_urls=None, log=print, minimize=False):
     """连接指定端口的 CDP Chrome, 启动时清理孤儿标签页.
 
+    minimize=True: 连接后把窗口压回最小化 (9222 窗口模式防打扰; 用户要看窗口
+    / 要人工拖滑块的场景别开, 会把验证码藏起来)。
     返回 (browser, context). 调用方用完必须显式 `page.close()`.
     """
     keep_urls = keep_urls or []
@@ -52,7 +83,28 @@ async def connect_cdp(port: int, keep_urls=None, log=print):
             pass
     if closed:
         log(f"[cdp_utils] port {port}: 启动清理孤儿标签 {closed} 个, 剩余 {len(ctx.pages)} 个")
+    if minimize:
+        try:
+            await minimize_windows(ctx, log)
+        except Exception:
+            pass
     return b, ctx
+
+
+async def new_page_quiet(ctx, url=None, wait_until="domcontentloaded", timeout=40000, log=print):
+    """新开标签并立刻把窗口压回最小化 (新标签激活会把最小化窗口顶回前台).
+
+    同站多次导航尽量复用已有标签 (跨域 goto 是整页重载, 无 SPA 缓存问题);
+    确需新标签时一律用本函数代替裸 ctx.new_page().
+    """
+    p = await ctx.new_page()
+    if url:
+        await p.goto(url, wait_until=wait_until, timeout=timeout)
+    try:
+        await minimize_windows(ctx, log)
+    except Exception:
+        pass
+    return p
 
 
 async def close_pages(ctx, urls_substr=()):

@@ -128,7 +128,7 @@
 
 **关键机制（勿再踩坑）**:
 - **属性推荐弹框「商品属性信息更新确定」必须点「确定」**。⚠️ 弹框容器是 **`.next-dialog`**，不是 `.next-dialog-wrapper`！且它是 position:fixed，**`offsetParent` 恒为 null** → 检测可见性必须用 `getClientRects().length > 0`，用 `offsetParent` 会永远检测不到（这是本任务最深的坑，曾导致弹框从未被处理）。点击用 Playwright locator（`dlg.locator('button', has_text='确定')`），JS `.click()` 对 React 不可靠。弹框在页面加载后/滚动时可能弹出，进编辑页后、滚动后、提交前都要调用处理函数。
-- 店铺中分类：`#sell-field-shopcat` 展开扁平 8 节点树，勾 `.next-tree-node` 内 `.next-checkbox-wrapper`，清空已有勾选后勾目标；校验 `#sell-field-shopcat .next-tag` 文本。
+- 店铺中分类：`#sell-field-shopcat` 展开扁平 8 节点树，勾 `.next-tree-node` 内 `.next-checkbox-wrapper`，清空已有勾选后勾目标；校验 `#sell-field-shopcat .next-tag` 文本。**淘宝已把该树节点「长裤」改名为「休闲裤」（2026-10-09 用户确认）**：内部 plan/分类桶仍叫「长裤」，`assign_shop_category.py` 的 `SHOPCAT_ALIAS={'长裤':'休闲裤'}` 在写入树前映射，别去改 plan 或进度文件。症状=批量 `类目设置失败: 目标类目[长裤]不在树中`（被 `is_permanent_failure` 判永久、`--retry-failed` 跳过，要补跑须先把这些 failed 条目从 `shop_cat_v2_progress.json` 删掉，或 `--retry-failed --ids` 同时传）。
 - **提交成功判定以 `submit.htm` 响应体为准**（`globalMessage.type=success` → 跳 `sell/v2/success.htm` 或页面"商品提交成功"）；页面文本/URL 不可靠。提交后可能有「继续发布」/「前往查看」违规弹窗（详情图含尺码信息自动填表提示），点后部分需**二次点提交**。
 - **尺码表报错处理**：响应 `CHK_SIZE_ROW_IS_EMPTY` 或页面"商品尺寸表 必填项未填" → 清空商品尺寸表（`#sell-field-sizeMapping` 内「一键清空」）后重新提交。尺码表**要么全填要么不填**；个别类目尺寸表为硬必填（清空仍报错）→ 标 skipped 待人工。
 - 提取方式（`#sell-field-tbExtractWay`）默认已选"使用物流配送"，未选时点第一个选项。
@@ -193,3 +193,65 @@
   python3 .../scripts/log_work.py --module 1688选品 --title "穿戴甲选品" --progress "1061 条入库"
   ```
   模块建议清单：淘宝归类、品牌标题、PDD铺货、1688选品、AI选词、视频生成、对账、小说、系统、其它。详见根 `AGENTS.md`。
+
+## ISV「规格匹配」全量过一遍 (isv_sku_match.py, 2026-10-14)
+
+**用途**：淘宝库存同步走 1688 淘分销，同步是 **SKU 规格级**——淘宝商品每个 SKU 必须与 1688 货源 SKU 1:1 匹配。本脚本把控制台「商品管理 → 已关联货源」**每个商品都过一遍**（已匹配的也不例外）：开「更多→匹配规格」抽屉 → 点「**自动匹配规格**」→ 点「**确 认**」；匹配不全记 `manual_needed`、淘宝 SKU 数≠1688 规格数记 `count_mismatch`、同 1688 规格绑多个淘宝 SKU 记 `sku_duplicate`。CDP 9222。
+
+- **1688 规格数两级来源**：① DB `source_sku`（按 `source_product_url LIKE %offer/<id>.html%` 关联，精确，约 838/4183 覆盖）；② DB 没有 → 读抽屉**规格选择器**（`.spec-select-dropdown`，是「颜色/尺码」radio 组+取消/确认，**不是普通下拉**）radio 组数求积（估算，`spec_source=picker_est`）；③ 再没有 → 不判计数。
+- **坑（实测）**：抽屉 fixed 定位，可见性用 `.ant-drawer-open`（勿用 offsetParent）；**关抽屉绝不用键盘 Escape**（事件发到外层页面，iframe 里的抽屉收不到 → 抽屉常开挡住后续一切点击，表现为 `ant-drawer-header intercepts pointer events`）——只走抽屉内「取消」/`.ant-drawer-close`/`.ant-drawer-mask`；快捷筛选 chip 文本带计数后缀（`已关联货源(4183)`）必须**前缀匹配**不能全等；点击失败降级 `force=True`。
+- **跑法**：`--limit 2 --dry-run` 预演 → `--limit 1 --apply` 试点（用户盯）→ 全量 `nohup venv/bin/python -u isv_sku_match.py --apply --gap 10 > /tmp/sku_match_run.log 2>&1 &`（4183 个 ≈ 29h，断点续跑）。`--ids` 定向补跑、`--force` 全量重来。
+- **报告**：`sku_match_report.json`（按 item_id 续跑，终态=ok/manual_needed/count_mismatch/sku_duplicate 跳过）+ `sku_match_manual.csv`（人工清单）。
+- **单测**：`test_isv_sku_match.py`（纯函数：规格名解析/计数与重复判定/报告 upsert/CSV 行，含 picker 估算路径）。
+- spec：`docs/superpowers/specs/2026-10-14-isv-sku-match-design.md`。
+
+### 窗口防弹（2026-10-16，用户明令 9222 绝不显示）
+
+- **弹窗两个来源（实测）**：① macOS 把 `--window-position=-32000` 钳回可视区 → Chrome 启动到 CDP 就绪前（~8s）窗口可见；② **`ctx.new_page()` 新开标签会把最小化窗口顶回前台**（探针连开 4 次弹 4 次，用户投诉）。
+- **对策**：`cdp_utils.minimize_windows(ctx)`（CDP `Browser.setWindowBounds`，无需辅助功能权限）；`connect_cdp(..., minimize=True)` 连接即压回；`cdp_utils.new_page_quiet(ctx, url)` 新开标签后自动压回；`scrape_isv_offer_taobao.open_page(ctx, quiet=True)` 同理（isv_sku_match 已用）。**注意**：要用户人工拖滑块的场景别 minimize（会把验证码藏起来）。独立 CLI 仍有 `automation/tb-auto/cdp_minimize.py 9222`。
+- 排查类脚本纪律：跨站读取复用同一个标签 goto（跨域是整页重载），别开新页；`isv_offer_taobao_map.jsonl` 是旧快照不全，**找商品用「已关联货源」chip + 搜索框搜 ID**（必先点 chip，默认视图搜不到）。
+
+### ISV 全量库存同步 (isv_stock_sync.py, 2026-10-16)
+
+**把 1688 货源库存推到淘宝 SKU**：控制台「已关联货源」逐页（**100 条/页**）表头全选 → 点**「批量同步库存」**（在勾选列旁边那排；用户口中的「全量库存同步」控制台无此名）→ 确定 → 下一页。**控制台没有跨页全选**（表头勾选框只作用本页，勾选列 hover 也没有 extra 下拉），全量=逐页循环。报告 `stock_sync_report.json`（pages 页号→rows），`--start N` 断点续跑，`--dry-run`。
+
+- **验证口径**：行级「同步记录」弹窗（同步时间/内容/结果/方式），SKU 级文案如「商品库存同步为352，M 白色规格库存同步为286」。
+- **坑（实测）**：① 同步提交后 `.ant-modal-wrap` 会残留数秒拦翻页/勾选——翻页前必须 `wait_no_modal`；② 提交后页面卡顿会让点击 hang 在 "performing click action"——全选/翻页都要 3 次重试 + JS click 兜底；③ 切 100条/页 的 antd 下拉点击有竞态，点完必须**回读选择器文本**验证、失败重试（force）一次；④ 新开会话每页都回 20条/页，每轮都要重切；⑤ 崩溃残留的弹窗/选中态会污染下一轮——续跑前最好干净导航一次。
+- **和 `inventory_cron.sh`（每天 05:00）分工**：**05:00 行仅告警检测，采集已迁 03:00**（`run_stock_refresh.sh` → `detect_stock_change.py --tiered`，见下方「分级刷新」节）；**不推淘宝**；推淘宝 = 本脚本（此前只有手动按钮，用户 9-02/9-12 的同步记录即手动）。
+- 单商品抽查方式：「已关联货源」chip + 搜索框搜 ID（必先点 chip，默认视图搜不到）→ 同步记录弹窗。
+
+### 「[已下架]」结论（2026-10-16 实证，样本 1086192871521）
+
+- 抽屉左列「店铺商品规格」带 `[已下架]` 前缀 = **淘宝 SKU 侧**；右列 1688 货源规格全是干净名（`摩卡灰-2XL`，¥32.5/库存2000）。1688 货源页（offer/980287802829）**0 处「已下架」**、规格全在售；淘宝买家页 SKU 名里也没有「已下架」三字 → 前缀是**控制台状态标记**，表示该尺码 SKU 在淘宝店侧已被下架/移除（历史绑定残留），不是 1688 下架、也不在 SKU 名里。
+- 含义：`manual_needed` 里 6716 行/616 商品的 `[已下架]` 是死 SKU 的惰性记录，不影响在售链接。另发现自动匹配会把死 SKU 绑错位（XL→摩卡灰-2XL 等），死 SKU 无实害，清理时可顺手「清除」。
+
+### 货源全量建档 backfill_offer_archive.py（2026-10-18，spec 2026-10-18 P1）
+
+**目的**：让 `taobao_offer_map` 的每个 offer_id 在 `source_product`/`source_sku` 都有档（超卖监控的地基，无档=盲区）。两步：`--remap` 零采集补映射（正则 `offer/(\d+)` 扫 `source_product.source_product_url` → UPDATE `taobao_offer_map.source_product_id`）；主跑建档（仍无档的 offer 逐个开 `detail.1688.com/offer/{id}.html`，复用 `offer_fetch` 拦截详情 API，建 `source_product`（`data_source=2`、`platform_type=1`、`freight_cost=8` 定值）+ `source_sku` 行 + 回填映射）。
+
+- **映射即进度**：todo 按 DB 现算（`taobao_offer_map.source_product_id IS NULL` 的 distinct offer_id），**不看进度文件**——中断直接重跑，已建档自动跳过。`--limit/--start/--dry-run` 断点续跑；报告 `backfill_report.json`（remapped/created/dead/failed）。
+- **失效识别**：GONE_HINTS/页面打不开 → 照常建 `source_product` 行但 `source_status=0`、不建 SKU 行，进 dead 报告清单（这些当下就有超卖风险）。
+- **风控节奏**：3-10s/个（`--delay`），连续采集异常冷却 25min（`--cooldown 1500`）；启动守卫 = 9222 在线 + 归类v2/品牌/规格匹配不在跑；`run_stock_refresh.sh` 也反守卫本脚本（P1 夜跑期间 03:00 分级刷新自动 skip）。
+- **夜间分段 launcher**：`.superpowers/sdd/2026-10-18-source-stock-monitor/run_backfill_nights.sh`——每晚 22:30（等 22:00 alimama 结束）起跑、每夜 timeout 20000s 硬停 05:00 前、避开周六凌晨（collect_full 退役前同窗撞 9222）、建档完成（待建档=0）自退；日志 `backfill_nights.log`。
+- 报告 `created` 计数含绑定不重建；3 对重复档旧壳 6791/6030/6028 带活跃绑定未清理（双采风险已因 URL 结构性排除，留 owner 决定）。
+
+### 分级刷新 detect_stock_change.py `--tiered`（2026-10-18，spec P2）
+
+**三池口径**（`select_tiered` 纯函数）：
+- **T1 每日池**：`min(status=1 的 source_sku.stock) < 100`（`--t1-threshold` 可调）**或从未刷新过**；
+- **T2 常规池**：其余存活货源，`(id + day_of_year) % 7 == 0` 无状态轮转，每天 1/7；
+- **T3 失效池**：`source_status=0`，**仅周一复查**，复活（拿到 SKU 数据）自动翻回 1 并销案；生死落库只升级 NULL/0→1，**不覆盖人工标记**。
+
+- tiered 默认节奏与 `--pool` 系不同：`--max-per-run 600`、`--delay 5`（pool 系 60/10s）；受单轮上限的顺延不丢弃（deferred）。
+- **硬停钟 `--stop-hour 5`**：05:00 前硬停把 9222 让给 05:30 ISV 同步；语义=**起跑时刻必须早于 stop_hour**（03:00+stop 5 满足，跨午夜组合不成立）；硬停 break 的商品不进 checked（有日志兜底）；tiered 下 `--stale-days` 静默忽略。
+- 调度：LaunchAgent `com.spzx.stock-refresh` **每日 03:00** → `run_stock_refresh.sh`（守卫：9222 在线、归类v2/品牌/规格匹配/建档/上一轮刷新不在跑，skip 写 `cron_skipped` + failed 台账）。
+- ⚠️ **gone→0 与周一 T3 复活路径未实跑**（单测覆盖纯函数），首次真实失效事件时盯日志。
+
+### ISV 同步核验 isv_sync_verify.py（2026-10-18，spec P4）
+
+**目的**：证明「1688 没货 → 淘宝被推成 0」真的发生（report 只记页数不算证据）。每轮 `isv_stock_sync.py` 成功后由 `run_stock_sync.sh` 自动接跑（`--cap 50`）：本地 0 库存且存活的绑定商品（超 cap 时 `ORDER BY RAND()` 随机抽，防无序 LIMIT 尾部永久盲区）+ 对照随机 10 个纯非零（**对照池排除混合库存商品**——探针实证混库行在「已关联货源」视图搜不到，会沉淀成假 verdict=3）。逐个开行级「同步记录」弹窗解析入库；`--dry-run` 只定位不点弹窗。
+
+- **verdict 口径**（`stock_sync_check` 表，DDL `spzx-manager/src/main/resources/sql/stock_sync_check.sql`）：**1=成功同步为0**（record_text 含「同步为 N」且无失败字样）、2=无同步记录、3=失败/异常；解析纯函数 `parse_sync_record`。verdict 2/3 → `sync_alert` 按天去重。
+- **探针结论（2026-10-18 门禁通过）**：ISV **会把 0 库存推成淘宝 0**——商品 1023052654615 的 10-17 同步记录 42 处「同步为0」逐 SKU=本地库存、Σ=165 吻合（证据=抽屉 innerText 存档 `.superpowers/sdd/2026-10-18-source-stock-monitor/task-11-drawer-text-*.txt`；9222 红线下不截图）。D1「商品失效人工下架」维持不变。
+- 实测：`--cap 3` 真跑 3/3 verdict=1（零库存目标全部核验成功）。
+- 坑：抽屉是 `.ant-drawer.product-sync-record-drawer`（**非 modal**）、空态竞态就绪判据、入口=行内联「同步记录」（无需下拉）、关闭=`.ant-drawer-close`。

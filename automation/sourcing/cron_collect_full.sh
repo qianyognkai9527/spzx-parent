@@ -9,6 +9,11 @@ BATCH=$DIR/cron_batch.py
 # 1688 货源侧上游，跨平台复用 → 批次不带 platform
 DS=source_sku
 
+# [2026-10-18 退役] 被分级刷新取代（detect_stock_change --tiered，每日 03:00 LaunchAgent）。
+# crontab 行不可程序化删除（2026-10-07 实测挂死），故脚本内置退役：进脚本即退出。
+echo "[$(date '+%m-%d %H:%M')] collect_1688_full 已退役(被分级刷新取代), 跳过"
+exit 0
+
 skip() {
   echo "[$(date '+%m-%d %H:%M')] $1, 跳过"
   $PY "$ALERT" --key collect_1688_full --dataset "$DS" --msg "1688详情周采集未落库: $1" > /dev/null 2>&1
@@ -20,6 +25,7 @@ skip() {
 
 curl -s --max-time 5 http://127.0.0.1:9222/json/version > /dev/null || skip "Chrome 9222 不在线"
 pgrep -f assign_shop_category_v2 > /dev/null && skip "归类v2占用同一 Chrome, 本周让路"
+pgrep -f isv_sku_match > /dev/null && skip "ISV规格匹配占用同一 Chrome, 本周让路"
 
 echo "[$(date '+%m-%d %H:%M')] === collect_1688_full 开始 ===" >> $LOG
 BID=$($PY "$BATCH" begin --dataset "$DS")

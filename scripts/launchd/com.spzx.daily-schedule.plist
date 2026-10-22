@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.spzx.daily-schedule</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python</string>
+        <string>/Users/qyk9527/ideaProject/spzx-parent/scripts/daily_schedule.py</string>
+        <!-- 每次重写最近三天：23:30 之后才补跑/补提交的当天事实，第二天这轮会带上来；
+             脚本幂等，只覆盖自己写的条目（create_by=0） -->
+        <string>--days</string>
+        <string>3</string>
+    </array>
+
+    <!-- 每日 23:30：推广采集 22:00、快照 06:00 都已落库，这时汇总当天才是齐的 -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>23</integer>
+        <key>Minute</key>
+        <integer>30</integer>
+    </dict>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>LANG</key>
+        <string>en_US.UTF-8</string>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/qyk9527/ideaProject/spzx-parent</string>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/daily_schedule_launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/daily_schedule_launchd.log</string>
+</dict>
+</plist>

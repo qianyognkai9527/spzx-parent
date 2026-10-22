@@ -1,5 +1,6 @@
 package com.joker.spzx.manager.service.promo;
 
+import com.joker.spzx.model.vo.promo.PromoItemVo;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -83,5 +84,38 @@ class PromoReportServiceTest {
                 "keyword", java.util.Set.of("all", "keyword"), "all"));
         assertEquals("all", PromoReportService.normalizeChoice(
                 "'; DROP TABLE", java.util.Set.of("all", "keyword"), "all"));
+    }
+
+    @Test
+    void 人群占比先加总再除且分母为0出null() {
+        PromoItemVo v = new PromoItemVo();
+        v.setClick(10L);
+        v.setCrowdClick(3L);
+        PromoReportService.applyCrowdShare(v);
+        assertEquals(0, new java.math.BigDecimal("30.00").compareTo(v.getCrowdClickShare()));
+
+        PromoItemVo none = new PromoItemVo();
+        none.setClick(10L);
+        none.setCrowdClick(null);          // 没采到人群 → null，不是 0
+        PromoReportService.applyCrowdShare(none);
+        assertNull(none.getCrowdClickShare());
+
+        PromoItemVo zeroDiv = new PromoItemVo();
+        zeroDiv.setClick(0L);              // 分母为 0 → null，不是除零异常也不是 0
+        zeroDiv.setCrowdClick(0L);
+        PromoReportService.applyCrowdShare(zeroDiv);
+        assertNull(zeroDiv.getCrowdClickShare());
+
+        PromoItemVo odd = new PromoItemVo();
+        odd.setClick(3L);
+        odd.setCrowdClick(1L);
+        PromoReportService.applyCrowdShare(odd);
+        assertEquals(0, new java.math.BigDecimal("33.33").compareTo(odd.getCrowdClickShare()));
+
+        PromoItemVo zeroShare = new PromoItemVo();
+        zeroShare.setClick(5L);
+        zeroShare.setCrowdClick(0L);       // 有人群行但点击为 0 → 0.00（是算出来的零）
+        PromoReportService.applyCrowdShare(zeroShare);
+        assertEquals(0, java.math.BigDecimal.ZERO.compareTo(zeroShare.getCrowdClickShare()));
     }
 }

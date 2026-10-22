@@ -4,7 +4,7 @@
 
 为什么要有它：定时任务跑没跑、处理了多少行，事实散在 ingest_batch / sync_alert /
 platform_product / novel_chapter 四张表加两个 git 仓库里；而「日程管理」页面自
-2025-05-20 起只有一条手工记录，等于空着。这个脚本按天把六类事实汇成任务条目，
+2025-05-20 起只有一条手工记录，等于空着。这个脚本按天把七类事实汇成任务条目，
 打开页面就能看，点详情有出处。
 
 口径：
@@ -60,7 +60,7 @@ def task(title, remark, complete, source):
             "is_complete": 1 if complete else 0, "source": source}
 
 
-# ------------------------------------------------------------------ 六类事实
+# ------------------------------------------------------------------ 七类事实
 
 # GROUP_CONCAT 的分隔符：竖线之类会和报错文案自身打架；SEPARATOR 只接受字面量，
 # 既不能写 char(1) 也不能当参数绑，所以拼进 SQL（常量，不含任何输入）
@@ -143,6 +143,42 @@ def alert_tasks(cur, date):
     if msgs:
         detail += " · 最近：%s" % msgs.replace("\x01", " | ")
     return [task("新增告警：%d 条" % n, detail, unread == 0, "alert")]
+
+
+# 备份产物在仓库外（~/Backups/spzx-db），库里一行都不记，所以这条只能看文件。
+# 没装备份的那些天不参与判定 —— 否则历史每一天都会被诬称"漏备份"。
+BACKUP_DIR = pathlib.Path(os.path.expanduser("~/Backups/spzx-db"))
+BACKUP_SINCE = dt.date(2026, 10, 8)
+
+
+def backup_tasks(cur, date):
+    """库备份的可观测性：04:10 那份 dump 当天到底有没有落盘。
+
+    为什么单独占一条：机器睡着/关机时 launchd 静默跳过，而"目录里还有文件"看不出停摆——
+    失效形状是"昨天的还在、今天的没来"。推广采集就是这么断了七天才被人发现（见 spec §30 那段），
+    备份要是也这么挂，等到要恢复那天才知道，代价是不可逆的。
+    """
+    day = dt.datetime.strptime(date, "%Y-%m-%d").date()
+    if day < BACKUP_SINCE:
+        return []
+    todays = sorted(BACKUP_DIR.glob("db_spzx_%s-*.sql.gz" % day.strftime("%Y%m%d")))
+    if todays:
+        mb = todays[-1].stat().st_size / 1048576.0
+        return [task("库备份：%d 份（最新 %.1f MB）" % (len(todays), mb),
+                     "04:10 com.spzx.db-backup；同轮已把这份还原进临时库验过可恢复",
+                     True, "backup")]
+    files = list(BACKUP_DIR.glob("db_spzx_*.sql.gz"))
+    if not files:
+        return [task("库备份：当天没有产物", "目录 %s 里一个备份都没有" % BACKUP_DIR, False, "backup")]
+    newest = max(files, key=lambda p: p.stat().st_mtime)
+    newest_day = dt.datetime.fromtimestamp(newest.stat().st_mtime).date()
+    if newest_day >= day:
+        # 当天没那份、却有更新的：只可能是保留策略误删，报红让人去查而不是放过
+        return [task("库备份：当天没有产物", "最新一份是 %s 但没有当天的 → 检查保留策略" % newest_day,
+                     False, "backup")]
+    return [task("库备份：当天没有产物",
+                 "最新一份停在 %s（%d 天前）→ 那天的 04:10 没跑成" % (newest_day, (day - newest_day).days),
+                 False, "backup")]
 
 
 def collect_commits(since=None):
@@ -267,7 +303,7 @@ def main():
         cur = conn.cursor()
         for date in dates:
             tasks = []
-            for fn in (batch_tasks, novel_tasks, product_tasks, visual_tasks, alert_tasks):
+            for fn in (batch_tasks, novel_tasks, product_tasks, visual_tasks, alert_tasks, backup_tasks):
                 try:
                     tasks += fn(cur, date)
                 except Exception as e:

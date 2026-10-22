@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 一次性窗口(2026-10-10): 12:05 起 淘宝归类v2+品牌(串行) 与 拼夕夕(全程) -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.spzx.tb-pdd-window-start</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/qyk9527/ideaProject/spzx-parent/scripts/window-run.sh</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Month</key>
+        <integer>10</integer>
+        <key>Day</key>
+        <integer>10</integer>
+        <key>Hour</key>
+        <integer>12</integer>
+        <key>Minute</key>
+        <integer>5</integer>
+    </dict>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>LANG</key>
+        <string>en_US.UTF-8</string>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/qyk9527/ideaProject/spzx-parent/scripts</string>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/tb-pdd-window/launchd-start.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/tb-pdd-window/launchd-start.log</string>
+</dict>
+</plist>

@@ -35,7 +35,13 @@ FRONTEND_CANDIDATES = [
 ]
 
 # 覆盖面下限：低于这个数说明扫描面缩了（路径变了/目录没检出），这次的结论不可信
-FLOOR = {"crontab": 5, "launchd": 1, "registry": 8, "progress_scheduled": 5,
+# crontab 下限 2026-10-19 由 5 调成 3：调度优化（spec schedule-optimization §3）把作业迁到
+# LaunchAgent，crontab 只剩 task_stats(每小时) / sycm 12:35 / db_daily 04:30 三条活动行，
+# 这是预期收窄（launchd 侧从 1 涨到 6 条），不是路径/目录没检出。再少就是真缩了。
+# launchd 下限 2026-10-19 由 1 调成 4：调度优化把作业从 crontab 迁来，现有 6 个
+# com.spzx.* Agent（daily-schedule / stock-refresh / stock-sync / onsale-scan / alimama-promo
+# / db-backup），留 2 条容差——再少就是 plist 目录没检出，不是真缩了。
+FLOOR = {"crontab": 3, "launchd": 4, "registry": 8, "progress_scheduled": 5,
          "frontend_urls": 150, "backend_routes": 150, "alert_callers": 14, "secret_scanned": 600}
 
 

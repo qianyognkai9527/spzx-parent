@@ -109,4 +109,8 @@ public class Product extends BaseEntity {
     @TableField("quality_grade")
     private String qualityGrade;
 
+    @Schema(description = "货源存活:1=正常 0=已失效 NULL=未检测(库存监控 2026-10-18)")
+    @TableField("source_status")
+    private Integer sourceStatus;
+
 }

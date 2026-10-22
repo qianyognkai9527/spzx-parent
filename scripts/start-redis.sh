@@ -33,12 +33,12 @@ REDIS_SERVER="${PREFIX:-}/bin/redis-server"
 
 # 没装过就装（他要求的是"本机有 redis 可用"，缺二进制属于没达成）
 if [ ! -x "$REDIS_SERVER" ]; then
-  say "$SERVICE 还没装 → 正在 brew install $SERVICE（要走外网下载，几秒到十几秒）"
+  say "$SERVICE 还没装 → 正在 brew install ${SERVICE}（要走外网下载，几秒到十几秒）"
   "$BREW" install "$SERVICE" || die "brew install $SERVICE 失败，看上面 brew 的输出。"
   PREFIX="$("$BREW" --prefix "$SERVICE" 2>/dev/null || true)"
   REDIS_CLI="${PREFIX:-}/bin/redis-cli"
   REDIS_SERVER="${PREFIX:-}/bin/redis-server"
-  [ -x "$REDIS_CLI" ] || die "装完了却没找到 redis-cli，brew 的安装前缀变了，看 brew info $SERVICE。"
+  [ -x "$REDIS_CLI" ] || die "装完了却没找到 redis-cli，brew 的安装前缀变了，看 brew info ${SERVICE}。"
 fi
 
 # 兜底：brew 前缀里没有可执行的 redis-cli 时退回 PATH 里的那个。
@@ -69,7 +69,7 @@ if [ -n "$LISTENER" ]; then
   die "占着 $PORT 的是上面这个进程，本脚本不 kill 不是自己起的进程。腾出 6379 再双击。"
 fi
 
-say "=== 端口 $PORT 空着 → 交给 launchd 起（brew services start $SERVICE）==="
+say "=== 端口 $PORT 空着 → 交给 launchd 起（brew services start ${SERVICE}）==="
 "$BREW" services start "$SERVICE" || die "brew services start $SERVICE 失败，看 $LOG 最后几行。"
 
 # 起来要时间：等 PONG，最多 15 秒

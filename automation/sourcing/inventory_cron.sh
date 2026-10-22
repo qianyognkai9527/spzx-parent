@@ -1,6 +1,8 @@
 #!/bin/bash
 # 库存同步定时调度
 # 用法: inventory_cron.sh [pool|full]  (默认 pool=优质池, full=全部商品)
+# [2026-10-18] 采集已迁 03:00 LaunchAgent com.spzx.stock-refresh（detect_stock_change --tiered）。
+# 本脚本(crontab 05:00)只保留 detect_alerts 提醒检测。crontab 行不可程序化删除，物理保留。
 DIR=/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing
 cd "$DIR" || exit 0
 PY=/Users/qyk9527/ideaProject/spzx-parent/automation/venv/bin/python
@@ -20,54 +22,21 @@ skip() {
   exit 0
 }
 
-# 守卫: Chrome 9222 不在线 → 跳过
-curl -s --max-time 5 http://127.0.0.1:9222/json/version > /dev/null || skip "Chrome 9222 不在线"
-# 守卫: 归类v2运行中(同Chrome勿并行1688任务) → 跳过
-pgrep -f assign_shop_category_v2 > /dev/null && skip "归类v2占用同一 Chrome"
+# [2026-10-19] 采集已迁 03:00, 本脚本只剩纯 DB 的 detect_alerts —— Chrome/pgrep 守卫全部移除
+# （原「Chrome 不在线→跳过」会让纯 DB 的提醒检测陪葬, 还误报库存同步未跑）
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] === 库存同步 $MODE 开始 ===" >> $LOG
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] === 库存提醒检测 $MODE 开始 ===" >> $LOG
 LINES_BEFORE=$(wc -l < "$LOG" 2>/dev/null || echo 0)
-BID=$($PY "$BATCH" begin --dataset "$DS")
 
-# 1. 采集1688 SKU + 检测变化
-#    池子=优质池 ∪ 绑定池（实测两者交集 0，绑定池才是断货告警唯一可能有数据的一批），
-#    单轮上限 60 个 + 10 秒间隔 + 14 天滚动重查：851 个候选摊到约 14 天跑完一轮。
-#    以前是"永久 done 名单"，首轮跑完就每天扫 0 个还报 success，库存悄悄烂了七周。
-if [ "$MODE" = "full" ]; then
-    $PY detect_stock_change.py --full --max-per-run 200 >> $LOG 2>&1
-else
-    $PY detect_stock_change.py --pool-both --stale-days 14 --max-per-run 60 --delay 10 >> $LOG 2>&1
-fi
-rc=$?
-# 脚本自己打一行 SUMMARY；只在本轮新增片段里取，否则会读到上一轮的数字
-SUMMARY=$(tail -n +$((LINES_BEFORE + 1)) "$LOG" 2>/dev/null | grep '^SUMMARY ' | tail -1)
-CANDIDATES=$(echo "$SUMMARY" | sed -n 's/.*candidates=\([0-9]*\).*/\1/p')
-CHECKED=$(echo "$SUMMARY" | sed -n 's/.*checked=\([0-9]*\).*/\1/p')
-CHANGED=$(echo "$SUMMARY" | sed -n 's/.*changed=\([0-9]*\).*/\1/p')
-DEFERRED=$(echo "$SUMMARY" | sed -n 's/.*deferred=\([0-9]*\).*/\1/p')
-
-# 2. 检测提醒（独立台账：它跑挂不能借第 1 步的 rc 蒙混过关）
+# 检测提醒（独立台账；采集迁走后它是本脚本唯一的活）
 ARB=$($PY "$BATCH" begin --dataset "$DS_ALERT")
 $PY detect_alerts.py --type all >> $LOG 2>&1
 arc=$?
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] === 库存同步 $MODE 结束 rc=$rc 提醒检测 rc=$arc ===" >> $LOG
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] === 库存提醒检测 $MODE 结束 提醒检测 rc=$arc ===" >> $LOG
 # detect_alerts 每种检测各打一行「新增 N 条」，求和=本轮新写提醒数；取本轮新增片段避免继承上轮
 ALERT_LINES=$(tail -n +$((LINES_BEFORE + 1)) "$LOG" 2>/dev/null | sed -n "s/.*新增 \([0-9]*\) 条.*/\\1/p")
 ALERT_ROWS=$(echo "${ALERT_LINES:-0}" | paste -sd+ - | bc 2>/dev/null || echo 0)
-if [ "$rc" = "0" ]; then
-  $PY "$BATCH" end --id "$BID" --status success --rows-total "${CHECKED:-0}" \
-      --rows-ok "${CHANGED:-0}" > /dev/null 2>&1
-  # 停摆探测器：池子非空却一个都没查，说明变化检测又变成了"每天扫 0 个报 success"
-  # —— 那正是它悄悄停摆七周的形态（永久 done 名单），必须当场报而不是等人事后翻流水
-  if [ -n "$CANDIDATES" ] && [ "$CANDIDATES" != "0" ] && [ "${CHECKED:-0}" = "0" ]; then
-    $PY "$ALERT" --key inventory_sync --dataset "$DS" --type cron_failed \
-      --msg "库存变化检测本轮扫 0 个（池子有 ${CANDIDATES} 个候选）：检测名单可能又被写成了永久跳过，库存数据在腐烂" > /dev/null 2>&1
-  fi
-else
-  $PY "$BATCH" end --id "$BID" --status failed --error "detect_stock_change 异常退出 rc=$rc" > /dev/null 2>&1
-  $PY "$ALERT" --key inventory_sync --dataset "$DS" --type cron_failed --msg "库存日同步脚本异常退出 rc=$rc" > /dev/null 2>&1
-fi
 if [ "$arc" = "0" ]; then
   $PY "$BATCH" end --id "$ARB" --status success --rows-total "${ALERT_ROWS:-0}" > /dev/null 2>&1
 else

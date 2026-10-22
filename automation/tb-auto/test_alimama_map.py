@@ -5,8 +5,9 @@
 fixture 用的是 2026-10-03 实测抓到的真实一行(标准计划B / 2026-10-01), 不是编的:
 charge=9.809999999999999 adPv=827 click=32 ctr=0.03869 ecpc=0.30656 ecpm=11.86215
 """
-from collect_alimama_promo import (cast, date_range, hit_risk, is_standard, item_id_of,
-                                   map_adgroup_row, map_row, should_page)
+from collect_alimama_promo import (cast, crowd_body, date_range, hit_risk, is_standard, item_id_of,
+                                   map_adgroup_row, map_crowd_row, map_row, map_word_row,
+                                   should_page, wants_crowd, wants_item, wants_word, word_body)
 
 # ---- 类型转换: NULL 必须保持 NULL, 不能塌成 0 ----
 assert cast(0.03869, "pct") == 3.869          # 比值 → 百分数
@@ -113,5 +114,121 @@ assert should_page(200, 200) == [0]
 assert should_page(0, 200) == [0]
 assert should_page(None, 200) == [0]
 assert should_page(3, 0) == [0, 1, 2]      # page_size 被夹到 1, 不能除零
+
+# ---- 人群层: 一个 (单元,人群) 节点 → 一行 promo_cost_item_daily ----
+CROWD_INFO = {"charge": 9.81, "adPv": 100.0, "click": 3.0, "ctr": 0.03, "ecpc": 3.27,
+              "ecpm": 98.1, "alipayInshopAmt": 0.0, "alipayInshopNum": 0.0,
+              "cartInshopNum": 1.0, "itemColInshopNum": 0.0, "shopColDirNum": 0.0,
+              "colNum": 0.0, "itemColCart": 0.0, "addNewUv": 0,
+              "adgroupId": 83440680802, "adgroupName": "纯色轻奢皮草外套女秋冬韩版立领慵懒风",
+              "crowdName": "三级女30_34L4"}
+CROWD_ROW = {"adgroupId": 83440680802, "campaignId": 83392643008, "crowdId": 29063497481,
+             "onlineStatus": 1, "crowdInterval": "< 5%", "price": {"discount": 300},
+             "crowd": {"crowdName": "三级女30_34L4", "crowdValue": "108087233",
+                       "label": {"optionList": [{"optionDesc": "30-34岁"}]}},
+             "reportInfoList": [CROWD_INFO]}
+CADG = {"adgroupId": 83440680802, "adgroupName": "纯色轻奢皮草外套女秋冬韩版立领慵懒风",
+        "campaignId": 83392643008, "campaignName": "6脉之D标准自选词控点击拉新",
+        "material": {"materialId": 1072639258886}}
+
+crow, creason = map_crowd_row(CROWD_ROW, CADG, "2026-10-11", 1, "keyword",
+                              "alimama-crowd:onebpSearch")
+assert creason is None and crow is not None
+assert crow["dimension"] == "crowd"
+assert crow["plan_type"] == "keyword"                   # 不是 'crowd'(那是产品线名)
+assert crow["entity_key"] == "83440680802:29063497481"  # 复合键, crowdId 单用不唯一
+assert crow["entity_id"] == "29063497481"
+assert crow["entity_name"] == "三级女30_34L4"
+assert crow["item_id"] == "1072639258886"               # item_id 来自单元(material)
+assert crow["item_name"] == CADG["adgroupName"]
+assert crow["unit_id"] == "83440680802"
+assert crow["campaign_id"] == "83392643008"
+assert crow["report_source"] == "alimama-crowd:onebpSearch"
+assert crow["charge"] == 9.81 and crow["click"] == 3 and crow["ad_pv"] == 100
+assert crow["ctr_percent"] == 3.0
+assert crow["raw_json"].find("crowdInterval") >= 0 and crow["raw_json"].find("discount") >= 0
+
+# reportInfoList 空 / 没有 charge 键 → 当天该人群没投放数据, 不写 0 行
+assert map_crowd_row({"adgroupId": 1, "crowdId": 2, "reportInfoList": None},
+                     CADG, "d", 1, "keyword", "s")[1] == "no_data"
+assert map_crowd_row({"adgroupId": 1, "crowdId": 2, "reportInfoList": [{"roi7d": 0}]},
+                     CADG, "d", 1, "keyword", "s")[1] == "no_data"
+# 缺 crowdId(复合键少一半) → 跳过
+assert map_crowd_row({"adgroupId": 1, "reportInfoList": [CROWD_INFO]},
+                     CADG, "d", 1, "keyword", "s")[1] == "no_crowd_id"
+# 计划 id 在 crowd 行与 adgroup 上都没有 → 跳过
+BARE = {"adgroupId": 1, "adgroupName": "x", "material": {"materialId": 111}}
+assert map_crowd_row({"adgroupId": 1, "crowdId": 2, "reportInfoList": [CROWD_INFO]},
+                     BARE, "d", 1, "keyword", "s")[1] == "no_campaign"
+# 单元连 item_id 都拿不到 → 跳过
+assert map_crowd_row(CROWD_ROW, {"adgroupName": "x"},
+                     "d", 1, "keyword", "s")[1] == "no_item_id"
+
+# ---- 人群请求体: sourceList 必须在 rptQuery.conditionList 里, 且不给 adgroupIdList ----
+cb = crowd_body({"body": {"csrfId": "C", "loginPointId": "L"}},
+                "onebpSearch", 83392643008, "2026-10-11", 0, 500)
+assert cb["rptQuery"]["conditionList"][0]["sourceList"] == ["adgroup_detail", "crowd_list"]
+assert "adgroupIdList" not in cb
+assert cb["campaignIdList"] == ["83392643008"]
+assert cb["csrfId"] == "C" and cb["loginPointId"] == "L"
+assert cb["rptQuery"]["conditionList"][0]["isRt"] is False
+
+# ---- level 门 ----
+assert wants_item("item") and wants_item("both") and wants_item("crowd") and wants_item("all")
+assert not wants_item("campaign")
+assert wants_crowd("crowd") and wants_crowd("all")
+assert not wants_crowd("campaign") and not wants_crowd("item") and not wants_crowd("both")
+
+# ---- 词层: 一个 (单元,词) 节点 → 一行 promo_cost_item_daily ----
+# fixture 是按「与 crowd 层同构」的预期形态编的; 探针(Task 1)若发现字段名不同,
+# 这里和 word_of/word_body 一起改 —— 两条必须同步, 否则单测绿了采集还是错。
+WORD_INFO = {"charge": 5.4, "adPv": 60.0, "click": 7.0, "ctr": 0.1167, "ecpc": 0.7714,
+             "alipayInshopAmt": 0.0, "alipayInshopNum": 0.0, "cartInshopNum": 1.0,
+             "itemColInshopNum": 1.0, "colNum": 1.0, "bidwordId": 987654321,
+             "word": "皮草外套女"}
+WORD_ROW = {"adgroupId": 83440680802, "campaignId": 84290744044, "bidwordId": 987654321,
+            "word": "皮草外套女", "matchScope": 4, "reportInfoList": [WORD_INFO]}
+WADG = {"adgroupId": 83440680802, "adgroupName": "纯色轻奢皮草外套女秋冬韩版立领慵懒风",
+        "campaignId": 84290744044, "campaignName": "6脉之E标准词提价拉新",
+        "material": {"materialId": 1072639258886}}
+
+wrow, wreason = map_word_row(WORD_ROW, WADG, "2026-10-17", 1, "keyword",
+                             "alimama-keyword:onebpSearch")
+assert wreason is None and wrow is not None
+assert wrow["dimension"] == "keyword"
+assert wrow["entity_key"] == "83440680802:皮草外套女"   # 复合键: 同词多单元不互踩
+assert wrow["entity_id"] == "987654321"
+assert wrow["entity_name"] == "皮草外套女"
+assert wrow["item_id"] == "1072639258886"               # item_id 来自单元(material)
+assert wrow["unit_id"] == "83440680802"
+assert wrow["campaign_id"] == "84290744044"
+assert wrow["report_source"] == "alimama-keyword:onebpSearch"
+assert wrow["charge"] == 5.4 and wrow["click"] == 7 and wrow["cpc"] == 0.7714
+# 没有词文本 → 键不完整, 跳过
+assert map_word_row({"adgroupId": 1, "campaignId": 2, "reportInfoList": [WORD_INFO]},
+                    WADG, "d", 1, "keyword", "s")[1] == "no_word"
+# 空 reportInfoList / 无 charge 键 = 当天没投放, 不写 0 行(与 item/crowd 同口径)
+assert map_word_row({"adgroupId": 1, "bidwordId": 2, "word": "w", "reportInfoList": None},
+                    WADG, "d", 1, "keyword", "s")[1] == "no_data"
+assert map_word_row({"adgroupId": 1, "bidwordId": 2, "word": "w",
+                     "reportInfoList": [{"roi7d": 0}]},
+                    WADG, "d", 1, "keyword", "s")[1] == "no_data"
+# 单元拿不到 item_id → 跳过
+assert map_word_row(WORD_ROW, {"adgroupName": "x"}, "d", 1, "keyword", "s")[1] == "no_item_id"
+
+# ---- 词请求体: sourceList 必须在 rptQuery.conditionList 里; 逐单元传 adgroupIdList(实测必填) ----
+wb = word_body({"body": {"csrfId": "C", "loginPointId": "L"}},
+               "onebpSearch", 84290744044, "2026-10-17", 0, 500, 83440680802)
+assert wb["rptQuery"]["conditionList"][0]["sourceList"] == ["adgroup_detail", "bidword_list"]
+assert wb["campaignIdList"] == ["84290744044"]
+assert wb["adgroupIdList"] == ["83440680802"]
+assert wb["csrfId"] == "C" and wb["loginPointId"] == "L"
+assert wb["rptQuery"]["conditionList"][0]["isRt"] is False
+
+# ---- level 门: word 含在 all 里; word 依赖 item(要 join 单元拿 item_id) ----
+assert wants_word("word") and wants_word("all")
+assert not wants_word("campaign") and not wants_word("item")
+assert not wants_word("crowd") and not wants_word("both")
+assert wants_item("word")
 
 print("OK: collect_alimama_promo 纯函数全部断言通过")

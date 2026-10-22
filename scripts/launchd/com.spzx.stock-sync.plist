@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 2026-10-19 改造（spec schedule-optimization §3/§5）：库存同步写操作收敛——
+     日常唯一写在 03:00 夜窗链（com.spzx.stock-refresh → run_night_window.sh 链内 run_stock_sync.sh）；
+     本作业 19:30 改为事件驱动补偿（run_stock_event_sync.sh）：当天新写库存类告警或当日无
+     success 批次才拉 Chrome 补跑，无事件不拉 Chrome 不写台账。原 05:30/12:30/19:30 三时刻废止。
+     ⚠️ 读取用 `plutil -extract <kp> xml1 -o - <f>`；写改一律整体重写 XML。 -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.spzx.stock-sync</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing/run_stock_event_sync.sh</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>19</integer>
+        <key>Minute</key>
+        <integer>30</integer>
+    </dict>
+
+    <key>Nice</key>
+    <integer>5</integer>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>LANG</key>
+        <string>en_US.UTF-8</string>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/qyk9527/ideaProject/spzx-parent/automation/sourcing</string>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/stock_sync_launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/stock_sync_launchd.log</string>
+</dict>
+</plist>

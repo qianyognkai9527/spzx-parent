@@ -42,6 +42,10 @@ done
 DUMPCNF="$(mktemp -t spzx_restore_cnf)"; chmod 600 "$DUMPCNF"
 grep -vE '^\s*database\s*=' "$CNF" > "$DUMPCNF"
 q() { "$MYSQL" --defaults-extra-file="$DUMPCNF" -N -s -e "$1" 2>/dev/null; }
+# q 吞掉所有错误：表不存在时返回空串。判据必须把空串当失败，否则"表整个丢了"会显示成
+# "dump 行，真库 18 行"这种半句话——2026-10-08 红灯自证就是这么溜过去的。
+cell() { local v; v="$(q "$1")"; if [ -z "$v" ]; then echo "__MISSING__"; else echo "$v"; fi; }
+num() { case "$1" in (''|*[!0-9]*) echo -1;; (*) echo "$1";; esac; }
 
 EXISTS="$(q "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name='$SCRATCH';")"
 [ "$EXISTS" = 0 ] || die "临时库 $SCRATCH 已经存在（谁建的？先人工确认再重跑），本次不动它"
@@ -66,15 +70,31 @@ if ! gunzip -c "$DUMP" | "$MYSQL" --defaults-extra-file="$DUMPCNF" --default-cha
 fi
 
 fail=0
+# 参照物必须是**真库的表清单**，不是 dump 自己声明的条数。
+# 上一版拿 dump 的 CREATE TABLE 数当基准，等于自己跟自己对账：
+# 2026-10-08 用一份被删掉 41 张表的 dump 试，它照样报"表数一致 71/71，可以恢复"。
+LIVE_TABLES="$(q "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$SRC_DB' AND table_type='BASE TABLE';")"
 GOT="$(q "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$SCRATCH' AND table_type='BASE TABLE';")"
-if [ "$GOT" != "$TABLES_IN_DUMP" ]; then echo "  ✗ 表数不符：还原后 $GOT，dump 声明 $TABLES_IN_DUMP"; fail=1
-else echo "  ok 表数一致：$GOT/$TABLES_IN_DUMP"; fi
+if [ "$GOT" != "$LIVE_TABLES" ]; then echo "  ✗ 表数不符：还原后 $GOT 张，真库有 $LIVE_TABLES 张"; fail=1
+else echo "  ok 表数与真库一致：$GOT/$LIVE_TABLES"; fi
+
+# 清单逐个比（数目相同也可能是少 A 多 B）
+MISSING="$(q "SELECT GROUP_CONCAT(t.table_name) FROM information_schema.tables t
+  WHERE t.table_schema='$SRC_DB' AND t.table_type='BASE TABLE'
+    AND NOT EXISTS (SELECT 1 FROM information_schema.tables s
+                    WHERE s.table_schema='$SCRATCH' AND s.table_name=t.table_name);")"
+if [ -n "${MISSING:-}" ] && [ "$MISSING" != "NULL" ]; then
+  echo "  ✗ 还原后缺这些表：$MISSING"; fail=1
+fi
+if [ "$GOT" != "$TABLES_IN_DUMP" ]; then
+  echo "  ·  dump 里写了 $TABLES_IN_DUMP 条 CREATE TABLE，还原后 $GOT 张（有表被重建过，正常）"
+fi
 
 GOTR="$(q "SELECT COUNT(*) FROM information_schema.routines WHERE routine_schema='$SCRATCH';")"
 GOTE="$(q "SELECT COUNT(*) FROM information_schema.events WHERE event_schema='$SCRATCH';")"
-if [ "$GOTR" != "$ROUTINES_IN_DUMP" ]; then echo "  ✗ 存储过程/函数：还原后 $GOTR，dump 声明 $ROUTINES_IN_DUMP"; fail=1
+if [ "$GOTR" != "$ROUTINES_IN_DUMP" ]; then echo "  ✗ 存储过程/函数：还原后 ${GOTR}，dump 声明 $ROUTINES_IN_DUMP"; fail=1
 else echo "  ok 存储过程/函数：$GOTR 个"; fi
-if [ "$GOTE" != "$EVENTS_IN_DUMP" ]; then echo "  ✗ 事件：还原后 $GOTE，dump 声明 $EVENTS_IN_DUMP（事件丢了，恢复出来的库不会自己跑定时作业）"; fail=1
+if [ "$GOTE" != "$EVENTS_IN_DUMP" ]; then echo "  ✗ 事件：还原后 ${GOTE}，dump 声明 ${EVENTS_IN_DUMP}（事件丢了，恢复出来的库不会自己跑定时作业）"; fail=1
 else echo "  ok 事件：$GOTE 个"; fi
 
 # 中文没二次编码才算真的能用（历史上栽过一次：dump 不带 utf8mb4 → 恢复出来全是问号）
@@ -82,12 +102,15 @@ CJK="$(q "SELECT COUNT(*) FROM \`$SCRATCH\`.ingest_dataset WHERE name LIKE '%采
 [ "${CJK:-0}" != 0 ] && echo "  ok 中文可读：ingest_dataset 里按中文关键词命中 $CJK 行" \
   || { echo "  ✗ ingest_dataset 里查不到中文关键词 → 字符集或内容有问题"; fail=1; }
 
-# 抽几张关键表跟真库当场比：数目差得多 = 备份没备全；差异是这几天新写的 = 正常漂移
+# 抽几张关键表跟真库当场比：差很多 = 没备全；差几行且真库更多 = 备份之后新写的，正常漂移
 for t in platform_product ingest_batch ingest_dataset sync_alert promo_cost_daily promo_plan; do
-  a="$(q "SELECT COUNT(*) FROM \`$SRC_DB\`.\`$t\`;")"
-  b="$(q "SELECT COUNT(*) FROM \`$SCRATCH\`.\`$t\`;")"
-  if [ "$a" = "$b" ]; then echo "  ok $t：$b 行（与真库一致）"
-  else echo "  ·  $t：dump $b 行，真库现在 $a 行（差 $((a - b))，看是不是备份之后新写的）"; fi
+  a="$(num "$(q "SELECT COUNT(*) FROM \`$SRC_DB\`.\`$t\`;")")"
+  b="$(num "$(cell "SELECT COUNT(*) FROM \`$SCRATCH\`.\`$t\`;")")"
+  if [ "$b" = "-1" ] || [ "$a" = "-1" ]; then
+    echo "  ✗ $t 在两边不是都能查到（真库 $a / 还原 ${b}）——表丢了或改名了"; fail=1
+  elif [ "$a" = "$b" ]; then echo "  ok ${t}：$b 行（与真库一致）"
+  elif [ "$b" -gt "$a" ]; then echo "  ✗ ${t}：还原出 $b 行比真库 $a 行还多 → 还原过程或基准有问题"; fail=1
+  else echo "  ·  ${t}：dump $b 行，真库现在 $a 行（差 $((a - b))，备份之后新写的）"; fi
 done
 
 [ "$fail" = 0 ] || die "还原校验有不合格项（上面打 ✗ 的）"
