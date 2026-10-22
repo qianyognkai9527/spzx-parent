@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+**状态：✅ 已全部完成（2026-10-23）。** L1/L2 通过，native 启动 0.405s / RSS 212MB（JVM 基线 2.62s / 556MB）。实测与踩坑见 spec §8。过程中关键修正：GraalVM 升到 21.0.12；spring-data-redis 的 provided scope 是 lambda 折叠失败根因；agent 配置必须避开 Boot AOT 输出目录；运行需 `-Dslf4j.provider=...logback...` 与 `--spring.web.resources.add-mappings=false` 两个旗标。
+
 **Goal:** 用 GraalVM Native Image 把 spzx-manager 编译成原生二进制，做到完整启动 + 核心只读接口可用，并产出与 `java -jar` 的启动/内存对比数据。
 
 **Architecture:** Spring Boot 官方 AOT 路线：spzx-manager 加默认不激活的 `native` profile（native-maven-plugin + process-aot），反射配置由 tracing agent 对现成 jar 跑一轮采集自动生成，配置 JSON 按 META-INF 约定落进 resources。spec 见 `docs/superpowers/specs/2026-10-22-graalvm-native-image-trial-design.md`。
@@ -29,7 +31,7 @@
 **Interfaces:**
 - Produces: profile id `native`；Task 3 用 `mvn -Pnative` 触发；配置 JSON 目录 `spzx-manager/src/main/resources/META-INF/native-image/com.joker/spzx-manager/`（Task 2 产出）
 
-- [ ] **Step 1: 确认无并发 maven 后，在 pom.xml 的 `</build>` 之后、`</project>` 之前插入 profiles 节**
+- [x] **Step 1: 确认无并发 maven 后，在 pom.xml 的 `</build>` 之后、`</project>` 之前插入 profiles 节**
 
 ```xml
     <profiles>
@@ -82,7 +84,7 @@
 
 （版本不用写：spring-boot-starter-parent 3.3.5 的 pluginManagement 已管理 native-maven-plugin；profile 内的 spring-boot 插件执行会与主 `<build>` 里的同名插件合并。）
 
-- [ ] **Step 2: 验证 profile 可激活且构建仍通过**
+- [x] **Step 2: 验证 profile 可激活且构建仍通过**
 
 ```bash
 export PATH="/Applications/IntelliJ IDEA.app/Contents/plugins/maven/lib/maven3/bin:$PATH"
@@ -92,7 +94,7 @@ mvn compile -pl spzx-manager -am -q
 
 Expected: Active Profiles 列出 `native`；compile 静默通过（不带 `-Pnative` 时 profile 不激活，JVM 构建零影响）。
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add spzx-manager/pom.xml
@@ -111,7 +113,7 @@ git commit -m "build: spzx-manager 增加 native profile（GraalVM 试验，默�
 - Consumes: Task 1 的 profile id（本任务不用 native profile，只产 jar）
 - Produces: `spzx-manager/target/spzx-manager.jar`；JSON 配置目录（Task 3 编译时被 native-image 自动拾取）
 
-- [ ] **Step 1: 构建 JVM jar（仓库既有打包命令）**
+- [x] **Step 1: 构建 JVM jar（仓库既有打包命令）**
 
 ```bash
 export PATH="/Applications/IntelliJ IDEA.app/Contents/plugins/maven/lib/maven3/bin:$PATH"
@@ -121,7 +123,7 @@ ls -lh spzx-manager/target/spzx-manager.jar
 
 Expected: jar 存在且比 src/main 新。
 
-- [ ] **Step 2: 前置检查（端口 + Redis + 无并发 maven）**
+- [x] **Step 2: 前置检查（端口 + Redis + 无并发 maven）**
 
 ```bash
 lsof -ti:8511 && echo "8511 被占，先处理" || echo "8511 空闲"
@@ -131,7 +133,7 @@ pgrep -fl maven || echo "无并发 maven"
 
 Expected: 8511 空闲、PONG、无并发。
 
-- [ ] **Step 3: 用 GraalVM 的 java 带 agent 起服务（后台，日志落 /tmp）**
+- [x] **Step 3: 用 GraalVM 的 java 带 agent 起服务（后台，日志落 /tmp）**
 
 ```bash
 GRAALVM=/Users/qyk9527/Library/Java/JavaVirtualMachines/graalvm-jdk-21.0.7/Contents/Home
@@ -143,7 +145,7 @@ mkdir -p spzx-manager/src/main/resources/META-INF/native-image/com.joker/spzx-ma
 echo $! > /tmp/spzx_agent_run.pid
 ```
 
-- [ ] **Step 4: 等 20 秒，确认启动成功**
+- [x] **Step 4: 等 20 秒，确认启动成功**
 
 ```bash
 sleep 20
@@ -152,7 +154,7 @@ grep -c 'Started ManagerApplication' /tmp/spzx_agent_run.log
 
 Expected: 输出 1。若 0：`tail -50 /tmp/spzx_agent_run.log` 看异常再处理。
 
-- [ ] **Step 5: 走 wx mock 登录拿 token，再踩 4 个只读 GET**
+- [x] **Step 5: 走 wx mock 登录拿 token，再踩 4 个只读 GET**
 
 ```bash
 TICKET=$(curl -s -X POST http://localhost:8511/admin/system/index/wxLogin/create \
@@ -170,7 +172,7 @@ done
 
 Expected: token 非空（JSON 解析失败 → 走 Task 4 的后备登录）；4 个接口返回 `{"code":200,...}` 或等价成功 JSON。这一步会把 MP lambda wrapper、fastjson2、Redis、mapper XML 全踩到，agent 全程记录。
 
-- [ ] **Step 6: 优雅停机（agent 在 JVM 退出时才写盘）**
+- [x] **Step 6: 优雅停机（agent 在 JVM 退出时才写盘）**
 
 ```bash
 kill $(cat /tmp/spzx_agent_run.pid)
@@ -180,7 +182,7 @@ ls spzx-manager/src/main/resources/META-INF/native-image/com.joker/spzx-manager/
 
 Expected: 出现 `reflect-config.json`、`resource-config.json`、`proxy-config.json`、`jni-config.json` 等文件。
 
-- [ ] **Step 7: 验配置抓到了关键类 + 防 filtering 破坏**
+- [x] **Step 7: 验配置抓到了关键类 + 防 filtering 破坏**
 
 ```bash
 grep -l 'SysUser' spzx-manager/src/main/resources/META-INF/native-image/com.joker/spzx-manager/reflect-config.json
@@ -190,7 +192,7 @@ grep -rn '\${' spzx-manager/src/main/resources/META-INF/native-image/com.joker/s
 
 Expected: 前两条有命中；第三条**无输出**。若出现 `${`：resources filtering 会破坏这些 JSON，需在 pom `<resources>` 里给 `META-INF/native-image/**` 加一条 filtering=false 的前置 resource 规则，重跑 Task 2。
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add spzx-manager/src/main/resources/META-INF/native-image/
@@ -209,14 +211,14 @@ git commit -m "build: tracing agent 采集 native 反射/资源/代理配置"
 - Consumes: Task 1 的 profile、Task 2 的配置 JSON
 - Produces: `spzx-manager/target/spzx-manager` 可执行文件（Task 4/5 使用）
 
-- [ ] **Step 1: 前置检查（无并发 maven；机器空闲内存 ≥8G）**
+- [x] **Step 1: 前置检查（无并发 maven；机器空闲内存 ≥8G）**
 
 ```bash
 pgrep -fl maven || echo "无并发 maven"
 memory_pressure | head -2
 ```
 
-- [ ] **Step 2: GraalVM 作 JAVA_HOME 编译（预计 5-15 分钟，峰值 6-8G 内存）**
+- [x] **Step 2: GraalVM 作 JAVA_HOME 编译（预计 5-15 分钟，峰值 6-8G 内存）**
 
 ```bash
 export PATH="/Applications/IntelliJ IDEA.app/Contents/plugins/maven/lib/maven3/bin:$PATH"
@@ -229,7 +231,7 @@ Expected: `BUILD SUCCESS`，`spzx-manager` 二进制存在（几十 MB）。构�
 **注意**：`-pl spzx-manager -am` 下上游模块（spzx-model/common-*）不受 `-Pnative` 影响——本仓的 native profile 只定义在 spzx-manager 自己的 pom 里，上游模块即使继承了 Boot parent 的同名 profile 也只是 pluginManagement、无执行。
 **其它构建期错误**（如某库静态初始化/反射缺配置）：按报错类名在 Task 2 的配置 JSON 里手补条目后重编；补的条目随该文件一起 commit。
 
-- [ ] **Step 3（后备，仅 Step 2 报 RestartClassLoader/devtools 相关错时）: 临时注释 devtools 重编**
+- [x] **Step 3（后备，仅 Step 2 报 RestartClassLoader/devtools 相关错时）: 临时注释 devtools 重编**
 
 在 `spzx-manager/pom.xml` 注释掉：
 
@@ -245,7 +247,7 @@ Expected: `BUILD SUCCESS`，`spzx-manager` 二进制存在（几十 MB）。构�
 
 然后重跑 Step 2。**Task 5 收尾时必须恢复此依赖**并在恢复后跑一次 `mvn compile -pl spzx-manager -am -q` 验证。
 
-- [ ] **Step 4（后备，仅构建期报 ClickHouse/ES 静态初始化错时）: 依赖挪进 infra profile**
+- [x] **Step 4（后备，仅构建期报 ClickHouse/ES 静态初始化错时）: 依赖挪进 infra profile**
 
 把 ES、ClickHouse 两个 `<dependency>` 从主 `<dependencies>` 挪进新 profile：
 
@@ -274,7 +276,7 @@ Expected: `BUILD SUCCESS`，`spzx-manager` 二进制存在（几十 MB）。构�
 
 native 编译命令改为 `mvn -Pnative,!infra -pl spzx-manager -am package -DskipTests`。**此改动是永久性的**（main pom 里依赖变 profile），commit 时说明原因；JVM 构建默认仍带这两个依赖（activeByDefault），行为不变。
 
-- [ ] **Step 5: Commit（若 Step 3/4 动了 pom；无改动则跳过）**
+- [x] **Step 5: Commit（若 Step 3/4 动了 pom；无改动则跳过）**
 
 ```bash
 git add spzx-manager/pom.xml
@@ -292,7 +294,7 @@ git commit -m "build: native 构建适配（按实际构建错误调整）"
 - Consumes: Task 3 的 `spzx-manager/target/spzx-manager` 二进制
 - Produces: 验证记录（写进 Task 5 回填 spec 的素材）
 
-- [ ] **Step 1: 起 native 二进制（8511，后台，日志落 /tmp）**
+- [x] **Step 1: 起 native 二进制（8511，后台，日志落 /tmp）**
 
 ```bash
 lsof -ti:8511 && echo "8511 被占" || true
@@ -312,7 +314,7 @@ sleep 50 && kill -0 $(cat /tmp/spzx_native_run.pid) && echo "L1 通过：进程�
 
 注：口令不需要环境变量——`application-local.yml`（gitignore，classpath 内）经 `spring.config.import` 自动生效，与 java -jar 同机制。MinIO 未启动 → 启动日志可能有上传相关 WARN，属预期，不算失败。
 
-- [ ] **Step 2: 验证码登录（Task 2 实测走通的主路）+ 4 个只读 GET**
+- [x] **Step 2: 验证码登录（Task 2 实测走通的主路）+ 4 个只读 GET**
 
 wx mock 链路已证实走不通（mockConfirm 每票随机 openid → status 必落 5 请绑定），**不再使用**。主路 = genVarifyCode + Redis 取验证码 + 账号密码登录（admin 口令 md5=123456，本机 dev 库 sys_user 实测）：
 
@@ -334,7 +336,7 @@ done
 
 Expected: token 非空；4 个接口全部 200，且返回体 code=200（抽查 `curl -s ... | head -c 200` 与 JVM 版输出结构一致）。**L2 通过** = 登录 + 4 接口全通。
 
-- [ ] **Step 3b（仅启动期 springdoc/knife4j bean 报错时）: 禁用 API 文档重启**
+- [x] **Step 3b（仅启动期 springdoc/knife4j bean 报错时）: 禁用 API 文档重启**
 
 ```bash
 kill $(cat /tmp/spzx_native_run.pid)
@@ -346,7 +348,7 @@ echo $! > /tmp/spzx_native_run.pid
 
 不影响 L1/L2 判定（doc.html 不在验收范围）。
 
-- [ ] **Step 4: 停掉二进制，记录素材**
+- [x] **Step 4: 停掉二进制，记录素材**
 
 ```bash
 kill $(cat /tmp/spzx_native_run.pid)
@@ -369,7 +371,7 @@ grep -E 'Started ManagerApplication' /tmp/spzx_native_run.log | tail -1
 - Consumes: Task 2 的 jar、Task 3 的二进制、Task 4 的记录
 - Produces: spec §8 对比表；台账一行
 
-- [ ] **Step 1: java -jar 基线重测（同口径 8511）**
+- [x] **Step 1: java -jar 基线重测（同口径 8511）**
 
 ```bash
 lsof -ti:8511 && echo "8511 被占" || true
@@ -384,7 +386,7 @@ kill $(cat /tmp/spzx_jvm_baseline.pid)
 
 Expected: 记下秒数与 RSS（与 Task 4 的 native 数据同口径对比）。
 
-- [ ] **Step 2: 恢复 devtools（若 Task 3 注释过）+ 编译验证**
+- [x] **Step 2: 恢复 devtools（若 Task 3 注释过）+ 编译验证**
 
 恢复 pom 里被注释的 devtools 依赖（去掉注释标记），跑：
 
@@ -395,7 +397,7 @@ mvn compile -pl spzx-manager -am -q
 
 Expected: 静默通过。
 
-- [ ] **Step 3: spec §8 回填对比表**
+- [x] **Step 3: spec §8 回填对比表**
 
 按实测写 `docs/superpowers/specs/2026-10-22-graalvm-native-image-trial-design.md` 第 8 节，格式：
 
@@ -416,7 +418,7 @@ Expected: 静默通过。
 - 踩坑记录：…
 ```
 
-- [ ] **Step 4: 台账留痕 + Commit**
+- [x] **Step 4: 台账留痕 + Commit**
 
 ```bash
 python3 scripts/log_work.py --module "系统" --title "GraalVM Native Image 试验（spzx-manager）" \

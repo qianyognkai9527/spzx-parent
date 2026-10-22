@@ -91,4 +91,39 @@ native image 的确定性收益是**启动时间**（预计 4.4s → 1s 上下�
 
 ## 8. 实测结果
 
-（待实施后回填）
+日期：2026-10-22 ~ 10-23；GraalVM：Oracle 21.0.7（计划用）→ **21.0.12**（升级后实测，两者行为一致，非版本 bug）
+
+| 指标 | java -jar（基线，当日重测） | native 二进制 | 差值 |
+|---|---|---|---|
+| 启动耗时（Started 行） | 2.62 s | **0.405 s** | **-85%** |
+| RSS 常驻内存 | 556 MB（568,928 KB） | **212 MB（216,768 KB）** | **-62%** |
+| 产物体积 | jar 132 MB | 二进制 256 MB（未 strip） | — |
+
+- L1 完整启动：**通过**（60s 存活）
+- L2 核心接口：**通过**（验证码登录拿 token，kpi / effectTrend / taskAnomalies / recentLogs 全部 code:200 带真实数据）
+- L3 对比：见上表
+- 构建耗时：每次 8~11 分钟（峰值 RSS ~6GB）；devtools 后备触发过（注释构建、Task 5 已恢复）；infra 后备未触发
+- 运行旗标：`-Dslf4j.provider=ch.qos.logback.classic.spi.LogbackServiceProvider --spring.web.resources.add-mappings=false`（前者强制 logback，后者避开 webjars ClassGraph；见踩坑 3/9）
+
+### 踩坑记录（按排查顺序，均为 2026-10-22/23 实测）
+
+1. **fastjson2 build-time init**：fastjson2 自带元数据把 JSONFactory 标 build-time，连带初始化两个含 Unsafe 的 PropertyAccessorFactory 报错 → pom buildArgs 显式 `--initialize-at-build-time` 放行这两个类。
+2. **Boot `process-aot` 覆盖 agent 配置（最大坑）**：`META-INF/native-image/com.joker/spzx-manager/` 正是 Boot AOT 自己的输出路径，process-aot 生成的 reflect-config（1350 条）会**覆盖** agent 采的（2611 条，丢 1610 条；resource-config 75KB→4KB）。**agent 配置必须放别的目录**（现 `com.joker/spzx-manager-agent/`，native-image 会合并所有 `META-INF/native-image/**`）。agent JSON 里 `jdk.internal.*`/`java.lang.ClassLoader`/`com.oracle.*`/`org.webjars.*` 条目已手工剔除（纯负担）。
+3. **SLF4J 在 native 里选中 log4j2 provider**（与 JVM 相反，ServiceLoader 注册序不同），且 log4j-slf4j2-impl 与 log4j-to-slf4j 同在必然 `LoggingException` → 运行期 `-Dslf4j.provider=ch.qos.logback.classic.spi.LogbackServiceProvider` 强制 logback（比实验性 `-H:ServiceLoaderFeatureExcludeServiceProviders` 干净）。
+4. **spring-data-redis 是 provided scope（根因级）**：Boot 打包把 provided 塞进 fat jar（JVM 能跑），native-image 用 runtime classpath **不含 provided** → spring-data 全家进不了 image → 它们的 AOT `__BeanDefinitions` 类 lambda 全部不折叠 → 运行期 `NoSuchMethodError: java.lang.invoke.MethodHandle.get()`。已改 compile scope（JVM 行为不变）。
+5. **构建期单例折叠把宿主 classloader 拖进 image heap**（ZipFile in image heap 构建失败）：hutool `ConverterRegistry$SingletonHolder`、mybatis-plus `MybatisPlusProperties`/`GlobalConfig`/`AbstractSqlInjector` 等被静态 final 折叠 → `--initialize-at-run-time` 逐个推迟（含 spring `ResourceChainRegistration`）。
+6. **MyBatis `LogFactory.logConstructor`**：静态 Constructor 字段若构建期初始化会被 reset → `--initialize-at-run-time=org.apache.ibatis.logging.LogFactory`。
+7. **`@Configuration(proxyBeanMethods=true)` 的 CGLIB 运行期增强在 native 不可用** → 全部改 `proxyBeanMethods=false`（Bean 方法间无互调，行为不变；也是 Spring AOT 官方建议）。
+8. **@Lazy 自注入 + AOP 代理（Spring #30985）**：AOT 下 lazy 代理与 AOP 代理抢同一个 `$$SpringCGLIB$$0` 名字，回调布局不同 → `ClassCastException: SerializableNoOp cannot be cast to Dispatcher`。`WxLoginServiceImpl` 自注入改 `ObjectProvider`（@Lazy 会炸、直接 @Autowired 是循环引用）。
+9. **mybatis-spring scanner 与 Spring AOT 不兼容（两处）**：mapper 定义构造参数是字符串类名，AOT 的 RegisteredBean 参数解析不做 String→Class 转换；且 targetType 是裸 `MapperFactoryBean`（无泛型），by-type 注入匹配不上。`NativeCompatConfig` 的 BFPP 在运行期把 String 换成 `mapperInterface` 属性里的 Class，并把 targetType 补成带泛型。
+10. **webjars ClassGraph 扫描**：springdoc 的 `SwaggerWebMvcConfigurer` 注册的资源链会被 Spring 自动补 `WebJarsResourceResolver`，其 `WebJarAssetLocator` 走 ClassGraph 扫 jar，native 必炸。native 运行时用 BFPP 移除该 configurer（JVM 下 doc.html 不受影响）+ `--spring.web.resources.add-mappings=false`。
+11. **MyBatis-Plus lambda 序列化**：`LambdaUtils.extract` 靠 Java 序列化解析 SFunction → serialization-config 注册 `java.lang.invoke.SerializedLambda`，且 `lambdaCapturingTypes` 要登记**所有含 `$deserializeLambda$` 的外围类**（48 个，脚本生成）。
+12. **OGNL 读 wrapper 属性**：`ew.sqlSegment` 表达式走反射 → MP conditions/override/metadata 包的类要保留方法注册（agent 条目裁剪时误删过，已补回 extra 配置）。
+13. **AWT 不可用**：hutool 验证码（Graphics2D）在 native 报 `NoClassDefFoundError: java.awt.Color` → `genVarifyCode` 加 native 分支（随机码 + 1x1 占位 PNG，校验逻辑不变，前端不要在 native 模式用）。
+14. agent 补采 log4j2 路径、`UseOldMethodHandleIntrinsics`、`-H:-ParseOnce`、`@EnableCaching` 挪位等尝试均与根因无关（保留在探索记录里，未进最终方案）。
+
+### 遗留
+
+- 二进制 256MB 未 strip（`strip` 后预计显著变小，未验证）；graalvm-jdk-21.0.12 已解压至 `~/Library/Java/JavaVirtualMachines/graalvm-jdk-21.0.12+7.1/`（下载包 /tmp/graalvm21.tar.gz）。
+- native 运行需两个旗标（见上）；若做生产化，应把 SLF4J provider 与 webjars 处理固化进 profile/代码。
+- L2 只覆盖 4 个看板只读接口 + 登录链路；写接口、文件上传（MinIO 未起）、导出等未验证。
