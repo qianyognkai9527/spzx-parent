@@ -312,34 +312,27 @@ sleep 50 && kill -0 $(cat /tmp/spzx_native_run.pid) && echo "L1 通过：进程�
 
 注：口令不需要环境变量——`application-local.yml`（gitignore，classpath 内）经 `spring.config.import` 自动生效，与 java -jar 同机制。MinIO 未启动 → 启动日志可能有上传相关 WARN，属预期，不算失败。
 
-- [ ] **Step 2: 同 Task 2 Step 5 的 curl 序列验证 L2**
+- [ ] **Step 2: 验证码登录（Task 2 实测走通的主路）+ 4 个只读 GET**
+
+wx mock 链路已证实走不通（mockConfirm 每票随机 openid → status 必落 5 请绑定），**不再使用**。主路 = genVarifyCode + Redis 取验证码 + 账号密码登录（admin 口令 md5=123456，本机 dev 库 sys_user 实测）：
 
 ```bash
-TICKET=$(curl -s -X POST http://localhost:8511/admin/system/index/wxLogin/create \
-  | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['ticket'])")
-curl -s "http://localhost:8511/admin/system/index/wxLogin/mockScan?ticket=$TICKET" > /dev/null
-curl -s "http://localhost:8511/admin/system/index/wxLogin/mockConfirm?ticket=$TICKET" > /dev/null
-TOKEN=$(curl -s "http://localhost:8511/admin/system/index/wxLogin/status?ticket=$TICKET" \
+CODEKEY=$(curl -s http://localhost:8511/admin/system/index/genVarifyCode \
+  | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['codeKey'])")
+CODEVAL=$(redis-cli GET "user:login:validatecode:$CODEKEY")
+TOKEN=$(curl -s -X POST http://localhost:8511/admin/system/index/login \
+  -H 'Content-Type: application/json' \
+  -d "{\"userName\":\"admin\",\"password\":\"123456\",\"captcha\":\"$CODEVAL\",\"codeKey\":\"$CODEKEY\"}" \
   | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['token'])")
+echo "token=$TOKEN"
 for EP in kpi effectTrend taskAnomalies recentLogs; do
   echo "== $EP"; curl -s -o /dev/null -w '%{http_code}\n' -H "token: $TOKEN" "http://localhost:8511/admin/dashboard/$EP"
 done
 ```
 
-Expected: 4 个接口全部 200，且返回体 code=200（抽查 `curl -s ... | head -c 200` 与 JVM 版输出结构一致）。**L2 通过** = 登录 + 4 接口全通。
+注：`user:login:` 前缀来自 `Constant.USER_LOGIN_REDIS_PREFIX`；取不到验证码值就 `redis-cli --scan --pattern '*validatecode*'` 核对真实键。
 
-- [ ] **Step 3（后备登录，仅 Step 2 mock 链路失败时）: 账号密码 + Redis 读验证码**
-
-```bash
-CODEKEY=$(curl -s http://localhost:8511/admin/system/index/genVarifyCode \
-  | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['codeKey'])")
-CODEVAL=$(redis-cli GET "user:login:validatecode:$CODEKEY")   # Constant.USER_LOGIN_REDIS_PREFIX = "user:login:"，取不到就 redis-cli --scan --pattern '*validatecode*' 核对真实键
-curl -s -X POST http://localhost:8511/admin/system/index/login \
-  -H 'Content-Type: application/json' \
-  -d "{\"userName\":\"admin\",\"password\":\"<见 application-local.yml>\",\"captcha\":\"$CODEVAL\",\"codeKey\":\"$CODEKEY\"}"
-```
-
-Expected: 返回 token。若 redis-cli 取不到验证码值，`redis-cli --scan --pattern '*validatecode*'` 核对真实键前缀后重试。
+Expected: token 非空；4 个接口全部 200，且返回体 code=200（抽查 `curl -s ... | head -c 200` 与 JVM 版输出结构一致）。**L2 通过** = 登录 + 4 接口全通。
 
 - [ ] **Step 3b（仅启动期 springdoc/knife4j bean 报错时）: 禁用 API 文档重启**
 
@@ -361,6 +354,8 @@ grep -E 'Started ManagerApplication' /tmp/spzx_native_run.log | tail -1
 ```
 
 把 Started 行的秒数、Step 1 的 RSS、L1/L2 结果记进 /tmp/spzx_native_result.txt（Task 5 回填用）。
+
+（若走了 Step 3b，kill 前先记录带 --springdoc 禁用旗标这一事实，写进 Task 5 的坑位记录。）
 
 ---
 
