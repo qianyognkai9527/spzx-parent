@@ -1,0 +1,159 @@
+[
+  {
+    "name": "org.mybatis.spring.mapper.MapperFactoryBean",
+    "queryAllDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "com.baomidou.mybatisplus.annotation.IdTypeEditor"
+  },
+  {
+    "name": "com.baomidou.mybatisplus.annotation.TableName",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "com.baomidou.mybatisplus.core.MybatisXMLLanguageDriver",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.baomidou.mybatisplus.core.conditions.AbstractLambdaWrapper",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "com.baomidou.mybatisplus.core.conditions.AbstractWrapper",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "methods": [
+      {
+        "name": "getEntity",
+        "parameterTypes": []
+      },
+      {
+        "name": "getParamNameValuePairs",
+        "parameterTypes": []
+      },
+      {
+        "name": "getSqlComment",
+        "parameterTypes": []
+      },
+      {
+        "name": "getSqlFirst",
+        "parameterTypes": []
+      },
+      {
+        "name": "getSqlSegment",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.baomidou.mybatisplus.core.conditions.ISqlSegment",
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true
+  },
+  {
+    "name": "com.baomidou.mybatisplus.core.conditions.Wrapper",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "methods": [
+      {
+        "name": "isEmptyOfNormal",
+        "parameterTypes": []
+      },
+      {
+        "name": "isNonEmptyOfNormal",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.baomidou.mybatisplus.core.conditions.interfaces.Compare",
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true
+  },
+  {
+    "name": "com.baomidou.mybatisplus.core.conditions.interfaces.Func",
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true
+  },
+  {
+    "name": "com.baomidou.mybatisplus.core.conditions.interfaces.Join",
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true
+  },
+  {
+    "name": "com.baomidou.mybatisplus.core.conditions.interfaces.Nested",
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true
+  },
+  {
+    "name": "com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "getSqlSelect",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.baomidou.mybatisplus.core.conditions.query.Query",
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true
+  },
+  {
+    "name": "com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "getSqlSet",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.baomidou.mybatisplus.core.conditions.update.Update",
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true
+  },
+  {
+    "name": "com.baomidou.mybatisplus.core.metadata.IPage"
+  },
+  {
+    "name": "com.baomidou.mybatisplus.core.metadata.TableFieldInfo"
+  },
+  {
+    "name": "com.baomidou.mybatisplus.core.metadata.TableInfo"
+  },
+  {
+    "name": "com.baomidou.mybatisplus.core.override.MybatisMapperMethod"
+  },
+  {
+    "name": "com.baomidou.mybatisplus.core.override.MybatisMapperProxy"
+  },
+  {
+    "name": "com.baomidou.mybatisplus.core.override.MybatisMapperProxy$PlainMethodInvoker"
+  },
+  {
+    "name": "com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper"
+  },
+  {
+    "name": "com.baomidou.mybatisplus.extension.conditions.query.QueryChainWrapper"
+  },
+  {
+    "name": "com.baomidou.mybatisplus.extension.conditions.update.LambdaUpdateChainWrapper"
+  },
+  {
+    "name": "com.baomidou.mybatisplus.extension.conditions.update.UpdateChainWrapper"
+  }
+]

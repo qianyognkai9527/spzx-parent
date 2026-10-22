@@ -30,10 +30,13 @@
         </dependency>
 
         <!-- redis的起步依赖 -->
+        <!-- 注意不能是 provided：Boot 打包会把 provided 塞进 fat jar（JVM 能跑），
+             但 native-image 用 runtime classpath 不含 provided，spring-data 家族进不了
+             image，AOT 生成的 BeanDefinitions 引用缺失类型，lambda 折叠失败，
+             启动即 NoSuchMethodError: MethodHandle.get()（2026-10-22 GraalVM 试验实测） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
-            <scope>provided</scope>
         </dependency>
 
         <!-- mysql驱动 -->
@@ -118,6 +121,11 @@
                             <metadataRepository>
                                 <enabled>true</enabled>
                             </metadataRepository>
+                            <buildArgs>
+                                <buildArg>--initialize-at-build-time=com.alibaba.fastjson2.introspect.PropertyAccessorFactoryLambda,com.alibaba.fastjson2.introspect.PropertyAccessorFactoryUnsafe</buildArg>
+                                <buildArg>--initialize-at-run-time=org.springframework.web.servlet.config.annotation.ResourceChainRegistration,cn.hutool.core.convert.ConverterRegistry,org.apache.ibatis.logging.LogFactory,com.baomidou.mybatisplus.autoconfigure.MybatisPlusProperties,com.baomidou.mybatisplus.core.config.GlobalConfig,com.baomidou.mybatisplus.core.toolkit.GlobalConfigUtils,com.baomidou.mybatisplus.core.injector.AbstractSqlInjector,com.baomidou.mybatisplus.core.injector.DefaultSqlInjector</buildArg>
+                                <buildArg>-H:+PrintClassInitialization</buildArg>
+                            </buildArgs>
                         </configuration>
                         <executions>
                             <execution>

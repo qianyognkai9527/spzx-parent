@@ -1,0 +1,154 @@
+{
+  "types": [
+    {
+      "name": "java.lang.invoke.SerializedLambda"
+    }
+  ],
+  "lambdaCapturingTypes": [
+    {
+      "name": "com.joker.spzx.manager.controller.ExpenseTagController"
+    },
+    {
+      "name": "com.joker.spzx.manager.controller.KwProviderController"
+    },
+    {
+      "name": "com.joker.spzx.manager.controller.KwTaskController"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.expense.ExpenseGroupService"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.expense.ExpenseOrderService"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.expense.ExpensePeriodService"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.expense.ExpenseTagRuleService"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.expense.ExpenseTagService"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.MallAddOrderServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.MallOperServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.MallProductFactoryServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.MallProductPicVideoServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.MallProductServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.MallProductSkuServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.MallProductTitleServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.MallRefundRecordServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.NovelChapterServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.OrderBindServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.OrderInfoServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.OrderSourceRelationServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.ProductBindRelationServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.ProductServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.ProfitAnalysisRecordServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.SkuBindServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.SourceFactoryServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.SyncAlertServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.SysDictDataServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.SysDictTypeServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.SysMenuServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.SysRoleMenuServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.SysRoleServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.SysUserScheduleServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.SysUserScheduleTaskServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.SysUserServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.impl.WxLoginServiceImpl"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.ingest.IngestFreshnessService"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.kw.KwExportService"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.kw.KwProviderService"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.kw.KwTaskService"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.kw.KwWordbankService"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.platform.PlatformRegistryService"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.platform.ShopService"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.promo.PromoCostService"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.promo.PromoPlanService"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.videogen.VideoGenStartupReconciler"
+    },
+    {
+      "name": "com.joker.spzx.manager.service.videogen.VideoGenTaskService"
+    },
+    {
+      "name": "com.joker.spzx.manager.task.OrderStatisticsTask"
+    },
+    {
+      "name": "com.joker.spzx.manager.task.SyncAlertNotifyTask"
+    }
+  ],
+  "proxies": []
+}

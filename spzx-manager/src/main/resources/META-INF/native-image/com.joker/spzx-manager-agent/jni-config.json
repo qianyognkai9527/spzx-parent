@@ -1,0 +1,386 @@
+[
+  {
+    "name": "[Lsun.java2d.loops.GraphicsPrimitive;"
+  },
+  {
+    "name": "java.awt.AlphaComposite",
+    "fields": [
+      {
+        "name": "extraAlpha"
+      },
+      {
+        "name": "rule"
+      }
+    ]
+  },
+  {
+    "name": "java.awt.Color",
+    "methods": [
+      {
+        "name": "getRGB",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "java.awt.geom.AffineTransform",
+    "fields": [
+      {
+        "name": "m00"
+      },
+      {
+        "name": "m01"
+      },
+      {
+        "name": "m02"
+      },
+      {
+        "name": "m10"
+      },
+      {
+        "name": "m11"
+      },
+      {
+        "name": "m12"
+      }
+    ]
+  },
+  {
+    "name": "java.awt.geom.GeneralPath",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "int",
+          "byte[]",
+          "int",
+          "float[]",
+          "int"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "java.awt.geom.Path2D",
+    "fields": [
+      {
+        "name": "numTypes"
+      },
+      {
+        "name": "pointTypes"
+      },
+      {
+        "name": "windingRule"
+      }
+    ]
+  },
+  {
+    "name": "java.awt.geom.Path2D$Float",
+    "fields": [
+      {
+        "name": "floatCoords"
+      }
+    ]
+  },
+  {
+    "name": "java.awt.geom.Point2D$Float",
+    "fields": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      }
+    ],
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "float",
+          "float"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "java.awt.geom.Rectangle2D$Float",
+    "fields": [
+      {
+        "name": "height"
+      },
+      {
+        "name": "width"
+      },
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      }
+    ],
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "float",
+          "float",
+          "float",
+          "float"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "java.awt.image.BufferedImage",
+    "fields": [
+      {
+        "name": "colorModel"
+      },
+      {
+        "name": "imageType"
+      },
+      {
+        "name": "raster"
+      }
+    ],
+    "methods": [
+      {
+        "name": "getRGB",
+        "parameterTypes": [
+          "int",
+          "int",
+          "int",
+          "int",
+          "int[]",
+          "int",
+          "int"
+        ]
+      },
+      {
+        "name": "setRGB",
+        "parameterTypes": [
+          "int",
+          "int",
+          "int",
+          "int",
+          "int[]",
+          "int",
+          "int"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "java.awt.image.ColorModel",
+    "fields": [
+      {
+        "name": "colorSpace"
+      },
+      {
+        "name": "colorSpaceType"
+      },
+      {
+        "name": "isAlphaPremultiplied"
+      },
+      {
+        "name": "is_sRGB"
+      },
+      {
+        "name": "nBits"
+      },
+      {
+        "name": "numComponents"
+      },
+      {
+        "name": "supportsAlpha"
+      },
+      {
+        "name": "transparency"
+      }
+    ],
+    "methods": [
+      {
+        "name": "getRGBdefault",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "java.awt.image.IndexColorModel",
+    "fields": [
+      {
+        "name": "allgrayopaque"
+      },
+      {
+        "name": "colorData"
+      },
+      {
+        "name": "map_size"
+      },
+      {
+        "name": "rgb"
+      },
+      {
+        "name": "transparent_index"
+      }
+    ]
+  },
+  {
+    "name": "java.awt.image.Raster",
+    "fields": [
+      {
+        "name": "dataBuffer"
+      },
+      {
+        "name": "height"
+      },
+      {
+        "name": "minX"
+      },
+      {
+        "name": "minY"
+      },
+      {
+        "name": "numBands"
+      },
+      {
+        "name": "numDataElements"
+      },
+      {
+        "name": "sampleModel"
+      },
+      {
+        "name": "sampleModelTranslateX"
+      },
+      {
+        "name": "sampleModelTranslateY"
+      },
+      {
+        "name": "width"
+      }
+    ]
+  },
+  {
+    "name": "java.awt.image.SampleModel",
+    "fields": [
+      {
+        "name": "height"
+      },
+      {
+        "name": "width"
+      }
+    ],
+    "methods": [
+      {
+        "name": "getPixels",
+        "parameterTypes": [
+          "int",
+          "int",
+          "int",
+          "int",
+          "int[]",
+          "java.awt.image.DataBuffer"
+        ]
+      },
+      {
+        "name": "setPixels",
+        "parameterTypes": [
+          "int",
+          "int",
+          "int",
+          "int",
+          "int[]",
+          "java.awt.image.DataBuffer"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "java.awt.image.SinglePixelPackedSampleModel",
+    "fields": [
+      {
+        "name": "bitMasks"
+      },
+      {
+        "name": "bitOffsets"
+      },
+      {
+        "name": "bitSizes"
+      },
+      {
+        "name": "maxBitSize"
+      }
+    ]
+  },
+  {
+    "name": "java.lang.Boolean",
+    "methods": [
+      {
+        "name": "getBoolean",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "java.lang.String",
+    "methods": [
+      {
+        "name": "lastIndexOf",
+        "parameterTypes": [
+          "int"
+        ]
+      },
+      {
+        "name": "substring",
+        "parameterTypes": [
+          "int"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "java.lang.System",
+    "methods": [
+      {
+        "name": "getProperty",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      },
+      {
+        "name": "load",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      },
+      {
+        "name": "setProperty",
+        "parameterTypes": [
+          "java.lang.String",
+          "java.lang.String"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.springframework.boot.loader.launch.JarLauncher",
+    "methods": [
+      {
+        "name": "main",
+        "parameterTypes": [
+          "java.lang.String[]"
+        ]
+      }
+    ]
+  }
+]
