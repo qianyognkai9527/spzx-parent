@@ -124,6 +124,7 @@ native image 的确定性收益是**启动时间**（预计 4.4s → 1s 上下�
 
 ### 遗留
 
-- 二进制 256MB 未 strip（`strip` 后预计显著变小，未验证）；graalvm-jdk-21.0.12 已解压至 `~/Library/Java/JavaVirtualMachines/graalvm-jdk-21.0.12+7.1/`（下载包 /tmp/graalvm21.tar.gz）。
+- **内存口径说明（2026-10-23 补测）**：§8 表格的 RSS 是 `ps -o rss=` 口径（含 GC 已提交未用的页）。Activity Monitor 同口径的 **Physical footprint**（vmmap 实测）：native 空闲 **60MB**、登录+4 接口暖机后 **70MB**；JVM（-Xmx128m）同口径 340MB、峰值 371MB。「几十兆」的说法在 footprint 口径下成立；`ps rss` 偏大是因为串行 GC 不向 OS 归还已提交堆页，运行时加 `-Xmx128m --server.tomcat.threads.max=16 --spring.datasource.hikari.maximum-pool-size=5` 可把 ps 口径压到 ~160MB。二进制 256MB 的构成：机器码 146MB（`__text`，21.7 万方法全编译）+ image heap 119MB（`__svm_heap`），strip 无效（非调试符号）。
+- 二进制 256MB 未 strip（实测 strip 无效，见上）；graalvm-jdk-21.0.12 已解压至 `~/Library/Java/JavaVirtualMachines/graalvm-jdk-21.0.12+7.1/`（下载包 /tmp/graalvm21.tar.gz）。
 - native 运行需两个旗标（见上）；若做生产化，应把 SLF4J provider 与 webjars 处理固化进 profile/代码。
 - L2 只覆盖 4 个看板只读接口 + 登录链路；写接口、文件上传（MinIO 未起）、导出等未验证。
