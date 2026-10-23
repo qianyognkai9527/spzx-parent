@@ -2,6 +2,8 @@ package com.joker.spzx.manager.config;
 
 
 import com.baomidou.mybatisplus.annotation.DbType;
+import com.baomidou.mybatisplus.core.incrementer.DefaultIdentifierGenerator;
+import com.baomidou.mybatisplus.core.incrementer.IdentifierGenerator;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.OptimisticLockerInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
@@ -26,5 +28,15 @@ public class MybatisPlusConfig {
         paginationInnerInterceptor.setOptimizeJoin(true);
         interceptor.addInnerInterceptor(paginationInnerInterceptor); // 分页插件
         return interceptor;
+    }
+
+    /**
+     * 固定 workerId/datacenterId，绕开 MP 默认按 InetAddress 取主机信息的 5s 网络超时。
+     * 本机 hostname 不在 /etc/hosts，IdentifierGeneratorAutoConfiguration 每次启动经
+     * InetUtils.findFirstNonLoopbackAddress 卡 5.04s（2026-10-23 启动实测）。单机部署无冲突。
+     */
+    @Bean
+    public IdentifierGenerator identifierGenerator() {
+        return new DefaultIdentifierGenerator(1L, 1L);
     }
 }
